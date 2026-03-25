@@ -1,15 +1,20 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: API specification for DevContext
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: GitHub OAuth authentication
+  - name: github
+    description: GitHub repository and commit data
+  - name: ai
+    description: AI summary generation
 paths:
   /healthz:
     get:
@@ -24,6 +29,185 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/github:
+    get:
+      operationId: githubAuthRedirect
+      tags: [auth]
+      summary: Start GitHub OAuth flow
+      responses:
+        "302":
+          description: Redirect to GitHub OAuth
+
+  /auth/github/callback:
+    get:
+      operationId: githubAuthCallback
+      tags: [auth]
+      summary: GitHub OAuth callback
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: state
+          in: query
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Redirect after auth
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current authenticated user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GitHubUser"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Log out
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /github/repos:
+    get:
+      operationId: listRepos
+      tags: [github]
+      summary: List user repositories
+      responses:
+        "200":
+          description: List of repositories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Repository"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /github/repos/{owner}/{repo}/commits:
+    get:
+      operationId: listCommits
+      tags: [github]
+      summary: List recent commits for a repository
+      parameters:
+        - name: owner
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: repo
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: List of commits
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Commit"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /github/repos/{owner}/{repo}/commits/{sha}:
+    get:
+      operationId: getCommitDetail
+      tags: [github]
+      summary: Get commit details including files changed
+      parameters:
+        - name: owner
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: repo
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: sha
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Commit detail with files
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommitDetail"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /ai/summarize:
+    post:
+      operationId: summarizeCommits
+      tags: [ai]
+      summary: Generate AI summary of commit history
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SummarizeRequest"
+      responses:
+        "200":
+          description: AI-generated summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SummarizeResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +218,205 @@ components:
       required:
         - status
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+      required:
+        - success
+
+    GitHubUser:
+      type: object
+      properties:
+        id:
+          type: integer
+        login:
+          type: string
+        name:
+          type: string
+          nullable: true
+        avatar_url:
+          type: string
+        html_url:
+          type: string
+      required:
+        - id
+        - login
+        - avatar_url
+        - html_url
+
+    Repository:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        full_name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        private:
+          type: boolean
+        html_url:
+          type: string
+        updated_at:
+          type: string
+          nullable: true
+        language:
+          type: string
+          nullable: true
+        stargazers_count:
+          type: integer
+        default_branch:
+          type: string
+      required:
+        - id
+        - name
+        - full_name
+        - private
+        - html_url
+        - stargazers_count
+        - default_branch
+
+    Commit:
+      type: object
+      properties:
+        sha:
+          type: string
+        message:
+          type: string
+        author_name:
+          type: string
+        author_email:
+          type: string
+        author_date:
+          type: string
+        html_url:
+          type: string
+      required:
+        - sha
+        - message
+        - author_name
+        - author_email
+        - author_date
+        - html_url
+
+    CommitFile:
+      type: object
+      properties:
+        filename:
+          type: string
+        status:
+          type: string
+        additions:
+          type: integer
+        deletions:
+          type: integer
+        changes:
+          type: integer
+      required:
+        - filename
+        - status
+        - additions
+        - deletions
+        - changes
+
+    CommitDetail:
+      type: object
+      properties:
+        sha:
+          type: string
+        message:
+          type: string
+        author_name:
+          type: string
+        author_date:
+          type: string
+        html_url:
+          type: string
+        files:
+          type: array
+          items:
+            $ref: "#/components/schemas/CommitFile"
+        stats:
+          type: object
+          properties:
+            additions:
+              type: integer
+            deletions:
+              type: integer
+            total:
+              type: integer
+          required:
+            - additions
+            - deletions
+            - total
+      required:
+        - sha
+        - message
+        - author_name
+        - author_date
+        - html_url
+        - files
+        - stats
+
+    SummarizeRequest:
+      type: object
+      properties:
+        repo_name:
+          type: string
+        commits:
+          type: array
+          items:
+            type: object
+            properties:
+              sha:
+                type: string
+              message:
+                type: string
+              author_date:
+                type: string
+              files:
+                type: array
+                items:
+                  type: string
+            required:
+              - sha
+              - message
+              - author_date
+              - files
+      required:
+        - repo_name
+        - commits
+
+    SummarizeResponse:
+      type: object
+      properties:
+        what_you_were_doing:
+          type: string
+        key_changes:
+          type: array
+          items:
+            type: string
+        suggested_next_steps:
+          type: array
+          items:
+            type: string
+        generated_at:
+          type: string
+      required:
+        - what_you_were_doing
+        - key_changes
+        - suggested_next_steps
+        - generated_at

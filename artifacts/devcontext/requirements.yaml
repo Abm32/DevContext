@@ -1,0 +1,18 @@
+packages:
+  "framer-motion": "Smooth entry animations and micro-interactions for a premium feel"
+  "date-fns": "Human-readable relative date formatting for commit times"
+  "clsx": "Utility for constructing className strings conditionally"
+  "tailwind-merge": "Utility to safely merge Tailwind CSS classes"
+  "lucide-react": "Beautiful, consistent icons for developer UI"
+
+images:
+  - path: "artifacts/devcontext/public/images/hero-bg.png"
+    description: "Abstract dark mode geometric mesh with subtle glowing neon electric blue and purple lines, developer matrix style, deep black background, highly professional and minimal"
+    aspect_ratio: "16:9"
+  - path: "artifacts/devcontext/public/images/logo.png"
+    description: "Minimalist geometric logo mark representing code commits connecting to an AI brain node, clean sharp edges, glowing electric blue on a pure transparent background"
+    aspect_ratio: "1:1"
+
+notes:
+  - GitHub OAuth handles authentication. API handles redirect natively.
+  - Generating summary requires fetching commit details sequentially/parallel before submitting to the AI endpoint.

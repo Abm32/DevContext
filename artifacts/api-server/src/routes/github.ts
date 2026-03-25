@@ -1,0 +1,228 @@
+import { Router, type IRouter, type Request, type Response } from "express";
+import {
+  ListReposResponse,
+  ListCommitsResponse,
+  GetCommitDetailResponse,
+} from "@workspace/api-zod";
+
+const router: IRouter = Router();
+
+function getToken(req: Request): string | null {
+  return req.session?.githubToken ?? null;
+}
+
+function requireAuth(req: Request, res: Response): string | null {
+  const token = getToken(req);
+  if (!token) {
+    res.status(401).json({ error: "Not authenticated" });
+    return null;
+  }
+  return token;
+}
+
+async function githubFetch(
+  url: string,
+  token: string
+): Promise<Response | null> {
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+    },
+  });
+  return res as unknown as Response;
+}
+
+router.get("/repos", async (req, res) => {
+  const token = requireAuth(req, res as unknown as Response);
+  if (!token) return;
+
+  try {
+    const response = await fetch(
+      "https://api.github.com/user/repos?sort=updated&per_page=50&type=owner",
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/vnd.github+json",
+          "X-GitHub-Api-Version": "2022-11-28",
+        },
+      }
+    );
+
+    if (!response.ok) {
+      req.log.error({ status: response.status }, "GitHub API error listing repos");
+      res.status(response.status).json({ error: "GitHub API error" });
+      return;
+    }
+
+    const repos = (await response.json()) as Array<{
+      id: number;
+      name: string;
+      full_name: string;
+      description: string | null;
+      private: boolean;
+      html_url: string;
+      updated_at: string | null;
+      language: string | null;
+      stargazers_count: number;
+      default_branch: string;
+    }>;
+
+    const data = ListReposResponse.parse(
+      repos.map((r) => ({
+        id: r.id,
+        name: r.name,
+        full_name: r.full_name,
+        description: r.description,
+        private: r.private,
+        html_url: r.html_url,
+        updated_at: r.updated_at,
+        language: r.language,
+        stargazers_count: r.stargazers_count,
+        default_branch: r.default_branch,
+      }))
+    );
+
+    res.json(data);
+  } catch (err) {
+    req.log.error({ err }, "Error fetching repos");
+    res.status(500).json({ error: "Failed to fetch repositories" });
+  }
+});
+
+router.get("/repos/:owner/:repo/commits", async (req, res) => {
+  const token = requireAuth(req, res as unknown as Response);
+  if (!token) return;
+
+  const { owner, repo } = req.params;
+  const perPage = Number(req.query["per_page"] ?? 10);
+
+  try {
+    const response = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/commits?per_page=${perPage}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/vnd.github+json",
+          "X-GitHub-Api-Version": "2022-11-28",
+        },
+      }
+    );
+
+    if (!response.ok) {
+      req.log.error(
+        { status: response.status, owner, repo },
+        "GitHub API error listing commits"
+      );
+      res.status(response.status).json({ error: "GitHub API error" });
+      return;
+    }
+
+    const commits = (await response.json()) as Array<{
+      sha: string;
+      commit: {
+        message: string;
+        author: {
+          name: string;
+          email: string;
+          date: string;
+        };
+      };
+      html_url: string;
+    }>;
+
+    const data = ListCommitsResponse.parse(
+      commits.map((c) => ({
+        sha: c.sha,
+        message: c.commit.message.split("\n")[0] ?? c.commit.message,
+        author_name: c.commit.author?.name ?? "Unknown",
+        author_email: c.commit.author?.email ?? "",
+        author_date: c.commit.author?.date ?? "",
+        html_url: c.html_url,
+      }))
+    );
+
+    res.json(data);
+  } catch (err) {
+    req.log.error({ err }, "Error fetching commits");
+    res.status(500).json({ error: "Failed to fetch commits" });
+  }
+});
+
+router.get("/repos/:owner/:repo/commits/:sha", async (req, res) => {
+  const token = requireAuth(req, res as unknown as Response);
+  if (!token) return;
+
+  const { owner, repo, sha } = req.params;
+
+  try {
+    const response = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/commits/${sha}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/vnd.github+json",
+          "X-GitHub-Api-Version": "2022-11-28",
+        },
+      }
+    );
+
+    if (!response.ok) {
+      req.log.error(
+        { status: response.status, owner, repo, sha },
+        "GitHub API error getting commit detail"
+      );
+      res.status(response.status).json({ error: "GitHub API error" });
+      return;
+    }
+
+    const commit = (await response.json()) as {
+      sha: string;
+      commit: {
+        message: string;
+        author: {
+          name: string;
+          date: string;
+        };
+      };
+      html_url: string;
+      files: Array<{
+        filename: string;
+        status: string;
+        additions: number;
+        deletions: number;
+        changes: number;
+      }>;
+      stats: {
+        additions: number;
+        deletions: number;
+        total: number;
+      };
+    };
+
+    const data = GetCommitDetailResponse.parse({
+      sha: commit.sha,
+      message: commit.commit.message,
+      author_name: commit.commit.author?.name ?? "Unknown",
+      author_date: commit.commit.author?.date ?? "",
+      html_url: commit.html_url,
+      files: (commit.files ?? []).map((f) => ({
+        filename: f.filename,
+        status: f.status,
+        additions: f.additions,
+        deletions: f.deletions,
+        changes: f.changes,
+      })),
+      stats: commit.stats ?? { additions: 0, deletions: 0, total: 0 },
+    });
+
+    res.json(data);
+  } catch (err) {
+    req.log.error({ err }, "Error fetching commit detail");
+    res.status(500).json({ error: "Failed to fetch commit detail" });
+  }
+});
+
+export { githubFetch };
+export default router;

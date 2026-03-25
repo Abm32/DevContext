@@ -41,11 +41,11 @@ export default function Dashboard() {
   // Extract owner from selected repo full_name
   const owner = selectedRepo?.full_name.split('/')[0] || ""
   
-  const { data: commits, isLoading: isCommitsLoading } = useListCommits(
+  const { data: commits, isLoading: isCommitsLoading, isError: isCommitsError } = useListCommits(
     owner,
     selectedRepo?.name || "",
-    { per_page: 10 },
-    { query: { enabled: !!selectedRepo } }
+    { per_page: 15 },
+    { query: { enabled: !!selectedRepo, retry: 1 } }
   )
 
   const { generate, isGenerating, progress, result } = useGenerateSummary()
@@ -154,7 +154,14 @@ export default function Dashboard() {
                     </div>
                   ))}
                 </div>
-              ) : commits?.length === 0 ? (
+              ) : isCommitsError ? (
+                <div className="h-full flex items-center justify-center border border-dashed border-red-500/20 rounded-xl bg-red-500/5 p-8 text-center">
+                  <div>
+                    <p className="text-sm font-medium text-red-400 mb-1">Could not load commits</p>
+                    <p className="text-xs text-muted-foreground">Check your permissions for this repository</p>
+                  </div>
+                </div>
+              ) : !commits || commits.length === 0 ? (
                 <div className="h-full flex items-center justify-center border border-dashed border-white/10 rounded-xl bg-secondary/20 p-8 text-center">
                   <p className="text-sm text-muted-foreground">No commits found in this repository.</p>
                 </div>

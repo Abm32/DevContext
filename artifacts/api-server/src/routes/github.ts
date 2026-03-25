@@ -37,7 +37,7 @@ router.get("/repos", async (req, res) => {
 
   try {
     const response = await fetch(
-      "https://api.github.com/user/repos?sort=updated&per_page=50&type=owner",
+      "https://api.github.com/user/repos?sort=updated&per_page=100&type=all",
       {
         headers: {
           Authorization: `Bearer ${token}`,

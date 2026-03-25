@@ -13,16 +13,19 @@ export function useGenerateSummary() {
   const generate = async (owner: string, repoName: string, commits: Commit[]) => {
     if (!commits.length) return;
     setIsGenerating(true);
-    setProgress(0);
+    setProgress(10);
     
     try {
-      // Fetch details sequentially to show progress (and avoid rate limits)
-      const details = [];
-      for (let i = 0; i < commits.length; i++) {
-        const detail = await getCommitDetail(owner, repoName, commits[i].sha);
-        details.push(detail);
-        setProgress(Math.round(((i + 1) / commits.length) * 50)); // First 50% is fetching details
-      }
+      // Fetch all commit details in parallel — much faster than sequential
+      let completed = 0;
+      const details = await Promise.all(
+        commits.map(async (commit) => {
+          const detail = await getCommitDetail(owner, repoName, commit.sha);
+          completed++;
+          setProgress(10 + Math.round((completed / commits.length) * 60));
+          return detail;
+        })
+      );
 
       const payload = {
         repo_name: repoName,
@@ -34,7 +37,7 @@ export function useGenerateSummary() {
         }))
       };
 
-      setProgress(75); // 75% indicates sending to AI
+      setProgress(80);
       
       const response = await mutation.mutateAsync({ data: payload });
       setProgress(100);

@@ -1,11 +1,13 @@
 import express, { type Express } from "express";
 import cors from "cors";
-import session from "express-session";
+import cookieParser from "cookie-parser";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
 
 const app: Express = express();
+
+app.set("trust proxy", 1);
 
 app.use(
   pinoHttp({
@@ -34,21 +36,7 @@ app.use(
   })
 );
 
-const SESSION_SECRET = process.env["SESSION_SECRET"] ?? "devcontext-fallback-secret-change-in-prod";
-
-app.use(
-  session({
-    secret: SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      secure: process.env["NODE_ENV"] === "production",
-      httpOnly: true,
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    },
-  })
-);
-
+app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

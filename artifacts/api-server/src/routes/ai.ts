@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { SummarizeCommitsBody, SummarizeCommitsResponse } from "@workspace/api-zod";
 import OpenAI from "openai";
+import { getTokenPayload } from "./auth";
 
 const router: IRouter = Router();
 
@@ -47,7 +48,7 @@ function generateMockSummary(repoName: string, commits: Array<{ message: string;
 }
 
 router.post("/summarize", async (req, res) => {
-  if (!req.session?.githubUser) {
+  if (!getTokenPayload(req)) {
     res.status(401).json({ error: "Not authenticated" });
     return;
   }

@@ -4,20 +4,17 @@ import {
   ListCommitsResponse,
   GetCommitDetailResponse,
 } from "@workspace/api-zod";
+import { getTokenPayload } from "./auth";
 
 const router: IRouter = Router();
 
-function getToken(req: Request): string | null {
-  return req.session?.githubToken ?? null;
-}
-
 function requireAuth(req: Request, res: Response): string | null {
-  const token = getToken(req);
-  if (!token) {
+  const payload = getTokenPayload(req);
+  if (!payload) {
     res.status(401).json({ error: "Not authenticated" });
     return null;
   }
-  return token;
+  return payload.githubToken;
 }
 
 async function githubFetch(

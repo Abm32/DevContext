@@ -1,30 +1,54 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request, type Response } from "express";
+import jwt from "jsonwebtoken";
 import { GetMeResponse, LogoutResponse } from "@workspace/api-zod";
 
 const router: IRouter = Router();
 
 const GITHUB_CLIENT_ID = process.env["GITHUB_CLIENT_ID"] ?? "";
 const GITHUB_CLIENT_SECRET = process.env["GITHUB_CLIENT_SECRET"] ?? "";
+const JWT_SECRET = process.env["JWT_SECRET"] ?? "devcontext-jwt-secret-change-in-prod";
+const COOKIE_NAME = "dc_token";
+const COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
-function getBaseUrl(req: import("express").Request): string {
-  // Use env var if set, otherwise derive from the request host
+interface GitHubUser {
+  id: number;
+  login: string;
+  name: string | null;
+  avatar_url: string;
+  html_url: string;
+}
+
+interface TokenPayload {
+  githubToken: string;
+  githubUser: GitHubUser;
+}
+
+function getBaseUrl(req: Request): string {
   if (process.env["APP_BASE_URL"]) return process.env["APP_BASE_URL"];
   const proto = req.headers["x-forwarded-proto"] ?? "https";
   const host = req.headers["x-forwarded-host"] ?? req.headers["host"] ?? "localhost";
   return `${proto}://${host}`;
 }
 
-declare module "express-session" {
-  interface SessionData {
-    githubToken?: string;
-    githubUser?: {
-      id: number;
-      login: string;
-      name: string | null;
-      avatar_url: string;
-      html_url: string;
-    };
+export function getTokenPayload(req: Request): TokenPayload | null {
+  const token = req.cookies?.[COOKIE_NAME];
+  if (!token) return null;
+  try {
+    return jwt.verify(token, JWT_SECRET) as TokenPayload;
+  } catch {
+    return null;
   }
+}
+
+function setAuthCookie(res: Response, payload: TokenPayload): void {
+  const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" });
+  res.cookie(COOKIE_NAME, token, {
+    httpOnly: true,
+    secure: process.env["NODE_ENV"] === "production",
+    sameSite: "lax",
+    maxAge: COOKIE_MAX_AGE_MS,
+    path: "/",
+  });
 }
 
 router.get("/github", (req, res) => {
@@ -33,12 +57,10 @@ router.get("/github", (req, res) => {
     return;
   }
   const baseUrl = getBaseUrl(req);
-  const state = Math.random().toString(36).substring(2);
   const params = new URLSearchParams({
     client_id: GITHUB_CLIENT_ID,
     redirect_uri: `${baseUrl}/api/auth/github/callback`,
     scope: "read:user repo",
-    state,
   });
   res.redirect(`https://github.com/login/oauth/authorize?${params}`);
 });
@@ -84,26 +106,21 @@ router.get("/github/callback", async (req, res) => {
       },
     });
 
-    const userData = (await userRes.json()) as {
-      id: number;
-      login: string;
-      name: string | null;
-      avatar_url: string;
-      html_url: string;
+    const userData = (await userRes.json()) as GitHubUser;
+
+    const payload: TokenPayload = {
+      githubToken: tokenData.access_token,
+      githubUser: {
+        id: userData.id,
+        login: userData.login,
+        name: userData.name,
+        avatar_url: userData.avatar_url,
+        html_url: userData.html_url,
+      },
     };
 
-    req.session.githubToken = tokenData.access_token;
-    req.session.githubUser = {
-      id: userData.id,
-      login: userData.login,
-      name: userData.name,
-      avatar_url: userData.avatar_url,
-      html_url: userData.html_url,
-    };
-
-    req.session.save(() => {
-      res.redirect("/dashboard");
-    });
+    setAuthCookie(res, payload);
+    res.redirect("/dashboard");
   } catch (err) {
     req.log.error({ err }, "GitHub OAuth error");
     res.redirect("/?error=server_error");
@@ -111,19 +128,19 @@ router.get("/github/callback", async (req, res) => {
 });
 
 router.get("/me", (req, res) => {
-  if (!req.session.githubUser) {
+  const payload = getTokenPayload(req);
+  if (!payload) {
     res.status(401).json({ error: "Not authenticated" });
     return;
   }
-  const data = GetMeResponse.parse(req.session.githubUser);
+  const data = GetMeResponse.parse(payload.githubUser);
   res.json(data);
 });
 
-router.post("/logout", (req, res) => {
-  req.session.destroy(() => {
-    const data = LogoutResponse.parse({ success: true });
-    res.json(data);
-  });
+router.post("/logout", (_req, res) => {
+  res.clearCookie(COOKIE_NAME, { path: "/" });
+  const data = LogoutResponse.parse({ success: true });
+  res.json(data);
 });
 
 export default router;

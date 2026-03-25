@@ -5,7 +5,14 @@ const router: IRouter = Router();
 
 const GITHUB_CLIENT_ID = process.env["GITHUB_CLIENT_ID"] ?? "";
 const GITHUB_CLIENT_SECRET = process.env["GITHUB_CLIENT_SECRET"] ?? "";
-const APP_BASE_URL = process.env["APP_BASE_URL"] ?? "http://localhost:80";
+
+function getBaseUrl(req: import("express").Request): string {
+  // Use env var if set, otherwise derive from the request host
+  if (process.env["APP_BASE_URL"]) return process.env["APP_BASE_URL"];
+  const proto = req.headers["x-forwarded-proto"] ?? "https";
+  const host = req.headers["x-forwarded-host"] ?? req.headers["host"] ?? "localhost";
+  return `${proto}://${host}`;
+}
 
 declare module "express-session" {
   interface SessionData {
@@ -20,15 +27,16 @@ declare module "express-session" {
   }
 }
 
-router.get("/github", (_req, res) => {
+router.get("/github", (req, res) => {
   if (!GITHUB_CLIENT_ID) {
     res.redirect("/?error=missing_client_id");
     return;
   }
+  const baseUrl = getBaseUrl(req);
   const state = Math.random().toString(36).substring(2);
   const params = new URLSearchParams({
     client_id: GITHUB_CLIENT_ID,
-    redirect_uri: `${APP_BASE_URL}/api/auth/github/callback`,
+    redirect_uri: `${baseUrl}/api/auth/github/callback`,
     scope: "read:user repo",
     state,
   });
@@ -54,7 +62,7 @@ router.get("/github/callback", async (req, res) => {
         client_id: GITHUB_CLIENT_ID,
         client_secret: GITHUB_CLIENT_SECRET,
         code,
-        redirect_uri: `${APP_BASE_URL}/api/auth/github/callback`,
+        redirect_uri: `${getBaseUrl(req)}/api/auth/github/callback`,
       }),
     });
 

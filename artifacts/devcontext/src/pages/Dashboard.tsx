@@ -155,10 +155,18 @@ export default function Dashboard() {
                   ))}
                 </div>
               ) : isCommitsError ? (
-                <div className="h-full flex items-center justify-center border border-dashed border-red-500/20 rounded-xl bg-red-500/5 p-8 text-center">
-                  <div>
-                    <p className="text-sm font-medium text-red-400 mb-1">Could not load commits</p>
-                    <p className="text-xs text-muted-foreground">Check your permissions for this repository</p>
+                <div className="h-full flex items-center justify-center border border-dashed border-red-500/20 rounded-xl bg-red-500/5 p-6 text-center">
+                  <div className="space-y-3">
+                    <p className="text-sm font-medium text-red-400">Cannot access commits</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed max-w-[220px]">
+                      This is likely a private org repo. Reconnect GitHub and approve access for your organization.
+                    </p>
+                    <button
+                      onClick={() => { window.location.href = "/api/auth/github" }}
+                      className="mt-1 text-xs font-medium text-primary underline underline-offset-2 hover:text-primary/80 transition-colors"
+                    >
+                      Reconnect GitHub →
+                    </button>
                   </div>
                 </div>
               ) : !commits || commits.length === 0 ? (

@@ -107,12 +107,25 @@ router.get("/repos/:owner/:repo/commits", async (req, res) => {
       }
     );
 
+    // 409 = empty repo (no commits yet) — treat as empty list, not an error
+    if (response.status === 409) {
+      res.json([]);
+      return;
+    }
+
     if (!response.ok) {
+      const ghError = await response.json().catch(() => ({})) as { message?: string };
       req.log.error(
-        { status: response.status, owner, repo },
+        { status: response.status, owner, repo, ghMessage: ghError.message },
         "GitHub API error listing commits"
       );
-      res.status(response.status).json({ error: "GitHub API error" });
+      const isPrivateOrgRepo = response.status === 404 || response.status === 403;
+      res.status(response.status).json({
+        error: isPrivateOrgRepo
+          ? "private_repo_access_denied"
+          : "github_api_error",
+        message: ghError.message ?? "GitHub API error",
+      });
       return;
     }
 

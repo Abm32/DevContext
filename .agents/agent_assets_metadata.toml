@@ -1,5 +1,4 @@
 uploads = []
-outputs = []
 
 [[generated]]
 id = "xzFyLhEMZFpBvP7mC34U5"
@@ -12,3 +11,15 @@ id = "RAP970opAQQwF0wOHm-zM"
 uri = "file://artifacts/pitch-deck/public/problem.png"
 type = "image"
 title = "developer confused at desk"
+
+[[outputs]]
+id = "qRl6h6Br2MgBDvUIj_dYw"
+uri = "file://.local/outputs/Code-Brain-Resume.pdf"
+type = "pdf"
+title = "Code Brain Resume.pdf"
+
+[[outputs]]
+id = "jgT98CAM8Tl-EZw3cqbt9"
+uri = "file://.local/outputs/Code-Brain-Resume.pptx"
+type = "slides"
+title = "Code Brain Resume.pptx"

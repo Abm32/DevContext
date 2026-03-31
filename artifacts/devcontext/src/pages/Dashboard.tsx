@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useLocation } from "wouter"
 import { motion, AnimatePresence } from "framer-motion"
 import { formatRelativeDate, getShortSha } from "@/lib/utils"
+import { computeCommitStats } from "@/lib/commit-stats"
 import { 
   useGetMe, 
   useListRepos, 
@@ -36,6 +37,7 @@ import {
   ClipboardList,
   Plus,
   Minus,
+  Heart,
 } from "lucide-react"
 
 // ─── CommitCard ─────────────────────────────────────────────────────────────
@@ -180,6 +182,11 @@ export default function Dashboard() {
 
   const { generate, isGenerating, progress, result } = useGenerateSummary()
 
+  const commitStats = useMemo(() => {
+    if (!commits || commits.length === 0) return null
+    return computeCommitStats(commits)
+  }, [commits])
+
   useEffect(() => {
     if (isError) setLocation("/")
   }, [isError, setLocation])
@@ -312,6 +319,34 @@ export default function Dashboard() {
                     ))}
                   </select>
                 )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Stats Strip */}
+          <AnimatePresence>
+            {commitStats && (
+              <motion.div
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="flex flex-wrap gap-2"
+              >
+                {[
+                  { label: "commits", value: String(commitStats.totalCommits), icon: "⎇" },
+                  { label: "active days", value: String(commitStats.activeDays), icon: "📅" },
+                  ...(commitStats.dateSpan ? [{ label: "span", value: commitStats.dateSpan, icon: "🗓️" }] : []),
+                  ...(commitStats.streak > 1 ? [{ label: "streak", value: `🔥 ${commitStats.streak}d`, icon: "" }] : []),
+                ].map((s) => (
+                  <div
+                    key={s.label}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-secondary/40 border border-white/8 text-[11px] text-muted-foreground"
+                  >
+                    {s.icon && <span className="text-[11px]">{s.icon}</span>}
+                    <span className="font-semibold text-white">{s.value}</span>
+                    <span>{s.label}</span>
+                  </div>
+                ))}
               </motion.div>
             )}
           </AnimatePresence>
@@ -558,6 +593,34 @@ export default function Dashboard() {
               </div>
             )}
           </div>
+
+          {/* Dev Health Card */}
+          <AnimatePresence>
+            {commitStats && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="border-t border-white/5 px-5 py-4 bg-white/[0.015] flex flex-col gap-3"
+              >
+                <div className="flex items-center gap-2">
+                  <Heart className="w-3.5 h-3.5 text-rose-400" />
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Dev Health</span>
+                </div>
+                <div className="flex flex-col gap-2">
+                  {commitStats.flags.map((flag) => (
+                    <div key={flag.type} className="flex items-start gap-3">
+                      <span className="text-base leading-none mt-0.5">{flag.emoji}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-white/80">{flag.message}</p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">{flag.tip}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </main>
     </div>

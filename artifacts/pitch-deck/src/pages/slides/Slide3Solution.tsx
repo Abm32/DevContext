@@ -1,57 +1,60 @@
 export default function Slide3Solution() {
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-[#080812]">
-      <div className="absolute inset-0 opacity-20" style={{background: "radial-gradient(ellipse 80% 60% at 50% 50%, #6366f1 0%, transparent 70%)"}} />
+      <div className="absolute inset-0 opacity-20" style={{background: "radial-gradient(ellipse 80% 60% at 50% 30%, #6366f1 0%, transparent 70%)"}} />
 
-      <div className="relative h-full flex flex-col items-center justify-center text-center px-[10vw]">
-        <div className="font-body text-[1.2vw] font-medium tracking-[0.2em] uppercase text-[#10b981] mb-[3vh]">
+      <div className="relative h-full flex flex-col items-center justify-center text-center px-[8vw]">
+        <div className="font-body text-[1.1vw] font-medium tracking-[0.2em] uppercase text-[#10b981] mb-[2vh]">
           The Solution
         </div>
 
-        <h2 className="font-display text-[5.5vw] font-bold tracking-tighter text-white leading-[0.95] mb-[2vh]">
+        <h2 className="font-display text-[5vw] font-bold tracking-tighter text-white leading-[0.95] mb-[1.5vh]">
           DevContext
         </h2>
 
-        <p className="font-body text-[2.2vw] text-white/50 font-medium mb-[6vh] max-w-[55vw] leading-snug">
+        <p className="font-body text-[1.9vw] text-white/50 font-medium mb-[4vh] max-w-[52vw] leading-snug">
           Connect GitHub. Pick a repo. Get an instant AI-powered summary of exactly what you were building — and what to do next.
         </p>
 
-        <div className="flex items-center gap-[3vw]">
-          <div className="text-center">
-            <div className="w-[10vw] h-[10vw] rounded-[1.5vw] border border-[#6366f1]/30 bg-[#6366f1]/10 flex items-center justify-center mx-auto mb-[1.5vh]">
-              <svg viewBox="0 0 24 24" className="w-[4vw] h-[4vw] text-[#6366f1]" fill="currentColor">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/>
-              </svg>
+        {/* 3-step flow */}
+        <div className="flex items-center gap-[2.5vw] mb-[4vh]">
+          {[
+            { num: "01", label: "Connect", sub: "GitHub OAuth", color: "#6366f1" },
+            { num: "02", label: "Select", sub: "Repo + Branch", color: "#6366f1" },
+            { num: "03", label: "Resume", sub: "AI summary", color: "#10b981" },
+          ].map((step, i) => (
+            <div key={i} className="flex items-center gap-[2vw]">
+              <div className="text-center">
+                <div
+                  className="w-[8.5vw] h-[8.5vw] rounded-[1.2vw] flex items-center justify-center mx-auto mb-[1vh]"
+                  style={{ border: `1px solid ${step.color}30`, background: `${step.color}12` }}
+                >
+                  <span className="font-display text-[2.8vw] font-bold" style={{ color: step.color }}>{step.num}</span>
+                </div>
+                <p className="font-display text-[1.3vw] font-semibold text-white">{step.label}</p>
+                <p className="font-body text-[1.1vw] text-white/45">{step.sub}</p>
+              </div>
+              {i < 2 && <div className="text-[1.8vw] text-[#6366f1]/30 font-light">—</div>}
             </div>
-            <p className="font-display text-[1.4vw] font-semibold text-white">Connect</p>
-            <p className="font-body text-[1.2vw] text-white/45">GitHub OAuth</p>
-          </div>
+          ))}
+        </div>
 
-          <div className="text-[2vw] text-[#6366f1]/40 font-light">—</div>
-
-          <div className="text-center">
-            <div className="w-[10vw] h-[10vw] rounded-[1.5vw] border border-[#6366f1]/30 bg-[#6366f1]/10 flex items-center justify-center mx-auto mb-[1.5vh]">
-              <svg viewBox="0 0 24 24" className="w-[4vw] h-[4vw] text-[#6366f1]" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M3 7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4z"/>
-                <path d="M8 12h8M8 8h5M8 16h3"/>
-              </svg>
+        {/* Feature pills */}
+        <div className="flex flex-wrap items-center justify-center gap-[1vw]">
+          {[
+            { icon: "⎇", label: "Branch selector" },
+            { icon: "📋", label: "Standup generator" },
+            { icon: "🔍", label: "File diff explorer" },
+            { icon: "⎘", label: "Copy as Markdown" },
+          ].map((f, i) => (
+            <div
+              key={i}
+              className="flex items-center gap-[0.6vw] px-[1.4vw] py-[0.7vh] rounded-full border border-white/10 bg-white/[0.04]"
+            >
+              <span className="text-[1.2vw]">{f.icon}</span>
+              <span className="font-body text-[1.1vw] text-white/70 font-medium">{f.label}</span>
             </div>
-            <p className="font-display text-[1.4vw] font-semibold text-white">Select</p>
-            <p className="font-body text-[1.2vw] text-white/45">Any repository</p>
-          </div>
-
-          <div className="text-[2vw] text-[#6366f1]/40 font-light">—</div>
-
-          <div className="text-center">
-            <div className="w-[10vw] h-[10vw] rounded-[1.5vw] border border-[#10b981]/30 bg-[#10b981]/10 flex items-center justify-center mx-auto mb-[1.5vh]">
-              <svg viewBox="0 0 24 24" className="w-[4vw] h-[4vw] text-[#10b981]" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="3"/>
-                <path d="M12 2v3M12 19v3M2 12h3M19 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/>
-              </svg>
-            </div>
-            <p className="font-display text-[1.4vw] font-semibold text-white">Resume</p>
-            <p className="font-body text-[1.2vw] text-white/45">AI context summary</p>
-          </div>
+          ))}
         </div>
       </div>
     </div>

@@ -96,28 +96,24 @@ export function computeCommitStats(commits: Array<{ author_date: string }>): Com
   }
 
   // ── Streak: consecutive days ending at the most recent commit ────────────
-  let streak = 0
+  // Computed regardless of how old the latest commit is.
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const daysSinceLatest = differenceInCalendarDays(today, latest)
   const sortedUniqueDates = [...uniqueDateStrings].sort().reverse()
 
-  if (daysSinceLatest <= 1) {
-    let expected = new Date(latest)
-    expected.setHours(0, 0, 0, 0)
-    if (daysSinceLatest === 1) {
-      expected = new Date(today)
-      expected.setDate(today.getDate() - 1)
-    }
-    for (const ds of sortedUniqueDates) {
-      const d = parseISO(ds)
-      d.setHours(0, 0, 0, 0)
-      if (differenceInCalendarDays(expected, d) === 0) {
-        streak++
-        expected.setDate(expected.getDate() - 1)
-      } else {
-        break
-      }
+  let streak = 0
+  let expected = new Date(latest)
+  expected.setHours(0, 0, 0, 0)
+  for (const ds of sortedUniqueDates) {
+    const d = parseISO(ds)
+    d.setHours(0, 0, 0, 0)
+    if (differenceInCalendarDays(expected, d) === 0) {
+      streak++
+      expected = new Date(d)
+      expected.setDate(d.getDate() - 1)
+    } else {
+      break
     }
   }
 

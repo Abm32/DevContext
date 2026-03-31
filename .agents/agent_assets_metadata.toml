@@ -1,0 +1,14 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "xzFyLhEMZFpBvP7mC34U5"
+uri = "file://artifacts/pitch-deck/public/hero.png"
+type = "image"
+title = "devcontext hero brain"
+
+[[generated]]
+id = "RAP970opAQQwF0wOHm-zM"
+uri = "file://artifacts/pitch-deck/public/problem.png"
+type = "image"
+title = "developer confused at desk"

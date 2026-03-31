@@ -1,0 +1,58 @@
+[
+  {
+    "id": "dc-slide-01-title",
+    "position": 1,
+    "filepath": "src/pages/slides/Slide1Title.tsx",
+    "title": "Resume Your Code Brain",
+    "description": "Hero title slide with DevContext brand and tagline.",
+    "speakerNotes": ""
+  },
+  {
+    "id": "dc-slide-02-problem",
+    "position": 2,
+    "filepath": "src/pages/slides/Slide2Problem.tsx",
+    "title": "The Problem",
+    "description": "The Monday Morning Wall — developer context loss pain point.",
+    "speakerNotes": ""
+  },
+  {
+    "id": "dc-slide-03-solution",
+    "position": 3,
+    "filepath": "src/pages/slides/Slide3Solution.tsx",
+    "title": "The Solution",
+    "description": "DevContext 3-step flow: Connect, Select, Resume.",
+    "speakerNotes": ""
+  },
+  {
+    "id": "dc-slide-04-how",
+    "position": 4,
+    "filepath": "src/pages/slides/Slide4HowItWorks.tsx",
+    "title": "How It Works",
+    "description": "Technical architecture — GitHub API, AI synthesis, 4-step flow.",
+    "speakerNotes": ""
+  },
+  {
+    "id": "dc-slide-05-stat",
+    "position": 5,
+    "filepath": "src/pages/slides/Slide5Stat.tsx",
+    "title": "23 Minutes",
+    "description": "Big stat slide — cost of context switching (UC Irvine research).",
+    "speakerNotes": ""
+  },
+  {
+    "id": "dc-slide-06-stack",
+    "position": 6,
+    "filepath": "src/pages/slides/Slide6TechStack.tsx",
+    "title": "Stack + Architecture",
+    "description": "Tech stack: GitHub REST API, OpenAI via Replit, React + Express.",
+    "speakerNotes": ""
+  },
+  {
+    "id": "dc-slide-07-closing",
+    "position": 7,
+    "filepath": "src/pages/slides/Slide7Closing.tsx",
+    "title": "Try It Now",
+    "description": "Closing slide with live demo URL and open source call to action.",
+    "speakerNotes": ""
+  }
+]

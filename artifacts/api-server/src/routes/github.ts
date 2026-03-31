@@ -1,6 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import {
   ListReposResponse,
+  ListBranchesResponse,
   ListCommitsResponse,
   GetCommitDetailResponse,
 } from "@workspace/api-zod";
@@ -88,16 +89,84 @@ router.get("/repos", async (req, res) => {
   }
 });
 
+router.get("/repos/:owner/:repo/branches", async (req, res) => {
+  const token = requireAuth(req, res as unknown as Response);
+  if (!token) return;
+
+  const { owner, repo } = req.params;
+
+  try {
+    const response = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/branches?per_page=100`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/vnd.github+json",
+          "X-GitHub-Api-Version": "2022-11-28",
+        },
+      }
+    );
+
+    if (response.status === 409) {
+      res.json([]);
+      return;
+    }
+
+    if (!response.ok) {
+      res.status(response.status).json({ error: "GitHub API error" });
+      return;
+    }
+
+    const branches = (await response.json()) as Array<{
+      name: string;
+      commit: { sha: string };
+    }>;
+
+    // We need to know the default branch - fetch from repo info
+    const repoResponse = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/vnd.github+json",
+          "X-GitHub-Api-Version": "2022-11-28",
+        },
+      }
+    );
+
+    const defaultBranch = repoResponse.ok
+      ? ((await repoResponse.json()) as { default_branch: string }).default_branch
+      : "main";
+
+    const data = ListBranchesResponse.parse(
+      branches.map((b) => ({
+        name: b.name,
+        is_default: b.name === defaultBranch,
+      }))
+    );
+
+    res.json(data);
+  } catch (err) {
+    req.log.error({ err }, "Error fetching branches");
+    res.status(500).json({ error: "Failed to fetch branches" });
+  }
+});
+
 router.get("/repos/:owner/:repo/commits", async (req, res) => {
   const token = requireAuth(req, res as unknown as Response);
   if (!token) return;
 
   const { owner, repo } = req.params;
-  const perPage = Number(req.query["per_page"] ?? 10);
+  const perPage = Number(req.query["per_page"] ?? 15);
+  const branch = req.query["branch"] as string | undefined;
 
   try {
+    const url = branch
+      ? `https://api.github.com/repos/${owner}/${repo}/commits?per_page=${perPage}&sha=${encodeURIComponent(branch)}`
+      : `https://api.github.com/repos/${owner}/${repo}/commits?per_page=${perPage}`;
+
     const response = await fetch(
-      `https://api.github.com/repos/${owner}/${repo}/commits?per_page=${perPage}`,
+      url,
       {
         headers: {
           Authorization: `Bearer ${token}`,

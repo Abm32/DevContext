@@ -10,13 +10,17 @@ export function useGenerateSummary() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [progress, setProgress] = useState(0);
 
-  const generate = async (owner: string, repoName: string, commits: Commit[]) => {
+  const generate = async (
+    owner: string,
+    repoName: string,
+    commits: Commit[],
+    mode: "next_steps" | "standup" = "next_steps"
+  ) => {
     if (!commits.length) return;
     setIsGenerating(true);
     setProgress(10);
     
     try {
-      // Fetch all commit details in parallel — much faster than sequential
       let completed = 0;
       const details = await Promise.all(
         commits.map(async (commit) => {
@@ -29,6 +33,7 @@ export function useGenerateSummary() {
 
       const payload = {
         repo_name: repoName,
+        mode,
         commits: details.map(d => ({
           sha: d.sha,
           message: d.message,

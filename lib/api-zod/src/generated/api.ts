@@ -42,6 +42,20 @@ export const LogoutResponse = zod.object({
 });
 
 /**
+ * @summary List branches for a repository
+ */
+export const ListBranchesParams = zod.object({
+  owner: zod.coerce.string(),
+  repo: zod.coerce.string(),
+});
+
+export const ListBranchesResponseItem = zod.object({
+  name: zod.string(),
+  is_default: zod.boolean(),
+});
+export const ListBranchesResponse = zod.array(ListBranchesResponseItem);
+
+/**
  * @summary List user repositories
  */
 export const ListReposResponseItem = zod.object({
@@ -61,15 +75,16 @@ export const ListReposResponse = zod.array(ListReposResponseItem);
 /**
  * @summary List recent commits for a repository
  */
-export const ListCommitsParams = zod.object({
+export const ListCommitsPathParams = zod.object({
   owner: zod.coerce.string(),
   repo: zod.coerce.string(),
 });
 
-export const listCommitsQueryPerPageDefault = 10;
+export const listCommitsQueryPerPageDefault = 15;
 
 export const ListCommitsQueryParams = zod.object({
   per_page: zod.coerce.number().default(listCommitsQueryPerPageDefault),
+  branch: zod.coerce.string().optional(),
 });
 
 export const ListCommitsResponseItem = zod.object({
@@ -118,6 +133,7 @@ export const GetCommitDetailResponse = zod.object({
  */
 export const SummarizeCommitsBody = zod.object({
   repo_name: zod.string(),
+  mode: zod.enum(["next_steps", "standup"]).optional().default("next_steps"),
   commits: zod.array(
     zod.object({
       sha: zod.string(),
@@ -132,5 +148,6 @@ export const SummarizeCommitsResponse = zod.object({
   what_you_were_doing: zod.string(),
   key_changes: zod.array(zod.string()),
   suggested_next_steps: zod.array(zod.string()),
+  standup_update: zod.string().nullish(),
   generated_at: zod.string(),
 });

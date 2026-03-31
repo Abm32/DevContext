@@ -111,6 +111,38 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /github/repos/{owner}/{repo}/branches:
+    get:
+      operationId: listBranches
+      tags: [github]
+      summary: List branches for a repository
+      parameters:
+        - name: owner
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: repo
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of branches
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Branch"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /github/repos/{owner}/{repo}/commits:
     get:
       operationId: listCommits
@@ -131,7 +163,12 @@ paths:
           in: query
           schema:
             type: integer
-            default: 10
+            default: 15
+        - name: branch
+          in: query
+          schema:
+            type: string
+          description: Branch name or SHA to filter commits
       responses:
         "200":
           description: List of commits
@@ -253,6 +290,17 @@ components:
         - login
         - avatar_url
         - html_url
+
+    Branch:
+      type: object
+      properties:
+        name:
+          type: string
+        is_default:
+          type: boolean
+      required:
+        - name
+        - is_default
 
     Repository:
       type: object
@@ -376,6 +424,10 @@ components:
       properties:
         repo_name:
           type: string
+        mode:
+          type: string
+          enum: [next_steps, standup]
+          default: next_steps
         commits:
           type: array
           items:
@@ -413,6 +465,9 @@ components:
           type: array
           items:
             type: string
+        standup_update:
+          type: string
+          nullable: true
         generated_at:
           type: string
       required:

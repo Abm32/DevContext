@@ -6,7 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type ListCommitsParams = {
-  per_page?: number;
-  branch?: string;
-};
+export interface Branch {
+  name: string;
+  is_default: boolean;
+}

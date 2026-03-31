@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./branch";
 export * from "./commit";
 export * from "./commitDetail";
 export * from "./commitDetailStats";

@@ -5,9 +5,12 @@ import { formatRelativeDate, getShortSha } from "@/lib/utils"
 import { 
   useGetMe, 
   useListRepos, 
-  useListCommits, 
+  useListBranches,
+  useListCommits,
+  useGetCommitDetail,
   Repository,
-  Commit
+  Commit,
+  Branch
 } from "@workspace/api-client-react"
 import { useGenerateSummary } from "@/hooks/use-devcontext"
 import { Header } from "@/components/layout/Header"
@@ -19,41 +22,166 @@ import {
   Search, 
   GitCommitHorizontal, 
   ChevronRight, 
+  ChevronDown,
   FolderGit2, 
   Sparkles,
   ArrowRight,
   Clock,
   BrainCircuit,
-  GitMerge
+  GitMerge,
+  GitBranch,
+  Copy,
+  Check,
+  FileCode,
+  ClipboardList,
+  Plus,
+  Minus,
 } from "lucide-react"
 
+// ─── CommitCard ─────────────────────────────────────────────────────────────
+function CommitCard({ commit, owner, repo, idx }: { commit: Commit; owner: string; repo: string; idx: number }) {
+  const [expanded, setExpanded] = useState(false)
+
+  const { data: detail, isLoading: isDetailLoading } = useGetCommitDetail(
+    owner, repo, commit.sha,
+    { query: { enabled: expanded } }
+  )
+
+  const statusColor = (s: string) => {
+    if (s === "added") return "text-emerald-400"
+    if (s === "removed") return "text-red-400"
+    if (s === "renamed") return "text-amber-400"
+    return "text-blue-400"
+  }
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0, x: -10 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay: idx * 0.04 }}
+      className="relative pl-6"
+    >
+      <div className="absolute -left-1.5 top-1.5 w-3 h-3 rounded-full border-2 border-background bg-primary" />
+      <div className="bg-card border border-white/5 rounded-xl shadow-sm overflow-hidden">
+        <button
+          onClick={() => setExpanded(e => !e)}
+          className="w-full p-4 text-left hover:bg-white/[0.02] transition-colors"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <Badge variant="outline" className="font-mono text-[10px] text-muted-foreground border-white/10">
+              {getShortSha(commit.sha)}
+            </Badge>
+            <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+              <Clock className="w-3 h-3" />
+              {formatRelativeDate(commit.author_date)}
+            </span>
+          </div>
+          <p className="text-sm text-white font-medium leading-snug line-clamp-2">
+            {commit.message.split('\n')[0]}
+          </p>
+          <div className="mt-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-5 h-5 rounded-full bg-secondary flex items-center justify-center text-[10px] font-bold text-muted-foreground uppercase">
+                {commit.author_name.charAt(0)}
+              </div>
+              <span className="text-xs text-muted-foreground">{commit.author_name}</span>
+            </div>
+            <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+              <FileCode className="w-3 h-3" />
+              {expanded ? "Hide files" : "Show files"}
+              {expanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+            </span>
+          </div>
+        </button>
+
+        <AnimatePresence>
+          {expanded && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden border-t border-white/5"
+            >
+              <div className="p-3 bg-black/20 max-h-48 overflow-y-auto scrollbar-hide">
+                {isDetailLoading ? (
+                  <div className="space-y-2 py-1">
+                    {[1,2,3].map(i => <Skeleton key={i} className="h-4 w-full" />)}
+                  </div>
+                ) : detail?.files.length === 0 ? (
+                  <p className="text-xs text-muted-foreground py-1">No file changes.</p>
+                ) : (
+                  <div className="space-y-1">
+                    {detail?.files.map(f => (
+                      <div key={f.filename} className="flex items-center gap-2 text-[11px] font-mono py-0.5">
+                        <span className={`shrink-0 ${statusColor(f.status)}`}>
+                          {f.status === "added" ? <Plus className="w-3 h-3" /> : f.status === "removed" ? <Minus className="w-3 h-3" /> : <FileCode className="w-3 h-3" />}
+                        </span>
+                        <span className="text-muted-foreground truncate flex-1">{f.filename}</span>
+                        <span className="shrink-0 text-emerald-400">+{f.additions}</span>
+                        <span className="shrink-0 text-red-400">-{f.deletions}</span>
+                      </div>
+                    ))}
+                    {detail && (
+                      <div className="pt-2 border-t border-white/5 text-[11px] text-muted-foreground flex gap-3">
+                        <span>{detail.files.length} files</span>
+                        <span className="text-emerald-400">+{detail.stats.additions}</span>
+                        <span className="text-red-400">-{detail.stats.deletions}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </motion.div>
+  )
+}
+
+// ─── Dashboard ───────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const [, setLocation] = useLocation()
   const { data: user, isLoading: isAuthLoading, isError } = useGetMe({ query: { retry: false } })
 
   const [selectedRepo, setSelectedRepo] = useState<Repository | null>(null)
+  const [selectedBranch, setSelectedBranch] = useState<string | null>(null)
   const [repoSearch, setRepoSearch] = useState("")
+  const [summaryMode, setSummaryMode] = useState<"next_steps" | "standup">("next_steps")
+  const [copied, setCopied] = useState(false)
 
   const { data: repos, isLoading: isReposLoading } = useListRepos({
     query: { enabled: !!user }
   })
 
-  // Extract owner from selected repo full_name
   const owner = selectedRepo?.full_name.split('/')[0] || ""
-  
+
+  const { data: branches, isLoading: isBranchesLoading } = useListBranches(
+    owner,
+    selectedRepo?.name || "",
+    { query: { enabled: !!selectedRepo } }
+  )
+
+  // Reset branch when repo changes
+  const handleSelectRepo = (repo: Repository) => {
+    setSelectedRepo(repo)
+    setSelectedBranch(null)
+  }
+
+  const activeBranch = selectedBranch ?? selectedRepo?.default_branch ?? undefined
+
   const { data: commits, isLoading: isCommitsLoading, isError: isCommitsError } = useListCommits(
     owner,
     selectedRepo?.name || "",
-    { per_page: 15 },
+    { per_page: 15, branch: activeBranch },
     { query: { enabled: !!selectedRepo, retry: 1 } }
   )
 
   const { generate, isGenerating, progress, result } = useGenerateSummary()
 
   useEffect(() => {
-    if (isError) {
-      setLocation("/")
-    }
+    if (isError) setLocation("/")
   }, [isError, setLocation])
 
   if (isAuthLoading) {
@@ -75,8 +203,33 @@ export default function Dashboard() {
 
   const handleGenerateSummary = () => {
     if (selectedRepo && commits) {
-      generate(owner, selectedRepo.name, commits)
+      generate(owner, selectedRepo.name, commits, summaryMode)
     }
+  }
+
+  const buildMarkdown = () => {
+    if (!result) return ""
+    if (result.standup_update) {
+      return `## Standup – ${selectedRepo?.name ?? "Repo"}\n\n${result.standup_update}`
+    }
+    return [
+      `## Code Brain Analysis – ${selectedRepo?.name ?? "Repo"}`,
+      "",
+      `### What I was doing`,
+      result.what_you_were_doing,
+      "",
+      `### Key Changes`,
+      result.key_changes.map(c => `- ${c}`).join("\n"),
+      "",
+      `### Suggested Next Steps`,
+      result.suggested_next_steps.map((s, i) => `${i + 1}. ${s}`).join("\n"),
+    ].join("\n")
+  }
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(buildMarkdown())
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
   }
 
   return (
@@ -85,8 +238,8 @@ export default function Dashboard() {
 
       <main className="flex-1 container mx-auto px-4 py-8 flex flex-col lg:flex-row gap-8 overflow-hidden h-[calc(100vh-4rem)]">
         
-        {/* Left Column: Repository & Commits */}
-        <div className="w-full lg:w-1/3 flex flex-col gap-6 overflow-hidden border-r border-white/5 pr-4">
+        {/* Left Column: Repository, Branch & Commits */}
+        <div className="w-full lg:w-1/3 flex flex-col gap-5 overflow-hidden border-r border-white/5 pr-4">
           
           {/* Repo Selector */}
           <div className="flex flex-col gap-3">
@@ -102,21 +255,19 @@ export default function Dashboard() {
               />
             </div>
             
-            <div className="bg-card border border-white/5 rounded-xl flex-1 overflow-y-auto max-h-[30vh] scrollbar-hide">
+            <div className="bg-card border border-white/5 rounded-xl overflow-y-auto max-h-[28vh] scrollbar-hide">
               {isReposLoading ? (
                 <div className="p-4 space-y-3">
                   {[1,2,3].map(i => <Skeleton key={i} className="h-10 w-full" />)}
                 </div>
               ) : filteredRepos?.length === 0 ? (
-                <div className="p-8 text-center text-muted-foreground text-sm">
-                  No repositories found.
-                </div>
+                <div className="p-8 text-center text-muted-foreground text-sm">No repositories found.</div>
               ) : (
                 <div className="p-2 flex flex-col gap-1">
                   {filteredRepos?.map(repo => (
                     <button
                       key={repo.id}
-                      onClick={() => setSelectedRepo(repo)}
+                      onClick={() => handleSelectRepo(repo)}
                       className={`flex items-center gap-3 w-full p-2.5 rounded-lg text-left transition-all ${
                         selectedRepo?.id === repo.id 
                           ? 'bg-primary/10 text-primary border border-primary/20' 
@@ -132,6 +283,38 @@ export default function Dashboard() {
               )}
             </div>
           </div>
+
+          {/* Branch Selector */}
+          <AnimatePresence>
+            {selectedRepo && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="flex flex-col gap-2 overflow-hidden"
+              >
+                <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                  <GitBranch className="w-3.5 h-3.5" />
+                  Branch
+                </h2>
+                {isBranchesLoading ? (
+                  <Skeleton className="h-9 w-full rounded-xl" />
+                ) : (
+                  <select
+                    value={activeBranch ?? ""}
+                    onChange={(e) => setSelectedBranch(e.target.value)}
+                    className="w-full bg-secondary/30 border border-white/10 rounded-xl py-2 px-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none cursor-pointer"
+                  >
+                    {branches?.map(b => (
+                      <option key={b.name} value={b.name} className="bg-background">
+                        {b.name}{b.is_default ? " (default)" : ""}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Commit List */}
           <div className="flex flex-col gap-3 flex-1 overflow-hidden">
@@ -174,37 +357,15 @@ export default function Dashboard() {
                   <p className="text-sm text-muted-foreground">No commits found in this repository.</p>
                 </div>
               ) : (
-                <div className="relative border-l border-white/10 ml-4 space-y-6">
-                  {commits?.map((commit, idx) => (
-                    <motion.div 
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: idx * 0.05 }}
-                      key={commit.sha} 
-                      className="relative pl-6"
-                    >
-                      <div className="absolute -left-1.5 top-1.5 w-3 h-3 rounded-full border-2 border-background bg-primary" />
-                      <div className="bg-card border border-white/5 rounded-xl p-4 hover:border-white/10 transition-colors shadow-sm group">
-                        <div className="flex items-center justify-between mb-2">
-                          <Badge variant="outline" className="font-mono text-[10px] text-muted-foreground border-white/10 group-hover:text-primary transition-colors">
-                            {getShortSha(commit.sha)}
-                          </Badge>
-                          <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            {formatRelativeDate(commit.author_date)}
-                          </span>
-                        </div>
-                        <p className="text-sm text-white font-medium leading-snug line-clamp-2">
-                          {commit.message.split('\n')[0]}
-                        </p>
-                        <div className="mt-3 flex items-center gap-2">
-                          <div className="w-5 h-5 rounded-full bg-secondary flex items-center justify-center text-[10px] font-bold text-muted-foreground uppercase">
-                            {commit.author_name.charAt(0)}
-                          </div>
-                          <span className="text-xs text-muted-foreground">{commit.author_name}</span>
-                        </div>
-                      </div>
-                    </motion.div>
+                <div className="relative border-l border-white/10 ml-4 space-y-5">
+                  {commits.map((commit, idx) => (
+                    <CommitCard
+                      key={commit.sha}
+                      commit={commit}
+                      owner={owner}
+                      repo={selectedRepo.name}
+                      idx={idx}
+                    />
                   ))}
                 </div>
               )}
@@ -215,7 +376,7 @@ export default function Dashboard() {
         {/* Right Column: AI Summary Panel */}
         <div className="w-full lg:w-2/3 flex flex-col bg-card border border-white/5 rounded-2xl shadow-xl overflow-hidden relative">
           
-          <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
+          <div className="p-5 border-b border-white/5 flex items-center justify-between bg-white/[0.02] gap-4 flex-wrap">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-primary/20 text-primary rounded-lg">
                 <Sparkles className="w-5 h-5" />
@@ -226,20 +387,49 @@ export default function Dashboard() {
               </div>
             </div>
             
-            <Button 
-              onClick={handleGenerateSummary} 
-              disabled={!selectedRepo || !commits?.length || isGenerating}
-              className="gap-2"
-            >
-              {isGenerating ? (
-                <>Analyzing Context...</>
-              ) : (
-                <>
-                  <BrainCircuit className="w-4 h-4" />
-                  What should I do next?
-                </>
-              )}
-            </Button>
+            <div className="flex items-center gap-3 flex-wrap">
+              {/* Mode Toggle */}
+              <div className="flex items-center bg-secondary/40 rounded-xl border border-white/10 p-1 gap-1">
+                <button
+                  onClick={() => setSummaryMode("next_steps")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    summaryMode === "next_steps"
+                      ? "bg-primary/20 text-primary"
+                      : "text-muted-foreground hover:text-white"
+                  }`}
+                >
+                  <BrainCircuit className="w-3.5 h-3.5" />
+                  Next Steps
+                </button>
+                <button
+                  onClick={() => setSummaryMode("standup")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    summaryMode === "standup"
+                      ? "bg-emerald-500/20 text-emerald-400"
+                      : "text-muted-foreground hover:text-white"
+                  }`}
+                >
+                  <ClipboardList className="w-3.5 h-3.5" />
+                  Standup
+                </button>
+              </div>
+
+              <Button 
+                onClick={handleGenerateSummary} 
+                disabled={!selectedRepo || !commits?.length || isGenerating}
+                size="sm"
+                className="gap-2"
+              >
+                {isGenerating ? (
+                  <>Analyzing...</>
+                ) : (
+                  <>
+                    <Sparkles className="w-3.5 h-3.5" />
+                    {summaryMode === "standup" ? "Generate Standup" : "What's next?"}
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
 
           <div className="flex-1 overflow-y-auto p-6 relative">
@@ -263,7 +453,9 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <div>
-                  <h3 className="text-lg font-medium text-white mb-2">Engaging Code Brain...</h3>
+                  <h3 className="text-lg font-medium text-white mb-2">
+                    {summaryMode === "standup" ? "Writing Standup..." : "Engaging Code Brain..."}
+                  </h3>
                   <p className="text-sm text-muted-foreground">
                     Fetching commit details, reading diffs, and synthesizing your recent work momentum.
                   </p>
@@ -281,6 +473,34 @@ export default function Dashboard() {
                 animate={{ opacity: 1, y: 0 }}
                 className="max-w-3xl space-y-8"
               >
+                {/* Copy Button */}
+                <div className="flex justify-end">
+                  <button
+                    onClick={handleCopy}
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-white border border-white/10 hover:border-white/20 rounded-lg px-3 py-1.5 transition-all"
+                  >
+                    {copied ? (
+                      <><Check className="w-3.5 h-3.5 text-emerald-400" />Copied!</>
+                    ) : (
+                      <><Copy className="w-3.5 h-3.5" />Copy as Markdown</>
+                    )}
+                  </button>
+                </div>
+
+                {/* Standup Mode Output */}
+                {result.standup_update ? (
+                  <section>
+                    <h3 className="text-sm font-semibold text-emerald-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                      <ClipboardList className="w-4 h-4" />
+                      Standup Update
+                    </h3>
+                    <div className="p-5 rounded-xl bg-emerald-500/5 border border-emerald-500/15 text-white leading-relaxed whitespace-pre-wrap font-mono text-sm">
+                      {result.standup_update}
+                    </div>
+                    <p className="mt-3 text-xs text-muted-foreground">Paste this directly into Slack, Notion, or your standup tool.</p>
+                  </section>
+                ) : null}
+
                 {/* What you were doing */}
                 <section>
                   <h3 className="text-sm font-semibold text-primary uppercase tracking-wider mb-4 flex items-center gap-2">
@@ -333,7 +553,7 @@ export default function Dashboard() {
                 </div>
                 <h3 className="text-xl font-semibold text-white mb-2">Ready to Resume</h3>
                 <p className="text-muted-foreground max-w-md">
-                  Click the button above to generate a fresh summary of your recent work in <b>{selectedRepo.name}</b>.
+                  Click the button above to generate a{summaryMode === "standup" ? " standup update" : " fresh summary of your recent work"} in <b>{selectedRepo.name}</b>.
                 </p>
               </div>
             )}

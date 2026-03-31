@@ -9,5 +9,6 @@ import type { SummarizeRequestCommitsItem } from "./summarizeRequestCommitsItem"
 
 export interface SummarizeRequest {
   repo_name: string;
+  mode?: 'next_steps' | 'standup';
   commits: SummarizeRequestCommitsItem[];
 }

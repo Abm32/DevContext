@@ -12,7 +12,7 @@ function getOpenAIClient(): OpenAI | null {
   return new OpenAI({ baseURL, apiKey });
 }
 
-function generateMockSummary(repoName: string, commits: Array<{ message: string; files: string[] }>) {
+function generateMockSummary(repoName: string, commits: Array<{ message: string; files: string[] }>, mode: string) {
   const allFiles = [...new Set(commits.flatMap((c) => c.files))];
   const fileExtensions = allFiles
     .map((f) => f.split(".").pop())
@@ -21,6 +21,10 @@ function generateMockSummary(repoName: string, commits: Array<{ message: string;
 
   const uniqueExts = [...new Set(fileExtensions)];
   const commitMessages = commits.map((c) => c.message).join(", ");
+
+  const standupUpdate = mode === "standup"
+    ? `Yesterday: Worked on ${repoName}, making changes to ${allFiles.slice(0, 3).join(", ")}. Commits focused on: ${commitMessages.substring(0, 150)}.\nToday: Continue work on ${allFiles[0] ?? "the modified files"} and run the test suite.\nBlockers: None.`
+    : undefined;
 
   return {
     what_you_were_doing: `You were working on ${repoName}, primarily making changes to ${allFiles.slice(0, 3).join(", ")}${allFiles.length > 3 ? ` and ${allFiles.length - 3} more files` : ""}. Your recent commits focused on: ${commitMessages.substring(0, 200)}.`,
@@ -43,6 +47,7 @@ function generateMockSummary(repoName: string, commits: Array<{ message: string;
       `Review the git diff for ${repoName} to see the full scope of recent changes`,
       "Consider writing a summary comment or updating the documentation",
     ],
+    standup_update: standupUpdate ?? null,
     generated_at: new Date().toISOString(),
   };
 }
@@ -59,13 +64,13 @@ router.post("/summarize", async (req, res) => {
     return;
   }
 
-  const { repo_name, commits } = parsed.data;
+  const { repo_name, commits, mode = "next_steps" } = parsed.data;
 
   const openai = getOpenAIClient();
 
   if (!openai) {
     req.log.warn("OpenAI not configured, using mock response");
-    const mockData = generateMockSummary(repo_name, commits);
+    const mockData = generateMockSummary(repo_name, commits, mode);
     const data = SummarizeCommitsResponse.parse(mockData);
     res.json(data);
     return;
@@ -74,12 +79,29 @@ router.post("/summarize", async (req, res) => {
   try {
     const commitSummary = commits
       .map(
-        (c, i) =>
+        (c: { sha: string; message: string; author_date: string; files: string[] }, i: number) =>
           `Commit ${i + 1}: "${c.message}" (${new Date(c.author_date).toLocaleDateString()})\nFiles changed: ${c.files.slice(0, 15).join(", ")}${c.files.length > 15 ? ` and ${c.files.length - 15} more` : ""}`
       )
       .join("\n\n");
 
-    const prompt = `You are a developer assistant helping a developer resume their coding work. Analyze the following recent Git commits from the repository "${repo_name}" and generate a clear, actionable summary.
+    const isStandup = mode === "standup";
+
+    const prompt = isStandup
+      ? `You are a developer assistant. Analyze the following recent Git commits from the repository "${repo_name}" and generate a standup update a developer could paste into Slack or their daily standup.
+
+Recent commits:
+${commitSummary}
+
+Respond with a JSON object with exactly these fields:
+{
+  "what_you_were_doing": "A concise 1-2 sentence paragraph describing the overall context",
+  "key_changes": ["brief change 1", "brief change 2", "brief change 3"],
+  "suggested_next_steps": ["next step 1", "next step 2", "next step 3"],
+  "standup_update": "Yesterday: [2-3 sentences describing what was worked on]. Today: [1-2 sentences on what to work on next]. Blockers: [any blockers, or 'None.']"
+}
+
+Keep it professional, specific to the actual commits, and brief enough to paste into a standup.`
+      : `You are a developer assistant helping a developer resume their coding work. Analyze the following recent Git commits from the repository "${repo_name}" and generate a clear, actionable summary.
 
 Recent commits:
 ${commitSummary}
@@ -88,7 +110,8 @@ Respond with a JSON object with exactly these fields:
 {
   "what_you_were_doing": "A concise 2-3 sentence paragraph describing what the developer was working on",
   "key_changes": ["bullet 1", "bullet 2", "bullet 3", "bullet 4"],
-  "suggested_next_steps": ["step 1", "step 2", "step 3", "step 4", "step 5"]
+  "suggested_next_steps": ["step 1", "step 2", "step 3", "step 4", "step 5"],
+  "standup_update": null
 }
 
 Keep it practical and specific to the actual files and commit messages. Focus on helping the developer immediately understand their context and resume work.`;
@@ -109,19 +132,21 @@ Keep it practical and specific to the actual files and commit messages. Focus on
       what_you_were_doing: string;
       key_changes: string[];
       suggested_next_steps: string[];
+      standup_update?: string | null;
     };
 
     const data = SummarizeCommitsResponse.parse({
       what_you_were_doing: aiResponse.what_you_were_doing,
       key_changes: aiResponse.key_changes,
       suggested_next_steps: aiResponse.suggested_next_steps,
+      standup_update: aiResponse.standup_update ?? null,
       generated_at: new Date().toISOString(),
     });
 
     res.json(data);
   } catch (err) {
     req.log.error({ err }, "Error generating AI summary, falling back to mock");
-    const mockData = generateMockSummary(repo_name, commits);
+    const mockData = generateMockSummary(repo_name, commits, mode);
     const data = SummarizeCommitsResponse.parse(mockData);
     res.json(data);
   }

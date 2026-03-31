@@ -78,8 +78,14 @@ export type SummarizeRequestCommitsItem = {
   files: string[];
 };
 
+export interface Branch {
+  name: string;
+  is_default: boolean;
+}
+
 export interface SummarizeRequest {
   repo_name: string;
+  mode?: 'next_steps' | 'standup';
   commits: SummarizeRequestCommitsItem[];
 }
 
@@ -87,6 +93,7 @@ export interface SummarizeResponse {
   what_you_were_doing: string;
   key_changes: string[];
   suggested_next_steps: string[];
+  standup_update?: string | null;
   generated_at: string;
 }
 
@@ -95,6 +102,12 @@ export type GithubAuthCallbackParams = {
   state?: string;
 };
 
+export type ListBranchesParams = {
+  owner: string;
+  repo: string;
+};
+
 export type ListCommitsParams = {
   per_page?: number;
+  branch?: string;
 };

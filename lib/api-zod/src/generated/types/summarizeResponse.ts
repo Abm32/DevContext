@@ -10,5 +10,6 @@ export interface SummarizeResponse {
   what_you_were_doing: string;
   key_changes: string[];
   suggested_next_steps: string[];
+  standup_update?: string | null;
   generated_at: string;
 }

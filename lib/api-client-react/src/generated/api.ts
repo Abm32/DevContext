@@ -17,6 +17,7 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  Branch,
   Commit,
   CommitDetail,
   ErrorResponse,
@@ -495,6 +496,83 @@ export function useListRepos<
     queryKey: QueryKey;
   };
 
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List branches for a repository
+ */
+export const getListBranchesUrl = (owner: string, repo: string) => {
+  return `/api/github/repos/${owner}/${repo}/branches`;
+};
+
+export const listBranches = async (
+  owner: string,
+  repo: string,
+  options?: RequestInit,
+): Promise<Branch[]> => {
+  return customFetch<Branch[]>(getListBranchesUrl(owner, repo), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListBranchesQueryKey = (owner: string, repo: string) => {
+  return [`/api/github/repos/${owner}/${repo}/branches`] as const;
+};
+
+export const getListBranchesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listBranches>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  owner: string,
+  repo: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listBranches>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+  const queryKey = queryOptions?.queryKey ?? getListBranchesQueryKey(owner, repo);
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listBranches>>> = ({
+    signal,
+  }) => listBranches(owner, repo, { signal, ...requestOptions });
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!(owner && repo),
+    ...queryOptions,
+  } as UseQueryOptions<Awaited<ReturnType<typeof listBranches>>, TError, TData> & {
+    queryKey: QueryKey;
+  };
+};
+
+export type ListBranchesQueryResult = NonNullable<Awaited<ReturnType<typeof listBranches>>>;
+export type ListBranchesQueryError = ErrorType<ErrorResponse>;
+
+export function useListBranches<
+  TData = Awaited<ReturnType<typeof listBranches>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  owner: string,
+  repo: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listBranches>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListBranchesQueryOptions(owner, repo, options);
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
   return { ...query, queryKey: queryOptions.queryKey };
 }
 

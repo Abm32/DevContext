@@ -336,7 +336,7 @@ export default function Dashboard() {
                   { label: "commits", value: String(commitStats.totalCommits), icon: "⎇" },
                   { label: "active days", value: String(commitStats.activeDays), icon: "📅" },
                   ...(commitStats.dateSpan ? [{ label: "span", value: commitStats.dateSpan, icon: "🗓️" }] : []),
-                  ...(commitStats.streak > 1 ? [{ label: "streak", value: `🔥 ${commitStats.streak}d`, icon: "" }] : []),
+                  ...(commitStats.streak >= 1 ? [{ label: "streak", value: `🔥 ${commitStats.streak}d`, icon: "" }] : []),
                 ].map((s) => (
                   <div
                     key={s.label}

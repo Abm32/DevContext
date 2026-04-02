@@ -93,9 +93,10 @@ router.post("/summarize", async (req, res) => {
       .map(
         (c: { sha: string; message: string; author_date: string; files: Array<{ filename: string; status: string; additions: number; deletions: number }>; stats: { additions: number; deletions: number } }, i: number) => {
           const fileLines = c.files.slice(0, 20).map(f => {
+            const displayStatus = f.status === "removed" ? "deleted" : f.status;
             const changeLabel = f.status === "removed"
-              ? `removed`
-              : `${f.status}, +${f.additions}/-${f.deletions}`;
+              ? "deleted"
+              : `${displayStatus}, +${f.additions}/-${f.deletions}`;
             return `  - ${f.filename} (${changeLabel})`;
           }).join("\n");
           const moreFiles = c.files.length > 20 ? `\n  ... and ${c.files.length - 20} more files` : "";

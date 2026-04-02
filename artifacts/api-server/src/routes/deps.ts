@@ -340,7 +340,6 @@ const MANIFEST_CANDIDATES: Array<{
   { file: "Gemfile", ecosystem: "rubygems", parser: parseGemfile },
 ];
 
-const MANIFEST_FILES = MANIFEST_CANDIDATES.map((m) => m.file);
 
 async function detectManifest(
   owner: string,
@@ -370,10 +369,10 @@ router.get("/repos/:owner/:repo/deps", async (req, res) => {
 
   const { owner, repo } = req.params;
   const branch = req.query["branch"] as string | undefined;
-  const language = req.query["language"] as string | undefined;
-  // Comma-separated list of recently-changed filenames from commits
+  // Comma-separated list of recently-changed filenames from commits (used for
+  // in_work_area via file-extension frequency and teammate_changed via manifest path)
   const filesParam = req.query["files"] as string | undefined;
-  const recentFiles = filesParam ? filesParam.split(",").map((f) => f.trim()) : [];
+  const recentFiles = filesParam ? filesParam.split(",").map((f) => f.trim()).filter(Boolean) : [];
 
   const token = payload.githubToken;
 

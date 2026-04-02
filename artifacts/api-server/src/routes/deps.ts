@@ -260,16 +260,36 @@ const FETCHERS: Record<Ecosystem, RegistryFetcher> = {
   go: getLatestGo,
 };
 
-// ─── Language → Ecosystem Mapping ────────────────────────────────────────────
+// ─── Ecosystem detection from file extensions ─────────────────────────────────
 
-function languageToEcosystem(language: string): Ecosystem | null {
-  const l = language.toLowerCase();
-  if (l === "javascript" || l === "typescript") return "npm";
-  if (l === "python") return "pypi";
-  if (l === "rust") return "cargo";
-  if (l === "ruby") return "rubygems";
-  if (l === "go") return "go";
-  return null;
+const ECOSYSTEM_EXTENSIONS: Record<Ecosystem, string[]> = {
+  npm: [".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs"],
+  pypi: [".py", ".pyi"],
+  cargo: [".rs"],
+  rubygems: [".rb", ".rake"],
+  go: [".go"],
+};
+
+/**
+ * Determine the ecosystem from a list of recently changed file paths by
+ * looking at which ecosystem's file extensions appear most frequently.
+ */
+function ecosystemFromFiles(files: string[]): Ecosystem | null {
+  const counts: Partial<Record<Ecosystem, number>> = {};
+  for (const file of files) {
+    const ext = file.slice(file.lastIndexOf("."));
+    for (const [eco, exts] of Object.entries(ECOSYSTEM_EXTENSIONS) as [Ecosystem, string[]][]) {
+      if (exts.includes(ext)) {
+        counts[eco] = (counts[eco] ?? 0) + 1;
+      }
+    }
+  }
+  let best: Ecosystem | null = null;
+  let bestCount = 0;
+  for (const [eco, count] of Object.entries(counts) as [Ecosystem, number][]) {
+    if (count > bestCount) { best = eco; bestCount = count; }
+  }
+  return best;
 }
 
 // ─── GitHub Contents API ──────────────────────────────────────────────────────
@@ -376,14 +396,15 @@ router.get("/repos/:owner/:repo/deps", async (req, res) => {
     const { ecosystem, file: manifestFile, deps: rawDeps } = manifest;
     const fetcher = FETCHERS[ecosystem];
 
-    // Detect if a teammate recently changed the manifest (e.g. package.json in recent commits)
+    // Detect if a teammate recently changed THIS ecosystem's specific manifest file
+    // (not just any manifest — scoped to the detected manifest file path)
     const manifestChanged = recentFiles.some(
-      (f) => MANIFEST_FILES.some((mf) => f === mf || f.endsWith(`/${mf}`))
+      (f) => f === manifestFile || f.endsWith(`/${manifestFile}`)
     );
 
-    // Determine if this ecosystem is in the dev's current work area
-    const ecosystemFromLanguage = language ? languageToEcosystem(language) : null;
-    const inWorkArea = ecosystemFromLanguage === ecosystem;
+    // Determine if the dev's recent work is in this ecosystem by file extension frequency
+    const activeEcosystem = recentFiles.length > 0 ? ecosystemFromFiles(recentFiles) : null;
+    const inWorkArea = activeEcosystem === ecosystem;
 
     // Limit: prod deps first (always), dev deps only when manifest was recently changed
     const prodDeps = rawDeps.filter((d) => d.dep_type === "prod").slice(0, 35);

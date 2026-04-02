@@ -195,20 +195,26 @@ export default function Dashboard() {
     { query: { enabled: !!selectedRepo, retry: 1 } }
   )
 
-  // Fetch the most recent commit's file list for dep manifest detection
-  const firstCommitSha = commits?.[0]?.sha ?? ""
-  const { data: firstCommitDetail } = useGetCommitDetail(
-    owner,
-    selectedRepo?.name || "",
-    firstCommitSha,
-    { query: { enabled: !!selectedRepo && !!firstCommitSha } }
-  )
-
-  // Build the files param: comma-separated recently-changed filenames
+  // Fetch recent commit details to collect changed filenames for dep manifest detection.
+  // GitHub list-commits API does not include per-commit file lists; we fetch
+  // the 3 most recent commit details in parallel and union all unique filenames.
+  const recentShas = useMemo(() => commits?.slice(0, 3).map((c) => c.sha) ?? [], [commits])
+  const { data: detail0 } = useGetCommitDetail(owner, selectedRepo?.name || "", recentShas[0] ?? "", {
+    query: { enabled: !!selectedRepo && !!recentShas[0] },
+  })
+  const { data: detail1 } = useGetCommitDetail(owner, selectedRepo?.name || "", recentShas[1] ?? "", {
+    query: { enabled: !!selectedRepo && !!recentShas[1] },
+  })
+  const { data: detail2 } = useGetCommitDetail(owner, selectedRepo?.name || "", recentShas[2] ?? "", {
+    query: { enabled: !!selectedRepo && !!recentShas[2] },
+  })
+  // Union all unique filenames from the fetched commit details
   const recentFiles = useMemo(() => {
-    if (!firstCommitDetail?.files.length) return undefined
-    return firstCommitDetail.files.map((f) => f.filename).join(",")
-  }, [firstCommitDetail])
+    const all = [detail0, detail1, detail2]
+      .flatMap((d) => d?.files.map((f) => f.filename) ?? [])
+    const unique = [...new Set(all)]
+    return unique.length > 0 ? unique.join(",") : undefined
+  }, [detail0, detail1, detail2])
 
   // Dependency health data (generated hook)
   const {
@@ -227,19 +233,19 @@ export default function Dashboard() {
     { query: { enabled: !!selectedRepo } }
   )
 
-  // Build dep_context for AI: top 5 stale deps (major > minor > patch)
+  // Build dep_context for AI: top 5 major-severity deps only (critical upgrade risk)
   const depContext = useMemo((): DepContextItem[] => {
     if (!depsReport?.deps) return []
     return depsReport.deps
       .filter((d): d is typeof d & { latest_version: string } =>
-        d.severity !== "ok" && d.latest_version != null
+        d.severity === "major" && d.latest_version != null
       )
       .slice(0, 5)
       .map((d) => ({
         name: d.name,
         current_version: d.current_version,
         latest_version: d.latest_version,
-        severity: d.severity as "major" | "minor" | "patch",
+        severity: "major" as const,
         ecosystem: d.ecosystem,
       }))
   }, [depsReport])
@@ -479,7 +485,7 @@ export default function Dashboard() {
               </div>
             </div>
             
-            <div className="flex-1 overflow-y-auto scrollbar-hide pr-2 pb-8">
+            <div className="flex-1 overflow-y-auto scrollbar-hide pr-2 pb-4">
               {!selectedRepo ? (
                 <div className="h-full flex items-center justify-center border border-dashed border-white/10 rounded-xl bg-secondary/20 p-8 text-center">
                   <p className="text-sm text-muted-foreground">Select a repository to view recent commits.</p>
@@ -528,30 +534,31 @@ export default function Dashboard() {
                   ))}
                 </div>
               )}
+
+              {/* Dependency Health Panel — below commit list */}
+              <AnimatePresence>
+                {selectedRepo && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 6 }}
+                    className="mt-4"
+                  >
+                    <DepHealthPanel
+                      report={depsReport}
+                      isLoading={isDepsLoading}
+                      isError={isDepsError}
+                      refetch={refetchDeps}
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
         </div>
 
-        {/* Right Column: Dep Health + AI Summary Panel */}
+        {/* Right Column: AI Summary Panel */}
         <div className="w-full lg:w-2/3 flex flex-col gap-4 overflow-hidden">
-
-          {/* Dependency Health Panel */}
-          <AnimatePresence>
-            {selectedRepo && (
-              <motion.div
-                initial={{ opacity: 0, y: -6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
-              >
-                <DepHealthPanel
-                  report={depsReport}
-                  isLoading={isDepsLoading}
-                  isError={isDepsError}
-                  refetch={refetchDeps}
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
 
           {/* AI Summary Panel */}
           <div className="flex-1 flex flex-col bg-card border border-white/5 rounded-2xl shadow-xl overflow-hidden relative min-h-0">

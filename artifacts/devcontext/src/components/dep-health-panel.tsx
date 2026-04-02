@@ -11,13 +11,14 @@ import {
   ExternalLink,
   RefreshCw,
   Users,
+  Wrench,
 } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
-import type { DepsReport, DepStaleness, DepSeverity } from "@/hooks/use-get-repo-deps"
+import type { DepsReport, DepStaleness, DepStalenessSeverity } from "@workspace/api-client-react"
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Severity config ─────────────────────────────────────────────────────────
 
-const SEVERITY_CONFIG: Record<DepSeverity, {
+const SEVERITY_CONFIG: Record<DepStalenessSeverity, {
   label: string
   color: string
   bgColor: string
@@ -62,7 +63,9 @@ const ECOSYSTEM_LABELS: Record<string, string> = {
   go: "Go modules",
 }
 
-function SeverityBadge({ severity }: { severity: DepSeverity }) {
+// ─── Subcomponents ────────────────────────────────────────────────────────────
+
+function SeverityBadge({ severity }: { severity: DepStalenessSeverity }) {
   const cfg = SEVERITY_CONFIG[severity]
   return (
     <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-md border ${cfg.color} ${cfg.bgColor} ${cfg.borderColor}`}>
@@ -74,11 +77,14 @@ function SeverityBadge({ severity }: { severity: DepSeverity }) {
 
 function DepRow({ dep }: { dep: DepStaleness }) {
   const cfg = SEVERITY_CONFIG[dep.severity]
+  const isStale = dep.severity !== "ok"
   return (
-    <div className={`flex items-center gap-3 py-2 px-3 rounded-lg ${dep.severity !== "ok" ? cfg.bgColor : ""} border ${dep.severity !== "ok" ? cfg.borderColor : "border-transparent"}`}>
-      <span className={`font-mono text-[11px] font-semibold text-white/90 shrink-0 min-w-0 truncate flex-1`}>
+    <div className={`flex items-center gap-2 py-2 px-3 rounded-lg ${isStale ? cfg.bgColor : ""} border ${isStale ? cfg.borderColor : "border-transparent"}`}>
+      <span className="font-mono text-[11px] font-semibold text-white/90 shrink-0 min-w-0 truncate flex-1">
         {dep.name}
       </span>
+
+      {/* Version diff */}
       <div className="flex items-center gap-1.5 shrink-0">
         <span className="text-[10px] text-muted-foreground font-mono">{dep.current_version}</span>
         {dep.latest_version && dep.severity !== "ok" && (
@@ -88,7 +94,25 @@ function DepRow({ dep }: { dep: DepStaleness }) {
           </>
         )}
       </div>
+
+      {/* Context markers (from API fields) */}
+      <div className="flex items-center gap-1 shrink-0">
+        {dep.in_work_area && (
+          <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold px-1 py-0.5 rounded bg-violet-500/15 border border-violet-500/25 text-violet-300" title="This ecosystem matches the repo's primary language">
+            <Wrench className="w-2.5 h-2.5" />
+            work area
+          </span>
+        )}
+        {dep.teammate_changed && (
+          <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold px-1 py-0.5 rounded bg-amber-500/15 border border-amber-500/25 text-amber-300" title="A teammate recently changed the dependency manifest">
+            <Users className="w-2.5 h-2.5" />
+            changed
+          </span>
+        )}
+      </div>
+
       <SeverityBadge severity={dep.severity} />
+
       <a
         href={dep.registry_url}
         target="_blank"
@@ -101,8 +125,6 @@ function DepRow({ dep }: { dep: DepStaleness }) {
     </div>
   )
 }
-
-// ─── Summary Bar ─────────────────────────────────────────────────────────────
 
 function SummaryBar({ summary, total }: { summary: DepsReport["summary"]; total: number }) {
   if (total === 0) {
@@ -144,16 +166,11 @@ interface DepHealthPanelProps {
   isLoading: boolean
   isError: boolean
   refetch: () => void
-  commitMessages: string[]
 }
 
-export function DepHealthPanel({ report, isLoading, isError, refetch, commitMessages }: DepHealthPanelProps) {
+export function DepHealthPanel({ report, isLoading, isError, refetch }: DepHealthPanelProps) {
   const [expanded, setExpanded] = useState(false)
   const [showOk, setShowOk] = useState(false)
-
-  // Teammate-changed heuristic: check recent commit messages for dep-related keywords
-  const DEP_KEYWORDS = /\b(bump|deps|dependencies|package|requirements|lockfile|lock|cargo|gemfile|go\.mod|upgrade|update packages)\b/i
-  const hasTeammateDepChange = commitMessages.some((msg) => DEP_KEYWORDS.test(msg))
 
   if (isLoading) {
     return (
@@ -167,17 +184,33 @@ export function DepHealthPanel({ report, isLoading, isError, refetch, commitMess
     )
   }
 
-  if (isError || !report) {
+  if (isError) {
     return null
   }
 
-  if (!report.ecosystem) {
+  if (!report) {
     return null
+  }
+
+  // No-manifest state: show graceful message
+  if (!report.ecosystem) {
+    return (
+      <div className="bg-card border border-white/5 rounded-2xl p-3 flex items-center gap-3">
+        <div className="p-1.5 bg-secondary/60 rounded-lg shrink-0">
+          <PackageSearch className="w-4 h-4 text-muted-foreground" />
+        </div>
+        <div>
+          <p className="text-xs font-medium text-muted-foreground">No dependency manifest detected</p>
+          <p className="text-[11px] text-muted-foreground/60 mt-0.5">
+            Supported: package.json, requirements.txt, Cargo.toml, go.mod, Gemfile
+          </p>
+        </div>
+      </div>
+    )
   }
 
   const staleDeps = report.deps.filter((d) => d.severity !== "ok")
   const okDeps = report.deps.filter((d) => d.severity === "ok")
-  const visibleStale = staleDeps
   const ecosystemLabel = ECOSYSTEM_LABELS[report.ecosystem] ?? report.ecosystem
 
   return (
@@ -195,7 +228,7 @@ export function DepHealthPanel({ report, isLoading, isError, refetch, commitMess
           <PackageSearch className="w-4 h-4" />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
             <span className="text-sm font-semibold text-white">Dependency Health</span>
             <span className="text-[10px] text-muted-foreground bg-secondary/60 border border-white/8 rounded px-1.5 py-0.5">
               {ecosystemLabel}
@@ -205,16 +238,16 @@ export function DepHealthPanel({ report, isLoading, isError, refetch, commitMess
                 {report.manifest_file}
               </span>
             )}
+            {report.manifest_changed && (
+              <span className="flex items-center gap-1 text-[10px] text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-md px-1.5 py-0.5" title="The dependency manifest was recently modified in a commit">
+                <Users className="w-3 h-3" />
+                manifest changed
+              </span>
+            )}
           </div>
           <SummaryBar summary={report.summary} total={report.total_stale} />
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          {hasTeammateDepChange && (
-            <span className="flex items-center gap-1 text-[10px] text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-md px-1.5 py-0.5" title="A recent commit touched dependency files">
-              <Users className="w-3 h-3" />
-              Recent dep change
-            </span>
-          )}
           <button
             onClick={(e) => { e.stopPropagation(); refetch() }}
             className="p-1 text-muted-foreground hover:text-white transition-colors rounded-md hover:bg-white/5"
@@ -241,24 +274,24 @@ export function DepHealthPanel({ report, isLoading, isError, refetch, commitMess
             className="overflow-hidden border-t border-white/5"
           >
             <div className="p-3 space-y-1 max-h-64 overflow-y-auto scrollbar-hide">
-              {visibleStale.length === 0 && okDeps.length === 0 ? (
+              {staleDeps.length === 0 && okDeps.length === 0 ? (
                 <p className="text-xs text-muted-foreground py-2 text-center">
                   No dependencies detected in {report.manifest_file ?? "manifest"}.
                 </p>
-              ) : visibleStale.length === 0 ? (
+              ) : staleDeps.length === 0 ? (
                 <div className="flex items-center gap-2 py-3 text-emerald-400">
                   <CheckCircle2 className="w-4 h-4" />
                   <span className="text-sm font-medium">All {okDeps.length} dependencies are up to date!</span>
                 </div>
               ) : (
                 <div className="space-y-1">
-                  {visibleStale.map((dep) => (
+                  {staleDeps.map((dep) => (
                     <DepRow key={dep.name} dep={dep} />
                   ))}
                 </div>
               )}
 
-              {okDeps.length > 0 && visibleStale.length > 0 && (
+              {okDeps.length > 0 && staleDeps.length > 0 && (
                 <div className="pt-2">
                   <button
                     onClick={() => setShowOk((v) => !v)}

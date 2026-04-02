@@ -481,6 +481,27 @@ components:
         - additions
         - deletions
 
+    DepContextItem:
+      type: object
+      properties:
+        name:
+          type: string
+        ecosystem:
+          type: string
+        current_version:
+          type: string
+        latest_version:
+          type: string
+        severity:
+          type: string
+          enum: [major, minor, patch]
+      required:
+        - name
+        - ecosystem
+        - current_version
+        - latest_version
+        - severity
+
     SummarizeRequest:
       type: object
       properties:
@@ -490,6 +511,11 @@ components:
           type: string
           enum: [next_steps, standup]
           default: next_steps
+        dep_context:
+          type: array
+          nullable: true
+          items:
+            $ref: "#/components/schemas/DepContextItem"
         commits:
           type: array
           items:

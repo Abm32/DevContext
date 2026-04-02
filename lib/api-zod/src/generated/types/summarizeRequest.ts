@@ -5,11 +5,13 @@
  * API specification for DevContext
  * OpenAPI spec version: 0.1.0
  */
+import type { DepContextItem } from "./depContextItem";
 import type { SummarizeRequestCommitsItem } from "./summarizeRequestCommitsItem";
 import type { SummarizeRequestMode } from "./summarizeRequestMode";
 
 export interface SummarizeRequest {
   repo_name: string;
   mode?: SummarizeRequestMode;
+  dep_context?: DepContextItem[] | null;
   commits: SummarizeRequestCommitsItem[];
 }

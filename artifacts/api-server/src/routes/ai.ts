@@ -95,19 +95,10 @@ router.post("/summarize", async (req, res) => {
     return;
   }
 
-  const { repo_name, commits, mode = "next_steps" } = parsed.data;
-
-  // Read optional dep_context from the raw body (not in generated schema)
-  const rawBody = req.body as Record<string, unknown>;
-  const rawDepCtx = Array.isArray(rawBody["dep_context"]) ? (rawBody["dep_context"] as unknown[]) : [];
-  const depContext: DepContextItem[] = rawDepCtx.filter(
+  const { repo_name, commits, mode = "next_steps", dep_context } = parsed.data;
+  const depContext: DepContextItem[] = (dep_context ?? []).filter(
     (item): item is DepContextItem =>
-      typeof item === "object" &&
-      item !== null &&
-      "name" in item &&
-      "current_version" in item &&
-      "latest_version" in item &&
-      "severity" in item
+      typeof item.latest_version === "string" && item.latest_version.length > 0
   );
 
   const openai = getOpenAIClient();

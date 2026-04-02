@@ -132,6 +132,58 @@ export const GetCommitDetailResponse = zod.object({
 });
 
 /**
+ * @summary Get dependency staleness report for a repository
+ */
+export const GetRepoDepsParams = zod.object({
+  owner: zod.coerce.string(),
+  repo: zod.coerce.string(),
+});
+
+export const GetRepoDepsQueryParams = zod.object({
+  branch: zod.coerce
+    .string()
+    .optional()
+    .describe("Branch name or SHA to fetch manifest from"),
+  language: zod.coerce
+    .string()
+    .optional()
+    .describe(
+      "Primary language of the repository (from GitHub API) for work-area detection",
+    ),
+  files: zod.coerce
+    .string()
+    .optional()
+    .describe(
+      "Comma-separated list of recently-changed filenames for manifest-change detection",
+    ),
+});
+
+export const GetRepoDepsResponse = zod.object({
+  ecosystem: zod.enum(["npm", "pypi", "cargo", "rubygems", "go"]).nullish(),
+  manifest_file: zod.string().nullish(),
+  deps: zod.array(
+    zod.object({
+      name: zod.string(),
+      ecosystem: zod.enum(["npm", "pypi", "cargo", "rubygems", "go"]),
+      current_version: zod.string(),
+      latest_version: zod.string().nullish(),
+      severity: zod.enum(["major", "minor", "patch", "ok"]),
+      dep_type: zod.enum(["prod", "dev"]),
+      registry_url: zod.string(),
+      in_work_area: zod.boolean(),
+      teammate_changed: zod.boolean(),
+    }),
+  ),
+  manifest_changed: zod.boolean(),
+  total_stale: zod.number(),
+  summary: zod.object({
+    major: zod.number(),
+    minor: zod.number(),
+    patch: zod.number(),
+  }),
+});
+
+/**
  * @summary Generate AI summary of commit history
  */
 export const summarizeCommitsBodyModeDefault = `next_steps`;
@@ -141,6 +193,17 @@ export const SummarizeCommitsBody = zod.object({
   mode: zod
     .enum(["next_steps", "standup"])
     .default(summarizeCommitsBodyModeDefault),
+  dep_context: zod
+    .array(
+      zod.object({
+        name: zod.string(),
+        ecosystem: zod.string(),
+        current_version: zod.string(),
+        latest_version: zod.string(),
+        severity: zod.enum(["major", "minor", "patch"]),
+      }),
+    )
+    .nullish(),
   commits: zod.array(
     zod.object({
       sha: zod.string(),

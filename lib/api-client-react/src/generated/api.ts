@@ -20,7 +20,9 @@ import type {
   Branch,
   Commit,
   CommitDetail,
+  DepsReport,
   ErrorResponse,
+  GetRepoDepsParams,
   GitHubUser,
   GithubAuthCallbackParams,
   HealthStatus,
@@ -806,6 +808,123 @@ export function useGetCommitDetail<
     sha,
     options,
   );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get dependency staleness report for a repository
+ */
+export const getGetRepoDepsUrl = (
+  owner: string,
+  repo: string,
+  params?: GetRepoDepsParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/github/repos/${owner}/${repo}/deps?${stringifiedParams}`
+    : `/api/github/repos/${owner}/${repo}/deps`;
+};
+
+export const getRepoDeps = async (
+  owner: string,
+  repo: string,
+  params?: GetRepoDepsParams,
+  options?: RequestInit,
+): Promise<DepsReport> => {
+  return customFetch<DepsReport>(getGetRepoDepsUrl(owner, repo, params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetRepoDepsQueryKey = (
+  owner: string,
+  repo: string,
+  params?: GetRepoDepsParams,
+) => {
+  return [
+    `/api/github/repos/${owner}/${repo}/deps`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getGetRepoDepsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getRepoDeps>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  owner: string,
+  repo: string,
+  params?: GetRepoDepsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRepoDeps>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetRepoDepsQueryKey(owner, repo, params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getRepoDeps>>> = ({
+    signal,
+  }) => getRepoDeps(owner, repo, params, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!(owner && repo),
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getRepoDeps>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetRepoDepsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getRepoDeps>>
+>;
+export type GetRepoDepsQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Get dependency staleness report for a repository
+ */
+
+export function useGetRepoDeps<
+  TData = Awaited<ReturnType<typeof getRepoDeps>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  owner: string,
+  repo: string,
+  params?: GetRepoDepsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRepoDeps>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetRepoDepsQueryOptions(owner, repo, params, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

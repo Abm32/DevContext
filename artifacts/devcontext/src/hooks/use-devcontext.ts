@@ -2,16 +2,11 @@ import { useState } from "react";
 import { 
   getCommitDetail, 
   useSummarizeCommits, 
-  Commit 
+  Commit,
+  DepContextItem,
 } from "@workspace/api-client-react";
 
-export type DepContextItem = {
-  name: string;
-  current_version: string;
-  latest_version: string;
-  severity: "major" | "minor" | "patch";
-  ecosystem: string;
-};
+export type { DepContextItem };
 
 export function useGenerateSummary() {
   const mutation = useSummarizeCommits();
@@ -58,7 +53,7 @@ export function useGenerateSummary() {
             deletions: d.stats.deletions,
           },
         })),
-        ...(depContext && depContext.length > 0 ? { dep_context: depContext } : {}),
+        dep_context: depContext && depContext.length > 0 ? depContext : null,
       };
 
       setProgress(80);

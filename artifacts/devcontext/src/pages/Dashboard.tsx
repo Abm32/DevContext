@@ -9,13 +9,13 @@ import {
   useListBranches,
   useListCommits,
   useGetCommitDetail,
+  useGetRepoDeps,
   Repository,
   Commit,
-  Branch
+  Branch,
+  DepContextItem,
 } from "@workspace/api-client-react"
 import { useGenerateSummary } from "@/hooks/use-devcontext"
-import { useGetRepoDeps } from "@/hooks/use-get-repo-deps"
-import type { DepContextItem } from "@/hooks/use-devcontext"
 import { DepHealthPanel } from "@/components/dep-health-panel"
 import { track } from "@/hooks/use-track"
 import { Header } from "@/components/layout/Header"
@@ -195,26 +195,44 @@ export default function Dashboard() {
     { query: { enabled: !!selectedRepo, retry: 1 } }
   )
 
-  // Dependency health data
+  // Fetch the most recent commit's file list for dep manifest detection
+  const firstCommitSha = commits?.[0]?.sha ?? ""
+  const { data: firstCommitDetail } = useGetCommitDetail(
+    owner,
+    selectedRepo?.name || "",
+    firstCommitSha,
+    { query: { enabled: !!selectedRepo && !!firstCommitSha } }
+  )
+
+  // Build the files param: comma-separated recently-changed filenames
+  const recentFiles = useMemo(() => {
+    if (!firstCommitDetail?.files.length) return undefined
+    return firstCommitDetail.files.map((f) => f.filename).join(",")
+  }, [firstCommitDetail])
+
+  // Dependency health data (generated hook)
   const {
     data: depsReport,
     isLoading: isDepsLoading,
     isError: isDepsError,
     refetch: refetchDeps,
-  } = useGetRepoDeps({
+  } = useGetRepoDeps(
     owner,
-    repo: selectedRepo?.name || "",
-    branch: activeBranch,
-    language: selectedRepo?.language,
-    enabled: !!selectedRepo,
-  })
+    selectedRepo?.name || "",
+    {
+      branch: activeBranch,
+      language: selectedRepo?.language ?? undefined,
+      files: recentFiles,
+    },
+    { query: { enabled: !!selectedRepo } }
+  )
 
   // Build dep_context for AI: top 5 stale deps (major > minor > patch)
   const depContext = useMemo((): DepContextItem[] => {
     if (!depsReport?.deps) return []
     return depsReport.deps
       .filter((d): d is typeof d & { latest_version: string } =>
-        d.severity !== "ok" && d.latest_version !== null
+        d.severity !== "ok" && d.latest_version != null
       )
       .slice(0, 5)
       .map((d) => ({
@@ -233,8 +251,6 @@ export default function Dashboard() {
     return computeCommitStats(commits)
   }, [commits])
 
-  // Extract commit messages for teammate-dep-change heuristic in DepHealthPanel
-  const commitMessages = useMemo(() => commits?.map((c) => c.message) ?? [], [commits])
 
   useEffect(() => {
     if (isError) setLocation("/")
@@ -532,7 +548,6 @@ export default function Dashboard() {
                   isLoading={isDepsLoading}
                   isError={isDepsError}
                   refetch={refetchDeps}
-                  commitMessages={commitMessages}
                 />
               </motion.div>
             )}

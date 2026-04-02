@@ -83,6 +83,23 @@ export interface SummarizeCommitFile {
   deletions: number;
 }
 
+export type DepContextItemSeverity =
+  (typeof DepContextItemSeverity)[keyof typeof DepContextItemSeverity];
+
+export const DepContextItemSeverity = {
+  major: "major",
+  minor: "minor",
+  patch: "patch",
+} as const;
+
+export interface DepContextItem {
+  name: string;
+  ecosystem: string;
+  current_version: string;
+  latest_version: string;
+  severity: DepContextItemSeverity;
+}
+
 export type SummarizeRequestMode =
   (typeof SummarizeRequestMode)[keyof typeof SummarizeRequestMode];
 
@@ -107,7 +124,76 @@ export type SummarizeRequestCommitsItem = {
 export interface SummarizeRequest {
   repo_name: string;
   mode?: SummarizeRequestMode;
+  dep_context?: DepContextItem[] | null;
   commits: SummarizeRequestCommitsItem[];
+}
+
+export type DepStalenessEcosystem =
+  (typeof DepStalenessEcosystem)[keyof typeof DepStalenessEcosystem];
+
+export const DepStalenessEcosystem = {
+  npm: "npm",
+  pypi: "pypi",
+  cargo: "cargo",
+  rubygems: "rubygems",
+  go: "go",
+} as const;
+
+export type DepStalenessSeverity =
+  (typeof DepStalenessSeverity)[keyof typeof DepStalenessSeverity];
+
+export const DepStalenessSeverity = {
+  major: "major",
+  minor: "minor",
+  patch: "patch",
+  ok: "ok",
+} as const;
+
+export type DepStalenessDepType =
+  (typeof DepStalenessDepType)[keyof typeof DepStalenessDepType];
+
+export const DepStalenessDepType = {
+  prod: "prod",
+  dev: "dev",
+} as const;
+
+export interface DepStaleness {
+  name: string;
+  ecosystem: DepStalenessEcosystem;
+  current_version: string;
+  latest_version?: string | null;
+  severity: DepStalenessSeverity;
+  dep_type: DepStalenessDepType;
+  registry_url: string;
+  in_work_area: boolean;
+  teammate_changed: boolean;
+}
+
+export type DepsReportEcosystem =
+  | (typeof DepsReportEcosystem)[keyof typeof DepsReportEcosystem]
+  | null;
+
+export const DepsReportEcosystem = {
+  npm: "npm",
+  pypi: "pypi",
+  cargo: "cargo",
+  rubygems: "rubygems",
+  go: "go",
+} as const;
+
+export type DepsReportSummary = {
+  major: number;
+  minor: number;
+  patch: number;
+};
+
+export interface DepsReport {
+  ecosystem?: DepsReportEcosystem;
+  manifest_file?: string | null;
+  deps: DepStaleness[];
+  manifest_changed: boolean;
+  total_stale: number;
+  summary: DepsReportSummary;
 }
 
 export interface SummarizeResponse {
@@ -129,4 +215,19 @@ export type ListCommitsParams = {
    * Branch name or SHA to filter commits
    */
   branch?: string;
+};
+
+export type GetRepoDepsParams = {
+  /**
+   * Branch name or SHA to fetch manifest from
+   */
+  branch?: string;
+  /**
+   * Primary language of the repository (from GitHub API) for work-area detection
+   */
+  language?: string;
+  /**
+   * Comma-separated list of recently-changed filenames for manifest-change detection
+   */
+  files?: string;
 };

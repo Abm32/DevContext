@@ -385,9 +385,11 @@ router.get("/repos/:owner/:repo/deps", async (req, res) => {
     const ecosystemFromLanguage = language ? languageToEcosystem(language) : null;
     const inWorkArea = ecosystemFromLanguage === ecosystem;
 
-    // Limit: prod deps first, then dev if space, cap at 40 total
+    // Limit: prod deps first (always), dev deps only when manifest was recently changed
     const prodDeps = rawDeps.filter((d) => d.dep_type === "prod").slice(0, 35);
-    const devDeps = rawDeps.filter((d) => d.dep_type === "dev").slice(0, Math.max(0, 40 - prodDeps.length));
+    const devDeps = manifestChanged
+      ? rawDeps.filter((d) => d.dep_type === "dev").slice(0, Math.max(0, 40 - prodDeps.length))
+      : [];
     const depsToCheck = [...prodDeps, ...devDeps];
 
     // Fan out to registry in parallel (each dep has its own timeout via withTimeout)

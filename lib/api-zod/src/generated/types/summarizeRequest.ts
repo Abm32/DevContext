@@ -6,9 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { SummarizeRequestCommitsItem } from "./summarizeRequestCommitsItem";
+import type { SummarizeRequestMode } from "./summarizeRequestMode";
 
 export interface SummarizeRequest {
   repo_name: string;
-  mode?: 'next_steps' | 'standup';
+  mode?: SummarizeRequestMode;
   commits: SummarizeRequestCommitsItem[];
 }

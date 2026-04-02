@@ -419,6 +419,23 @@ components:
         - files
         - stats
 
+    SummarizeCommitFile:
+      type: object
+      properties:
+        filename:
+          type: string
+        status:
+          type: string
+        additions:
+          type: integer
+        deletions:
+          type: integer
+      required:
+        - filename
+        - status
+        - additions
+        - deletions
+
     SummarizeRequest:
       type: object
       properties:
@@ -442,12 +459,23 @@ components:
               files:
                 type: array
                 items:
-                  type: string
+                  $ref: "#/components/schemas/SummarizeCommitFile"
+              stats:
+                type: object
+                properties:
+                  additions:
+                    type: integer
+                  deletions:
+                    type: integer
+                required:
+                  - additions
+                  - deletions
             required:
               - sha
               - message
               - author_date
               - files
+              - stats
       required:
         - repo_name
         - commits

@@ -25,6 +25,11 @@ export interface GitHubUser {
   html_url: string;
 }
 
+export interface Branch {
+  name: string;
+  is_default: boolean;
+}
+
 export interface Repository {
   id: number;
   name: string;
@@ -71,9 +76,22 @@ export interface CommitDetail {
   stats: CommitDetailStats;
 }
 
-export type SummarizeCommitFilePayload = {
+export interface SummarizeCommitFile {
   filename: string;
   status: string;
+  additions: number;
+  deletions: number;
+}
+
+export type SummarizeRequestMode =
+  (typeof SummarizeRequestMode)[keyof typeof SummarizeRequestMode];
+
+export const SummarizeRequestMode = {
+  next_steps: "next_steps",
+  standup: "standup",
+} as const;
+
+export type SummarizeRequestCommitsItemStats = {
   additions: number;
   deletions: number;
 };
@@ -82,18 +100,13 @@ export type SummarizeRequestCommitsItem = {
   sha: string;
   message: string;
   author_date: string;
-  files: SummarizeCommitFilePayload[];
-  stats: { additions: number; deletions: number };
+  files: SummarizeCommitFile[];
+  stats: SummarizeRequestCommitsItemStats;
 };
-
-export interface Branch {
-  name: string;
-  is_default: boolean;
-}
 
 export interface SummarizeRequest {
   repo_name: string;
-  mode?: 'next_steps' | 'standup';
+  mode?: SummarizeRequestMode;
   commits: SummarizeRequestCommitsItem[];
 }
 
@@ -110,12 +123,10 @@ export type GithubAuthCallbackParams = {
   state?: string;
 };
 
-export type ListBranchesParams = {
-  owner: string;
-  repo: string;
-};
-
 export type ListCommitsParams = {
   per_page?: number;
+  /**
+   * Branch name or SHA to filter commits
+   */
   branch?: string;
 };

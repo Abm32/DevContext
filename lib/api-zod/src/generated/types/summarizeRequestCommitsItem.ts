@@ -5,18 +5,13 @@
  * API specification for DevContext
  * OpenAPI spec version: 0.1.0
  */
-
-export type SummarizeCommitFilePayload = {
-  filename: string;
-  status: string;
-  additions: number;
-  deletions: number;
-};
+import type { SummarizeCommitFile } from "./summarizeCommitFile";
+import type { SummarizeRequestCommitsItemStats } from "./summarizeRequestCommitsItemStats";
 
 export type SummarizeRequestCommitsItem = {
   sha: string;
   message: string;
   author_date: string;
-  files: SummarizeCommitFilePayload[];
-  stats: { additions: number; deletions: number };
+  files: SummarizeCommitFile[];
+  stats: SummarizeRequestCommitsItemStats;
 };

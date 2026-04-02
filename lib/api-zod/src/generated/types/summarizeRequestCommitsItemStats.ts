@@ -6,10 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type ListCommitsParams = {
-  per_page?: number;
-  /**
-   * Branch name or SHA to filter commits
-   */
-  branch?: string;
+export type SummarizeRequestCommitsItemStats = {
+  additions: number;
+  deletions: number;
 };

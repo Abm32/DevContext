@@ -42,20 +42,6 @@ export const LogoutResponse = zod.object({
 });
 
 /**
- * @summary List branches for a repository
- */
-export const ListBranchesParams = zod.object({
-  owner: zod.coerce.string(),
-  repo: zod.coerce.string(),
-});
-
-export const ListBranchesResponseItem = zod.object({
-  name: zod.string(),
-  is_default: zod.boolean(),
-});
-export const ListBranchesResponse = zod.array(ListBranchesResponseItem);
-
-/**
  * @summary List user repositories
  */
 export const ListReposResponseItem = zod.object({
@@ -73,9 +59,23 @@ export const ListReposResponseItem = zod.object({
 export const ListReposResponse = zod.array(ListReposResponseItem);
 
 /**
+ * @summary List branches for a repository
+ */
+export const ListBranchesParams = zod.object({
+  owner: zod.coerce.string(),
+  repo: zod.coerce.string(),
+});
+
+export const ListBranchesResponseItem = zod.object({
+  name: zod.string(),
+  is_default: zod.boolean(),
+});
+export const ListBranchesResponse = zod.array(ListBranchesResponseItem);
+
+/**
  * @summary List recent commits for a repository
  */
-export const ListCommitsPathParams = zod.object({
+export const ListCommitsParams = zod.object({
   owner: zod.coerce.string(),
   repo: zod.coerce.string(),
 });
@@ -84,7 +84,10 @@ export const listCommitsQueryPerPageDefault = 15;
 
 export const ListCommitsQueryParams = zod.object({
   per_page: zod.coerce.number().default(listCommitsQueryPerPageDefault),
-  branch: zod.coerce.string().optional(),
+  branch: zod.coerce
+    .string()
+    .optional()
+    .describe("Branch name or SHA to filter commits"),
 });
 
 export const ListCommitsResponseItem = zod.object({
@@ -131,9 +134,13 @@ export const GetCommitDetailResponse = zod.object({
 /**
  * @summary Generate AI summary of commit history
  */
+export const summarizeCommitsBodyModeDefault = `next_steps`;
+
 export const SummarizeCommitsBody = zod.object({
   repo_name: zod.string(),
-  mode: zod.enum(["next_steps", "standup"]).optional().default("next_steps"),
+  mode: zod
+    .enum(["next_steps", "standup"])
+    .default(summarizeCommitsBodyModeDefault),
   commits: zod.array(
     zod.object({
       sha: zod.string(),

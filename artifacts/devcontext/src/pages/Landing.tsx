@@ -4,10 +4,15 @@ import { motion } from "framer-motion"
 import { Github, BrainCircuit, Zap, Code2, GitMerge } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useGetMe } from "@workspace/api-client-react"
+import { track } from "@/hooks/use-track"
 
 export default function Landing() {
   const [, setLocation] = useLocation()
   const { data: user, isLoading } = useGetMe({ query: { retry: false } })
+
+  useEffect(() => {
+    void track("page_view", { page: "/" })
+  }, [])
 
   useEffect(() => {
     if (user && !isLoading) {
@@ -37,7 +42,7 @@ export default function Landing() {
           </div>
           <span className="font-bold text-xl tracking-tight text-white">DevContext</span>
         </div>
-        <Button variant="glass" onClick={() => window.location.href = "/api/auth/github"}>
+        <Button variant="glass" onClick={() => { void track("click:connect_github", { element: "nav_signin" }); window.location.href = "/api/auth/github"; }}>
           Sign In
         </Button>
       </nav>
@@ -73,7 +78,7 @@ export default function Landing() {
           >
             <Button 
               size="lg" 
-              onClick={() => window.location.href = "/api/auth/github"}
+              onClick={() => { void track("click:connect_github", { element: "hero_cta" }); window.location.href = "/api/auth/github"; }}
               className="gap-3 text-lg h-14 px-8"
             >
               <Github className="w-6 h-6" />

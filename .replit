@@ -1,4 +1,4 @@
-modules = ["nodejs-24"]
+modules = ["nodejs-24", "postgresql-16"]
 
 [[artifacts]]
 id = "artifacts/api-server"
@@ -28,3 +28,10 @@ timeoutMs = 20000
 [userenv]
 
 [userenv.shared]
+ADMIN_EMAIL = "abhimanyurbsa@gmail.com"
+ADMIN_SALT = "7f7e6dd116030de3e68c7263b80227605764810d961de42b7156f7612389dad6"
+ADMIN_PASSWORD_HASH = "2523e00b45be1d9dc2e2b904b03f94288123cdf1f4ebafb15ade3d58b48eb55f"
+ADMIN_JWT_SECRET = "1273ca38ff94804bc960ccac9cf3c87e9fc03d18d8bcd2c279f0cd559e891ff8"
+
+[nix]
+channel = "stable-25_05"

@@ -14,6 +14,7 @@ import {
   Branch
 } from "@workspace/api-client-react"
 import { useGenerateSummary } from "@/hooks/use-devcontext"
+import { track } from "@/hooks/use-track"
 import { Header } from "@/components/layout/Header"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -202,6 +203,12 @@ export default function Dashboard() {
     if (isError) setLocation("/")
   }, [isError, setLocation])
 
+  useEffect(() => {
+    if (user) {
+      void track("page_view", { page: "/dashboard" })
+    }
+  }, [user])
+
   // One-time repo restoration from localStorage
   useEffect(() => {
     if (repoRestored.current || !repos || !initialRepo.current) return
@@ -246,6 +253,12 @@ export default function Dashboard() {
 
   const handleGenerateSummary = () => {
     if (selectedRepo && commits) {
+      const eventType = summaryMode === "standup" ? "click:generate_standup" : "click:generate_summary"
+      void track(eventType, {
+        page: "/dashboard",
+        element: "generate_button",
+        metadata: { repo: selectedRepo.full_name, commits: commits.length, mode: summaryMode },
+      })
       generate(owner, selectedRepo.name, commits, summaryMode)
     }
   }
@@ -271,6 +284,7 @@ export default function Dashboard() {
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(buildMarkdown())
+    void track("click:copy", { page: "/dashboard", element: "copy_markdown", metadata: { mode: summaryMode } })
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }

@@ -14,6 +14,9 @@ import {
   Branch
 } from "@workspace/api-client-react"
 import { useGenerateSummary } from "@/hooks/use-devcontext"
+import { useGetRepoDeps } from "@/hooks/use-get-repo-deps"
+import type { DepContextItem } from "@/hooks/use-devcontext"
+import { DepHealthPanel } from "@/components/dep-health-panel"
 import { track } from "@/hooks/use-track"
 import { Header } from "@/components/layout/Header"
 import { Button } from "@/components/ui/button"
@@ -192,12 +195,46 @@ export default function Dashboard() {
     { query: { enabled: !!selectedRepo, retry: 1 } }
   )
 
+  // Dependency health data
+  const {
+    data: depsReport,
+    isLoading: isDepsLoading,
+    isError: isDepsError,
+    refetch: refetchDeps,
+  } = useGetRepoDeps({
+    owner,
+    repo: selectedRepo?.name || "",
+    branch: activeBranch,
+    language: selectedRepo?.language,
+    enabled: !!selectedRepo,
+  })
+
+  // Build dep_context for AI: top 5 stale deps (major > minor > patch)
+  const depContext = useMemo((): DepContextItem[] => {
+    if (!depsReport?.deps) return []
+    return depsReport.deps
+      .filter((d): d is typeof d & { latest_version: string } =>
+        d.severity !== "ok" && d.latest_version !== null
+      )
+      .slice(0, 5)
+      .map((d) => ({
+        name: d.name,
+        current_version: d.current_version,
+        latest_version: d.latest_version,
+        severity: d.severity as "major" | "minor" | "patch",
+        ecosystem: d.ecosystem,
+      }))
+  }, [depsReport])
+
   const { generate, isGenerating, progress, result } = useGenerateSummary()
 
   const commitStats = useMemo(() => {
     if (!commits || commits.length === 0) return null
     return computeCommitStats(commits)
   }, [commits])
+
+  // Extract commit messages for teammate-dep-change heuristic in DepHealthPanel
+  const commitMessages = useMemo(() => commits?.map((c) => c.message) ?? [], [commits])
 
   useEffect(() => {
     if (isError) setLocation("/")
@@ -226,7 +263,6 @@ export default function Dashboard() {
   }, [branches])
 
   // Persist the active branch whenever branches load and storage is empty.
-  // This ensures the default branch is saved when the user picks a repo without touching the dropdown.
   useEffect(() => {
     if (!branches || !activeBranch || !selectedRepo) return
     if (!localStorage.getItem('dc_last_branch')) {
@@ -259,7 +295,7 @@ export default function Dashboard() {
         element: "generate_button",
         metadata: { repo: selectedRepo.full_name, commits: commits.length, mode: summaryMode },
       })
-      generate(owner, selectedRepo.name, commits, summaryMode)
+      generate(owner, selectedRepo.name, commits, summaryMode, depContext)
     }
   }
 
@@ -480,219 +516,242 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Right Column: AI Summary Panel */}
-        <div className="w-full lg:w-2/3 flex flex-col bg-card border border-white/5 rounded-2xl shadow-xl overflow-hidden relative">
-          
-          <div className="p-5 border-b border-white/5 flex items-center justify-between bg-white/[0.02] gap-4 flex-wrap">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary/20 text-primary rounded-lg">
-                <Sparkles className="w-5 h-5" />
-              </div>
-              <div>
-                <h2 className="text-lg font-bold text-white">Code Brain Analysis</h2>
-                <p className="text-sm text-muted-foreground">AI-powered context recovery</p>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-3 flex-wrap">
-              {/* Mode Toggle */}
-              <div className="flex items-center bg-secondary/40 rounded-xl border border-white/10 p-1 gap-1">
-                <button
-                  onClick={() => setSummaryMode("next_steps")}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    summaryMode === "next_steps"
-                      ? "bg-primary/20 text-primary"
-                      : "text-muted-foreground hover:text-white"
-                  }`}
-                >
-                  <BrainCircuit className="w-3.5 h-3.5" />
-                  Next Steps
-                </button>
-                <button
-                  onClick={() => setSummaryMode("standup")}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    summaryMode === "standup"
-                      ? "bg-emerald-500/20 text-emerald-400"
-                      : "text-muted-foreground hover:text-white"
-                  }`}
-                >
-                  <ClipboardList className="w-3.5 h-3.5" />
-                  Standup
-                </button>
-              </div>
+        {/* Right Column: Dep Health + AI Summary Panel */}
+        <div className="w-full lg:w-2/3 flex flex-col gap-4 overflow-hidden">
 
-              <Button 
-                onClick={handleGenerateSummary} 
-                disabled={!selectedRepo || !commits?.length || isGenerating}
-                size="sm"
-                className="gap-2"
-              >
-                {isGenerating ? (
-                  <>Analyzing...</>
-                ) : (
-                  <>
-                    <Sparkles className="w-3.5 h-3.5" />
-                    {summaryMode === "standup" ? "Generate Standup" : "What's next?"}
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-6 relative">
-            {!selectedRepo ? (
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8">
-                <div className="w-16 h-16 rounded-2xl bg-secondary flex items-center justify-center mb-6">
-                  <FolderGit2 className="w-8 h-8 text-muted-foreground" />
-                </div>
-                <h3 className="text-xl font-semibold text-white mb-2">Select a repository</h3>
-                <p className="text-muted-foreground max-w-md">
-                  Choose a project from the left panel to analyze your recent work and rebuild your context.
-                </p>
-              </div>
-            ) : isGenerating ? (
-              <div className="h-full flex flex-col items-center justify-center max-w-md mx-auto text-center space-y-6">
-                <div className="relative w-24 h-24">
-                  <div className="absolute inset-0 border-4 border-primary/20 rounded-full" />
-                  <div className="absolute inset-0 border-4 border-primary rounded-full border-t-transparent animate-spin" />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <BrainCircuit className="w-8 h-8 text-primary animate-pulse" />
-                  </div>
-                </div>
-                <div>
-                  <h3 className="text-lg font-medium text-white mb-2">
-                    {summaryMode === "standup" ? "Writing Standup..." : "Engaging Code Brain..."}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    Fetching commit details, reading diffs, and synthesizing your recent work momentum.
-                  </p>
-                </div>
-                <div className="w-full h-2 bg-secondary rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-primary transition-all duration-300 ease-out"
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
-              </div>
-            ) : result ? (
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="max-w-3xl space-y-8"
-              >
-                {/* Copy Button */}
-                <div className="flex justify-end">
-                  <button
-                    onClick={handleCopy}
-                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-white border border-white/10 hover:border-white/20 rounded-lg px-3 py-1.5 transition-all"
-                  >
-                    {copied ? (
-                      <><Check className="w-3.5 h-3.5 text-emerald-400" />Copied!</>
-                    ) : (
-                      <><Copy className="w-3.5 h-3.5" />Copy as Markdown</>
-                    )}
-                  </button>
-                </div>
-
-                {/* Standup Mode Output */}
-                {result.standup_update ? (
-                  <section>
-                    <h3 className="text-sm font-semibold text-emerald-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-                      <ClipboardList className="w-4 h-4" />
-                      Standup Update
-                    </h3>
-                    <div className="p-5 rounded-xl bg-emerald-500/5 border border-emerald-500/15 text-white leading-relaxed whitespace-pre-wrap font-mono text-sm">
-                      {result.standup_update}
-                    </div>
-                    <p className="mt-3 text-xs text-muted-foreground">Paste this directly into Slack, Notion, or your standup tool.</p>
-                  </section>
-                ) : null}
-
-                {/* What you were doing */}
-                <section>
-                  <h3 className="text-sm font-semibold text-primary uppercase tracking-wider mb-4 flex items-center gap-2">
-                    <GitCommitHorizontal className="w-4 h-4" />
-                    What you were doing
-                  </h3>
-                  <div className="p-5 rounded-xl bg-secondary/30 border border-white/5 text-white leading-relaxed">
-                    {result.what_you_were_doing}
-                  </div>
-                </section>
-
-                {/* Key Changes */}
-                <section>
-                  <h3 className="text-sm font-semibold text-accent uppercase tracking-wider mb-4 flex items-center gap-2">
-                    <GitMerge className="w-4 h-4" />
-                    Key Changes
-                  </h3>
-                  <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {result.key_changes.map((change, i) => (
-                      <li key={i} className="flex items-start gap-3 p-4 rounded-xl bg-white/[0.02] border border-white/5">
-                        <div className="mt-0.5 w-1.5 h-1.5 rounded-full bg-accent shrink-0" />
-                        <span className="text-sm text-muted-foreground">{change}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-
-                {/* Next Steps */}
-                <section>
-                  <h3 className="text-sm font-semibold text-emerald-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-                    <ArrowRight className="w-4 h-4" />
-                    Suggested Next Steps
-                  </h3>
-                  <div className="space-y-3">
-                    {result.suggested_next_steps.map((step, i) => (
-                      <div key={i} className="group flex items-center gap-4 p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/10 hover:border-emerald-500/30 transition-colors cursor-default">
-                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm">
-                          {i + 1}
-                        </div>
-                        <span className="text-white font-medium">{step}</span>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              </motion.div>
-            ) : (
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8">
-                <div className="w-16 h-16 rounded-2xl bg-secondary flex items-center justify-center mb-6">
-                  <BrainCircuit className="w-8 h-8 text-primary opacity-50" />
-                </div>
-                <h3 className="text-xl font-semibold text-white mb-2">Ready to Resume</h3>
-                <p className="text-muted-foreground max-w-md">
-                  Click the button above to generate a{summaryMode === "standup" ? " standup update" : " fresh summary of your recent work"} in <b>{selectedRepo.name}</b>.
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Dev Health Card */}
+          {/* Dependency Health Panel */}
           <AnimatePresence>
-            {commitStats && (
+            {selectedRepo && (
               <motion.div
-                initial={{ opacity: 0, y: 8 }}
+                initial={{ opacity: 0, y: -6 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                className="border-t border-white/5 px-5 py-4 bg-white/[0.015] flex flex-col gap-3"
+                exit={{ opacity: 0, y: -6 }}
               >
-                <div className="flex items-center gap-2">
-                  <Heart className="w-3.5 h-3.5 text-rose-400" />
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Dev Health</span>
-                </div>
-                <div className="flex flex-col gap-2">
-                  {commitStats.flags.map((flag) => (
-                    <div key={flag.type} className="flex items-start gap-3">
-                      <span className="text-base leading-none mt-0.5">{flag.emoji}</span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium text-white/80">{flag.message}</p>
-                        <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">{flag.tip}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <DepHealthPanel
+                  report={depsReport}
+                  isLoading={isDepsLoading}
+                  isError={isDepsError}
+                  refetch={refetchDeps}
+                  commitMessages={commitMessages}
+                />
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* AI Summary Panel */}
+          <div className="flex-1 flex flex-col bg-card border border-white/5 rounded-2xl shadow-xl overflow-hidden relative min-h-0">
+          
+            <div className="p-5 border-b border-white/5 flex items-center justify-between bg-white/[0.02] gap-4 flex-wrap">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-primary/20 text-primary rounded-lg">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-white">Code Brain Analysis</h2>
+                  <p className="text-sm text-muted-foreground">AI-powered context recovery</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-3 flex-wrap">
+                {/* Mode Toggle */}
+                <div className="flex items-center bg-secondary/40 rounded-xl border border-white/10 p-1 gap-1">
+                  <button
+                    onClick={() => setSummaryMode("next_steps")}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                      summaryMode === "next_steps"
+                        ? "bg-primary/20 text-primary"
+                        : "text-muted-foreground hover:text-white"
+                    }`}
+                  >
+                    <BrainCircuit className="w-3.5 h-3.5" />
+                    Next Steps
+                  </button>
+                  <button
+                    onClick={() => setSummaryMode("standup")}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                      summaryMode === "standup"
+                        ? "bg-emerald-500/20 text-emerald-400"
+                        : "text-muted-foreground hover:text-white"
+                    }`}
+                  >
+                    <ClipboardList className="w-3.5 h-3.5" />
+                    Standup
+                  </button>
+                </div>
+
+                <Button 
+                  onClick={handleGenerateSummary} 
+                  disabled={!selectedRepo || !commits?.length || isGenerating}
+                  size="sm"
+                  className="gap-2"
+                >
+                  {isGenerating ? (
+                    <>Analyzing...</>
+                  ) : (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5" />
+                      {summaryMode === "standup" ? "Generate Standup" : "What's next?"}
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 relative">
+              {!selectedRepo ? (
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8">
+                  <div className="w-16 h-16 rounded-2xl bg-secondary flex items-center justify-center mb-6">
+                    <FolderGit2 className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-white mb-2">Select a repository</h3>
+                  <p className="text-muted-foreground max-w-md">
+                    Choose a project from the left panel to analyze your recent work and rebuild your context.
+                  </p>
+                </div>
+              ) : isGenerating ? (
+                <div className="h-full flex flex-col items-center justify-center max-w-md mx-auto text-center space-y-6">
+                  <div className="relative w-24 h-24">
+                    <div className="absolute inset-0 border-4 border-primary/20 rounded-full" />
+                    <div className="absolute inset-0 border-4 border-primary rounded-full border-t-transparent animate-spin" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <BrainCircuit className="w-8 h-8 text-primary animate-pulse" />
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-medium text-white mb-2">
+                      {summaryMode === "standup" ? "Writing Standup..." : "Engaging Code Brain..."}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Fetching commit details, reading diffs, and synthesizing your recent work momentum.
+                    </p>
+                  </div>
+                  <div className="w-full h-2 bg-secondary rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-primary transition-all duration-300 ease-out"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                </div>
+              ) : result ? (
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="max-w-3xl space-y-8"
+                >
+                  {/* Copy Button */}
+                  <div className="flex justify-end">
+                    <button
+                      onClick={handleCopy}
+                      className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-white border border-white/10 hover:border-white/20 rounded-lg px-3 py-1.5 transition-all"
+                    >
+                      {copied ? (
+                        <><Check className="w-3.5 h-3.5 text-emerald-400" />Copied!</>
+                      ) : (
+                        <><Copy className="w-3.5 h-3.5" />Copy as Markdown</>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Standup Mode Output */}
+                  {result.standup_update ? (
+                    <section>
+                      <h3 className="text-sm font-semibold text-emerald-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                        <ClipboardList className="w-4 h-4" />
+                        Standup Update
+                      </h3>
+                      <div className="p-5 rounded-xl bg-emerald-500/5 border border-emerald-500/15 text-white leading-relaxed whitespace-pre-wrap font-mono text-sm">
+                        {result.standup_update}
+                      </div>
+                      <p className="mt-3 text-xs text-muted-foreground">Paste this directly into Slack, Notion, or your standup tool.</p>
+                    </section>
+                  ) : null}
+
+                  {/* What you were doing */}
+                  <section>
+                    <h3 className="text-sm font-semibold text-primary uppercase tracking-wider mb-4 flex items-center gap-2">
+                      <GitCommitHorizontal className="w-4 h-4" />
+                      What you were doing
+                    </h3>
+                    <div className="p-5 rounded-xl bg-secondary/30 border border-white/5 text-white leading-relaxed">
+                      {result.what_you_were_doing}
+                    </div>
+                  </section>
+
+                  {/* Key Changes */}
+                  <section>
+                    <h3 className="text-sm font-semibold text-accent uppercase tracking-wider mb-4 flex items-center gap-2">
+                      <GitMerge className="w-4 h-4" />
+                      Key Changes
+                    </h3>
+                    <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {result.key_changes.map((change, i) => (
+                        <li key={i} className="flex items-start gap-3 p-4 rounded-xl bg-white/[0.02] border border-white/5">
+                          <div className="mt-0.5 w-1.5 h-1.5 rounded-full bg-accent shrink-0" />
+                          <span className="text-sm text-muted-foreground">{change}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+
+                  {/* Next Steps */}
+                  <section>
+                    <h3 className="text-sm font-semibold text-emerald-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                      <ArrowRight className="w-4 h-4" />
+                      Suggested Next Steps
+                    </h3>
+                    <div className="space-y-3">
+                      {result.suggested_next_steps.map((step, i) => (
+                        <div key={i} className="group flex items-center gap-4 p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/10 hover:border-emerald-500/30 transition-colors cursor-default">
+                          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm">
+                            {i + 1}
+                          </div>
+                          <span className="text-white font-medium">{step}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                </motion.div>
+              ) : (
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8">
+                  <div className="w-16 h-16 rounded-2xl bg-secondary flex items-center justify-center mb-6">
+                    <BrainCircuit className="w-8 h-8 text-primary opacity-50" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-white mb-2">Ready to Resume</h3>
+                  <p className="text-muted-foreground max-w-md">
+                    Click the button above to generate a{summaryMode === "standup" ? " standup update" : " fresh summary of your recent work"} in <b>{selectedRepo.name}</b>.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Dev Health Card */}
+            <AnimatePresence>
+              {commitStats && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  className="border-t border-white/5 px-5 py-4 bg-white/[0.015] flex flex-col gap-3"
+                >
+                  <div className="flex items-center gap-2">
+                    <Heart className="w-3.5 h-3.5 text-rose-400" />
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Dev Health</span>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    {commitStats.flags.map((flag) => (
+                      <div key={flag.type} className="flex items-start gap-3">
+                        <span className="text-base leading-none mt-0.5">{flag.emoji}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-white/80">{flag.message}</p>
+                          <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">{flag.tip}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       </main>
     </div>

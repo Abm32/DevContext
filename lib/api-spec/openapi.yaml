@@ -220,6 +220,51 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /github/repos/{owner}/{repo}/deps:
+    get:
+      operationId: getRepoDeps
+      tags: [github]
+      summary: Get dependency staleness report for a repository
+      parameters:
+        - name: owner
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: repo
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: branch
+          in: query
+          schema:
+            type: string
+          description: Branch name or SHA to fetch manifest from
+        - name: language
+          in: query
+          schema:
+            type: string
+          description: Primary language of the repository (from GitHub API) for work-area detection
+        - name: files
+          in: query
+          schema:
+            type: string
+          description: Comma-separated list of recently-changed filenames for manifest-change detection
+      responses:
+        "200":
+          description: Dependency staleness report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DepsReport"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /ai/summarize:
     post:
       operationId: summarizeCommits
@@ -479,6 +524,78 @@ components:
       required:
         - repo_name
         - commits
+
+    DepStaleness:
+      type: object
+      properties:
+        name:
+          type: string
+        ecosystem:
+          type: string
+          enum: [npm, pypi, cargo, rubygems, go]
+        current_version:
+          type: string
+        latest_version:
+          type: string
+          nullable: true
+        severity:
+          type: string
+          enum: [major, minor, patch, ok]
+        dep_type:
+          type: string
+          enum: [prod, dev]
+        registry_url:
+          type: string
+        in_work_area:
+          type: boolean
+        teammate_changed:
+          type: boolean
+      required:
+        - name
+        - ecosystem
+        - current_version
+        - severity
+        - dep_type
+        - registry_url
+        - in_work_area
+        - teammate_changed
+
+    DepsReport:
+      type: object
+      properties:
+        ecosystem:
+          type: string
+          enum: [npm, pypi, cargo, rubygems, go]
+          nullable: true
+        manifest_file:
+          type: string
+          nullable: true
+        deps:
+          type: array
+          items:
+            $ref: "#/components/schemas/DepStaleness"
+        manifest_changed:
+          type: boolean
+        total_stale:
+          type: integer
+        summary:
+          type: object
+          properties:
+            major:
+              type: integer
+            minor:
+              type: integer
+            patch:
+              type: integer
+          required:
+            - major
+            - minor
+            - patch
+      required:
+        - deps
+        - manifest_changed
+        - total_stale
+        - summary
 
     SummarizeResponse:
       type: object

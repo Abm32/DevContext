@@ -5,6 +5,14 @@ import {
   Commit 
 } from "@workspace/api-client-react";
 
+export type DepContextItem = {
+  name: string;
+  current_version: string;
+  latest_version: string;
+  severity: "major" | "minor" | "patch";
+  ecosystem: string;
+};
+
 export function useGenerateSummary() {
   const mutation = useSummarizeCommits();
   const [isGenerating, setIsGenerating] = useState(false);
@@ -14,7 +22,8 @@ export function useGenerateSummary() {
     owner: string,
     repoName: string,
     commits: Commit[],
-    mode: "next_steps" | "standup" = "next_steps"
+    mode: "next_steps" | "standup" = "next_steps",
+    depContext?: DepContextItem[]
   ) => {
     if (!commits.length) return;
     setIsGenerating(true);
@@ -48,7 +57,8 @@ export function useGenerateSummary() {
             additions: d.stats.additions,
             deletions: d.stats.deletions,
           },
-        }))
+        })),
+        ...(depContext && depContext.length > 0 ? { dep_context: depContext } : {}),
       };
 
       setProgress(80);

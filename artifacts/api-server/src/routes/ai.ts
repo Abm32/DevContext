@@ -18,6 +18,25 @@ type CommitPayload = {
   stats?: { additions: number; deletions: number };
 };
 
+type DepContextItem = {
+  name: string;
+  current_version: string;
+  latest_version: string;
+  severity: "major" | "minor" | "patch";
+  ecosystem: string;
+};
+
+function buildDepContextSection(depContext: DepContextItem[]): string {
+  if (!depContext.length) return "";
+  const lines = depContext
+    .map((d) => {
+      const badge = d.severity === "major" ? "MAJOR" : d.severity === "minor" ? "minor" : "patch";
+      return `  - ${d.name} (${d.ecosystem}): ${d.current_version} → ${d.latest_version} [${badge}]`;
+    })
+    .join("\n");
+  return `\nDEPENDENCY CONTEXT (stale packages in this repo):\n${lines}\n\nWhen suggesting next steps, consider whether any of these outdated dependencies are relevant to the active work and whether upgrading them is worth prioritizing.\n`;
+}
+
 function generateMockSummary(repoName: string, commits: CommitPayload[], mode: string) {
   const allFiles = [...new Set(commits.flatMap((c) => c.files.map(f => f.filename)))];
   const fileExtensions = allFiles
@@ -78,6 +97,19 @@ router.post("/summarize", async (req, res) => {
 
   const { repo_name, commits, mode = "next_steps" } = parsed.data;
 
+  // Read optional dep_context from the raw body (not in generated schema)
+  const rawBody = req.body as Record<string, unknown>;
+  const rawDepCtx = Array.isArray(rawBody["dep_context"]) ? (rawBody["dep_context"] as unknown[]) : [];
+  const depContext: DepContextItem[] = rawDepCtx.filter(
+    (item): item is DepContextItem =>
+      typeof item === "object" &&
+      item !== null &&
+      "name" in item &&
+      "current_version" in item &&
+      "latest_version" in item &&
+      "severity" in item
+  );
+
   const openai = getOpenAIClient();
 
   if (!openai) {
@@ -105,6 +137,7 @@ router.post("/summarize", async (req, res) => {
       )
       .join("\n\n");
 
+    const depSection = buildDepContextSection(depContext);
     const isStandup = mode === "standup";
 
     const prompt = isStandup
@@ -114,7 +147,7 @@ Each commit includes the files changed with their status (added/modified/removed
 
 Recent commits:
 ${commitSummary}
-
+${depSection}
 Respond with a JSON object with exactly these fields:
 {
   "what_you_were_doing": "A concise 1-2 sentence paragraph describing the overall context",
@@ -130,7 +163,7 @@ Each commit includes the files changed with their status (added/modified/removed
 
 Recent commits:
 ${commitSummary}
-
+${depSection}
 Respond with a JSON object with exactly these fields:
 {
   "what_you_were_doing": "A concise 2-3 sentence paragraph describing what the developer was working on — reference specific file names and note whether changes were small tweaks or large rewrites",

@@ -71,11 +71,19 @@ export interface CommitDetail {
   stats: CommitDetailStats;
 }
 
+export type SummarizeCommitFilePayload = {
+  filename: string;
+  status: string;
+  additions: number;
+  deletions: number;
+};
+
 export type SummarizeRequestCommitsItem = {
   sha: string;
   message: string;
   author_date: string;
-  files: string[];
+  files: SummarizeCommitFilePayload[];
+  stats: { additions: number; deletions: number };
 };
 
 export interface Branch {

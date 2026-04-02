@@ -139,7 +139,18 @@ export const SummarizeCommitsBody = zod.object({
       sha: zod.string(),
       message: zod.string(),
       author_date: zod.string(),
-      files: zod.array(zod.string()),
+      files: zod.array(
+        zod.object({
+          filename: zod.string(),
+          status: zod.string(),
+          additions: zod.number(),
+          deletions: zod.number(),
+        }),
+      ),
+      stats: zod.object({
+        additions: zod.number(),
+        deletions: zod.number(),
+      }),
     }),
   ),
 });

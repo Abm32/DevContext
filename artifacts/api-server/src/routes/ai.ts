@@ -12,8 +12,14 @@ function getOpenAIClient(): OpenAI | null {
   return new OpenAI({ baseURL, apiKey });
 }
 
-function generateMockSummary(repoName: string, commits: Array<{ message: string; files: string[] }>, mode: string) {
-  const allFiles = [...new Set(commits.flatMap((c) => c.files))];
+type CommitPayload = {
+  message: string;
+  files: Array<{ filename: string; status: string; additions: number; deletions: number }>;
+  stats?: { additions: number; deletions: number };
+};
+
+function generateMockSummary(repoName: string, commits: CommitPayload[], mode: string) {
+  const allFiles = [...new Set(commits.flatMap((c) => c.files.map(f => f.filename)))];
   const fileExtensions = allFiles
     .map((f) => f.split(".").pop())
     .filter(Boolean)
@@ -22,29 +28,35 @@ function generateMockSummary(repoName: string, commits: Array<{ message: string;
   const uniqueExts = [...new Set(fileExtensions)];
   const commitMessages = commits.map((c) => c.message).join(", ");
 
+  const totalAdditions = commits.reduce((sum, c) => sum + (c.stats?.additions ?? 0), 0);
+  const totalDeletions = commits.reduce((sum, c) => sum + (c.stats?.deletions ?? 0), 0);
+  const statsLabel = totalAdditions + totalDeletions > 0
+    ? ` (+${totalAdditions}/-${totalDeletions} lines across all commits)`
+    : "";
+
   const standupUpdate = mode === "standup"
-    ? `Yesterday: Worked on ${repoName}, making changes to ${allFiles.slice(0, 3).join(", ")}. Commits focused on: ${commitMessages.substring(0, 150)}.\nToday: Continue work on ${allFiles[0] ?? "the modified files"} and run the test suite.\nBlockers: None.`
+    ? `Yesterday: Worked on ${repoName}, modifying ${allFiles.slice(0, 3).join(", ")}${statsLabel}. Commits: ${commitMessages.substring(0, 150)}.\nToday: Continue work on ${allFiles[0] ?? "the modified files"} and run the test suite.\nBlockers: None.`
     : undefined;
 
   return {
-    what_you_were_doing: `You were working on ${repoName}, primarily making changes to ${allFiles.slice(0, 3).join(", ")}${allFiles.length > 3 ? ` and ${allFiles.length - 3} more files` : ""}. Your recent commits focused on: ${commitMessages.substring(0, 200)}.`,
+    what_you_were_doing: `You were working on ${repoName}, primarily modifying ${allFiles.slice(0, 3).join(", ")}${allFiles.length > 3 ? ` and ${allFiles.length - 3} more files` : ""}${statsLabel}. Recent commits: ${commitMessages.substring(0, 200)}.`,
     key_changes: [
-      `Modified ${allFiles.length} file(s) across ${commits.length} commit(s)`,
+      `Modified ${allFiles.length} file(s) across ${commits.length} commit(s)${statsLabel}`,
       uniqueExts.length > 0
         ? `Working with ${uniqueExts.join(", ")} files`
         : "Making configuration and documentation changes",
       commits[0]
-        ? `Most recent change: ${commits[0].message}`
+        ? `Most recent: "${commits[0].message}"`
         : "Recent commits staged",
       allFiles.some((f) => f.includes("test") || f.includes("spec"))
         ? "Added or updated tests"
         : "Feature implementation in progress",
     ],
     suggested_next_steps: [
-      `Review the changes in ${allFiles[0] ?? "the modified files"} to pick up where you left off`,
+      `Open ${allFiles[0] ?? "the modified files"} to pick up where you left off`,
       "Run the test suite to make sure everything is passing",
       "Check for any TODO comments left in the recent commits",
-      `Review the git diff for ${repoName} to see the full scope of recent changes`,
+      `Review the git diff for ${repoName} to see the full scope of changes`,
       "Consider writing a summary comment or updating the documentation",
     ],
     standup_update: standupUpdate ?? null,
@@ -79,8 +91,16 @@ router.post("/summarize", async (req, res) => {
   try {
     const commitSummary = commits
       .map(
-        (c: { sha: string; message: string; author_date: string; files: string[] }, i: number) =>
-          `Commit ${i + 1}: "${c.message}" (${new Date(c.author_date).toLocaleDateString()})\nFiles changed: ${c.files.slice(0, 15).join(", ")}${c.files.length > 15 ? ` and ${c.files.length - 15} more` : ""}`
+        (c: { sha: string; message: string; author_date: string; files: Array<{ filename: string; status: string; additions: number; deletions: number }>; stats: { additions: number; deletions: number } }, i: number) => {
+          const fileLines = c.files.slice(0, 20).map(f => {
+            const changeLabel = f.status === "removed"
+              ? `removed`
+              : `${f.status}, +${f.additions}/-${f.deletions}`;
+            return `  - ${f.filename} (${changeLabel})`;
+          }).join("\n");
+          const moreFiles = c.files.length > 20 ? `\n  ... and ${c.files.length - 20} more files` : "";
+          return `Commit ${i + 1}: "${c.message}" (${new Date(c.author_date).toLocaleDateString()}) [+${c.stats.additions}/-${c.stats.deletions} total]\nFiles:\n${fileLines}${moreFiles}`;
+        }
       )
       .join("\n\n");
 
@@ -88,6 +108,8 @@ router.post("/summarize", async (req, res) => {
 
     const prompt = isStandup
       ? `You are a developer assistant. Analyze the following recent Git commits from the repository "${repo_name}" and generate a standup update a developer could paste into Slack or their daily standup.
+
+Each commit includes the files changed with their status (added/modified/removed/renamed) and line counts (+additions/-deletions).
 
 Recent commits:
 ${commitSummary}
@@ -100,21 +122,23 @@ Respond with a JSON object with exactly these fields:
   "standup_update": "Yesterday: [2-3 sentences describing what was worked on]. Today: [1-2 sentences on what to work on next]. Blockers: [any blockers, or 'None.']"
 }
 
-Keep it professional, specific to the actual commits, and brief enough to paste into a standup.`
+Be specific: name actual files and distinguish between small fixes (few lines) and large refactors (hundreds of lines). Keep it professional and brief enough to paste into a standup.`
       : `You are a developer assistant helping a developer resume their coding work. Analyze the following recent Git commits from the repository "${repo_name}" and generate a clear, actionable summary.
+
+Each commit includes the files changed with their status (added/modified/removed/renamed) and line counts (+additions/-deletions). Use this to distinguish a 3-line bug fix from a 400-line feature and to identify which areas of the codebase are actively evolving.
 
 Recent commits:
 ${commitSummary}
 
 Respond with a JSON object with exactly these fields:
 {
-  "what_you_were_doing": "A concise 2-3 sentence paragraph describing what the developer was working on",
+  "what_you_were_doing": "A concise 2-3 sentence paragraph describing what the developer was working on — reference specific file names and note whether changes were small tweaks or large rewrites",
   "key_changes": ["bullet 1", "bullet 2", "bullet 3", "bullet 4"],
   "suggested_next_steps": ["step 1", "step 2", "step 3", "step 4", "step 5"],
   "standup_update": null
 }
 
-Keep it practical and specific to the actual files and commit messages. Focus on helping the developer immediately understand their context and resume work.`;
+Be specific: reference actual filenames, mention change magnitudes where they matter, and focus on helping the developer immediately understand their context and resume work. Avoid generic platitudes.`;
 
     const completion = await openai.chat.completions.create({
       model: "gpt-5.2",

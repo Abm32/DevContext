@@ -38,7 +38,16 @@ export function useGenerateSummary() {
           sha: d.sha,
           message: d.message,
           author_date: d.author_date,
-          files: d.files.map(f => f.filename)
+          files: d.files.map(f => ({
+            filename: f.filename,
+            status: f.status,
+            additions: f.additions,
+            deletions: f.deletions,
+          })),
+          stats: {
+            additions: d.stats.additions,
+            deletions: d.stats.deletions,
+          },
         }))
       };
 

@@ -218,6 +218,15 @@ export default function Dashboard() {
     if (match) setSelectedBranch(match.name)
   }, [branches])
 
+  // Persist the active branch whenever branches load and storage is empty.
+  // This ensures the default branch is saved when the user picks a repo without touching the dropdown.
+  useEffect(() => {
+    if (!branches || !activeBranch || !selectedRepo) return
+    if (!localStorage.getItem('dc_last_branch')) {
+      localStorage.setItem('dc_last_branch', activeBranch)
+    }
+  }, [branches, activeBranch, selectedRepo])
+
   if (isAuthLoading) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
@@ -377,7 +386,7 @@ export default function Dashboard() {
                     <span>{s.label}</span>
                   </div>
                 ))}
-                <span className="text-[10px] text-muted-foreground/40 self-center ml-auto pl-1">last {commitLimit}</span>
+                <span className="text-[10px] text-muted-foreground/40 self-center ml-auto pl-1">last {commitLimit} commits</span>
               </motion.div>
             )}
           </AnimatePresence>

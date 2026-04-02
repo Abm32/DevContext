@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { useLocation } from "wouter"
 import { motion, AnimatePresence } from "framer-motion"
 import { formatRelativeDate, getShortSha } from "@/lib/utils"
@@ -152,6 +152,15 @@ export default function Dashboard() {
   const [repoSearch, setRepoSearch] = useState("")
   const [summaryMode, setSummaryMode] = useState<"next_steps" | "standup">("next_steps")
   const [copied, setCopied] = useState(false)
+  const [commitLimit, setCommitLimit] = useState<15 | 30 | 50>(() => {
+    const saved = localStorage.getItem('dc_commit_limit')
+    return (saved === '30' ? 30 : saved === '50' ? 50 : 15) as 15 | 30 | 50
+  })
+
+  const initialRepo = useRef(localStorage.getItem('dc_last_repo'))
+  const initialBranch = useRef(localStorage.getItem('dc_last_branch'))
+  const repoRestored = useRef(false)
+  const branchRestored = useRef(false)
 
   const { data: repos, isLoading: isReposLoading } = useListRepos({
     query: { enabled: !!user }
@@ -165,10 +174,12 @@ export default function Dashboard() {
     { query: { enabled: !!selectedRepo } }
   )
 
-  // Reset branch when repo changes
+  // Reset branch when repo changes, persist to localStorage
   const handleSelectRepo = (repo: Repository) => {
     setSelectedRepo(repo)
     setSelectedBranch(null)
+    localStorage.setItem('dc_last_repo', repo.full_name)
+    localStorage.removeItem('dc_last_branch')
   }
 
   const activeBranch = selectedBranch ?? selectedRepo?.default_branch ?? undefined
@@ -176,7 +187,7 @@ export default function Dashboard() {
   const { data: commits, isLoading: isCommitsLoading, isError: isCommitsError } = useListCommits(
     owner,
     selectedRepo?.name || "",
-    { per_page: 15, branch: activeBranch },
+    { per_page: commitLimit, branch: activeBranch },
     { query: { enabled: !!selectedRepo, retry: 1 } }
   )
 
@@ -190,6 +201,22 @@ export default function Dashboard() {
   useEffect(() => {
     if (isError) setLocation("/")
   }, [isError, setLocation])
+
+  // One-time repo restoration from localStorage
+  useEffect(() => {
+    if (repoRestored.current || !repos || !initialRepo.current) return
+    repoRestored.current = true
+    const match = repos.find(r => r.full_name === initialRepo.current)
+    if (match) setSelectedRepo(match)
+  }, [repos])
+
+  // One-time branch restoration from localStorage
+  useEffect(() => {
+    if (branchRestored.current || !branches || !initialBranch.current) return
+    branchRestored.current = true
+    const match = branches.find(b => b.name === initialBranch.current)
+    if (match) setSelectedBranch(match.name)
+  }, [branches])
 
   if (isAuthLoading) {
     return (
@@ -309,7 +336,10 @@ export default function Dashboard() {
                 ) : (
                   <select
                     value={activeBranch ?? ""}
-                    onChange={(e) => setSelectedBranch(e.target.value)}
+                    onChange={(e) => {
+                      setSelectedBranch(e.target.value)
+                      localStorage.setItem('dc_last_branch', e.target.value)
+                    }}
                     className="w-full bg-secondary/30 border border-white/10 rounded-xl py-2 px-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none cursor-pointer"
                   >
                     {branches?.map(b => (
@@ -347,13 +377,32 @@ export default function Dashboard() {
                     <span>{s.label}</span>
                   </div>
                 ))}
+                <span className="text-[10px] text-muted-foreground/40 self-center ml-auto pl-1">last {commitLimit}</span>
               </motion.div>
             )}
           </AnimatePresence>
 
           {/* Commit List */}
           <div className="flex flex-col gap-3 flex-1 overflow-hidden">
-            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Recent Commits</h2>
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Recent Commits</h2>
+              <div className="flex items-center gap-0.5 bg-secondary/40 rounded-lg border border-white/8 p-0.5">
+                {([15, 30, 50] as const).map(n => (
+                  <button
+                    key={n}
+                    onClick={() => {
+                      setCommitLimit(n)
+                      localStorage.setItem('dc_commit_limit', String(n))
+                    }}
+                    className={`px-2 py-0.5 rounded text-[11px] font-medium transition-all ${
+                      commitLimit === n ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-white'
+                    }`}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </div>
             
             <div className="flex-1 overflow-y-auto scrollbar-hide pr-2 pb-8">
               {!selectedRepo ? (

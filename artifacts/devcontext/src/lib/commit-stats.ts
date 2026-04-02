@@ -160,7 +160,12 @@ export function computeCommitStats(commits: Array<{ author_date: string }>): Com
   }
 
   if (flags.length === 0) {
-    flags.push(WELLNESS_MESSAGES.looking_good())
+    flags.push({
+      type: "looking_good",
+      emoji: "✅",
+      message: `Analyzed ${totalCommits} commit${totalCommits !== 1 ? "s" : ""} across ${activeDays} active day${activeDays !== 1 ? "s" : ""}`,
+      tip: "Patterns look balanced — good pace, reasonable hours, no red flags.",
+    })
   }
 
   return { totalCommits, activeDays, dateSpan, streak, flags: flags.slice(0, 2) }

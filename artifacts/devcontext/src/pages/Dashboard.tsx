@@ -230,10 +230,7 @@ export default function Dashboard() {
   const [copied, setCopied] = useState(false)
   const [generateError, setGenerateError] = useState<string | null>(null)
   const [mobileTab, setMobileTab] = useState<"commits" | "ai">("commits")
-  const [commitLimit, setCommitLimit] = useState<15 | 30 | 50>(() => {
-    const saved = localStorage.getItem('dc_commit_limit')
-    return (saved === '30' ? 30 : saved === '50' ? 50 : 15) as 15 | 30 | 50
-  })
+  const commitLimit = 30
   const [cachedSummary, setCachedSummary] = useState<CachedSummary | null>(null)
 
   const initialRepo = useRef(localStorage.getItem('dc_last_repo'))
@@ -577,7 +574,7 @@ export default function Dashboard() {
                     <span>{s.label}</span>
                   </div>
                 ))}
-                <span className="text-[10px] text-muted-foreground/40 self-center ml-auto pl-1">last {commitLimit} commits</span>
+                <span className="text-[10px] text-muted-foreground/40 self-center ml-auto pl-1">last 30 commits</span>
               </motion.div>
             )}
           </AnimatePresence>
@@ -586,22 +583,6 @@ export default function Dashboard() {
           <div className="flex flex-col gap-3 flex-1 overflow-hidden">
             <div className="flex items-center justify-between gap-2">
               <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Recent Commits</h2>
-              <div className="flex items-center gap-0.5 bg-secondary/40 rounded-lg border border-white/8 p-0.5">
-                {([15, 30, 50] as const).map(n => (
-                  <button
-                    key={n}
-                    onClick={() => {
-                      setCommitLimit(n)
-                      localStorage.setItem('dc_commit_limit', String(n))
-                    }}
-                    className={`px-2 py-0.5 rounded text-[11px] font-medium transition-all ${
-                      commitLimit === n ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-white'
-                    }`}
-                  >
-                    {n}
-                  </button>
-                ))}
-              </div>
             </div>
             
             <div className="flex-1 overflow-y-auto scrollbar-hide pr-2 pb-4">
@@ -664,30 +645,30 @@ export default function Dashboard() {
                 </div>
               )}
 
-              {/* Dependency Health Panel — below commit list */}
-              <AnimatePresence>
-                {selectedRepo && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 6 }}
-                    className="mt-4"
-                  >
-                    <DepHealthPanel
-                      report={depsReport}
-                      isLoading={isDepsLoading}
-                      isError={isDepsError}
-                      refetch={refetchDeps}
-                    />
-                  </motion.div>
-                )}
-              </AnimatePresence>
             </div>
           </div>
         </div>
 
         {/* Right Column: AI Summary Panel */}
         <div className={`w-full md:w-2/3 flex flex-col gap-4 overflow-hidden ${mobileTab === "commits" ? "hidden md:flex" : "flex"}`}>
+
+          {/* Dependency Health Panel — always visible at top of right column */}
+          <AnimatePresence>
+            {selectedRepo && (
+              <motion.div
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+              >
+                <DepHealthPanel
+                  report={depsReport}
+                  isLoading={isDepsLoading}
+                  isError={isDepsError}
+                  refetch={refetchDeps}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* AI Summary Panel */}
           <div className="flex-1 flex flex-col bg-card border border-white/5 rounded-2xl shadow-xl overflow-hidden relative min-h-0">

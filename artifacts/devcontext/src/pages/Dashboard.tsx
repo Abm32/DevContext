@@ -236,8 +236,9 @@ export default function Dashboard() {
   const [, setLocation] = useLocation()
   const { data: user, isLoading: isAuthLoading, isError } = useGetMe({ query: { retry: false } })
 
-  // ─── Multi-repo state ────────────────────────────────────────────────────
+  // ─── Repo selection state ─────────────────────────────────────────────────
   const [selectedRepos, setSelectedRepos] = useState<RepoEntry[]>([])
+  const [multiRepoMode, setMultiRepoMode] = useState(false)
   const [repoSearch, setRepoSearch] = useState("")
   const [workspaces, setWorkspaces] = useState<Workspace[]>(() => loadWorkspaces())
   const [showSaveWorkspace, setShowSaveWorkspace] = useState(false)
@@ -443,7 +444,10 @@ export default function Dashboard() {
       const match = repos.find(r => r.full_name === slug.fullName)
       if (match) entries.push({ id: crypto.randomUUID(), repo: match, branch: slug.branch })
     }
-    if (entries.length) setSelectedRepos(entries)
+    if (entries.length) {
+      setSelectedRepos(entries)
+      if (entries.length > 1) setMultiRepoMode(true)
+    }
   }, [repos])
 
   // ─── Restore cached summary when selection changes ────────────────────────
@@ -483,21 +487,44 @@ export default function Dashboard() {
     r.full_name.toLowerCase().includes(repoSearch.toLowerCase())
   ).slice(0, 50)
 
-  // ─── Repo toggle (add/remove from selectedRepos) ─────────────────────────
+  // ─── Repo toggle (single-select by default; multi-repo when mode is on) ──
   const handleToggleRepo = (repo: Repository) => {
     const idx = selectedRepos.findIndex(e => e.repo.id === repo.id)
     let updated: RepoEntry[]
-    if (idx >= 0) {
-      updated = selectedRepos.filter((_, i) => i !== idx)
-    } else if (selectedRepos.length < 3) {
-      updated = [...selectedRepos, { id: crypto.randomUUID(), repo, branch: null }]
+
+    if (!multiRepoMode) {
+      // Single-select: clicking the already-selected repo deselects; otherwise replace
+      if (idx >= 0) {
+        updated = []
+      } else {
+        updated = [{ id: crypto.randomUUID(), repo, branch: null }]
+      }
     } else {
-      return // max 3
+      // Multi-select: toggle in/out, max 3
+      if (idx >= 0) {
+        updated = selectedRepos.filter((_, i) => i !== idx)
+      } else if (selectedRepos.length < 3) {
+        updated = [...selectedRepos, { id: crypto.randomUUID(), repo, branch: null }]
+      } else {
+        return // max 3
+      }
     }
+
     setSelectedRepos(updated)
     saveActiveRepos(updated)
     setCachedSummary(null)
     setGenerateError(null)
+  }
+
+  // Toggle multi-repo mode; when turning off, trim to first repo only
+  const handleToggleMultiRepoMode = () => {
+    if (multiRepoMode) {
+      const trimmed = selectedRepos.slice(0, 1)
+      setSelectedRepos(trimmed)
+      saveActiveRepos(trimmed)
+      setCachedSummary(null)
+    }
+    setMultiRepoMode(m => !m)
   }
 
   const handleBranchChange = (entryId: string, branch: string) => {
@@ -537,6 +564,8 @@ export default function Dashboard() {
     saveActiveRepos(entries)
     setCachedSummary(null)
     setGenerateError(null)
+    // Auto-enable compare mode if workspace has multiple repos
+    if (entries.length > 1) setMultiRepoMode(true)
   }
 
   const handleDeleteWorkspace = (id: string) => {
@@ -835,14 +864,22 @@ export default function Dashboard() {
           <div className="flex flex-col gap-2 flex-shrink-0">
             <div className="flex items-center justify-between">
               <h2 className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.25)" }}>
-                {selectedRepos.length === 0 ? "Select Repository" : selectedRepos.length < 3 ? "Add Another Repo" : "Repositories (max 3)"}
+                {!multiRepoMode
+                  ? "Repository"
+                  : selectedRepos.length < 3 ? "Compare Repos" : "Repositories (max 3)"}
               </h2>
-              {selectedRepos.length > 0 && selectedRepos.length < 3 && (
-                <span className="text-[10px] text-muted-foreground/40 flex items-center gap-1">
-                  <Plus className="w-3 h-3" />
-                  click to add
-                </span>
-              )}
+              {/* Compare mode toggle */}
+              <button
+                onClick={handleToggleMultiRepoMode}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-semibold uppercase tracking-wide transition-all"
+                style={multiRepoMode
+                  ? { background: "rgba(139,92,246,0.15)", color: "#a78bfa", border: "1px solid rgba(139,92,246,0.25)" }
+                  : { background: "rgba(255,255,255,0.04)", color: "#475569", border: "1px solid rgba(255,255,255,0.08)" }}
+                title={multiRepoMode ? "Exit compare mode (keeps first repo)" : "Compare up to 3 repos side by side"}
+              >
+                <Layers className="w-3 h-3" />
+                {multiRepoMode ? "Exit Compare" : "Compare"}
+              </button>
             </div>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -867,7 +904,8 @@ export default function Dashboard() {
                     const slotIdx = selectedRepos.findIndex(e => e.repo.id === repo.id)
                     const isSelected = slotIdx >= 0
                     const slotColor = isSelected ? REPO_COLORS[slotIdx] : null
-                    const isFull = selectedRepos.length >= 3 && !isSelected
+                    // In single-select mode nothing is ever "full" — clicking always switches
+                    const isFull = multiRepoMode && selectedRepos.length >= 3 && !isSelected
                     return (
                       <button
                         key={repo.id}

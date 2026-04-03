@@ -266,6 +266,8 @@ export default function Dashboard() {
   const [e2emError, setE2emError] = useState<string | null>(null)
   const [e2emEmailCopied, setE2emEmailCopied] = useState(false)
   const [mobileTab, setMobileTab] = useState<"commits" | "ai">("commits")
+  const [depHealthExpanded, setDepHealthExpanded] = useState(false)
+  const [e2emExpanded, setE2emExpanded] = useState(false)
   const [cachedSummary, setCachedSummary] = useState<CachedSummary | null>(null)
   const commitLimit = 30
 
@@ -598,6 +600,18 @@ export default function Dashboard() {
   const displayResult = cachedSummary?.result ?? null
   const isFromCache = !!cachedSummary && !result
 
+  // ─── Dep health aggregate summary ────────────────────────────────────────
+  const depHealthSummary = useMemo(() => {
+    const reports = [depsReport0, depsReport1, depsReport2].filter(Boolean)
+    const loading = isDepsLoading0 || isDepsLoading1 || isDepsLoading2
+    const total = reports.reduce((acc, r) => ({
+      major: acc.major + (r?.summary.major ?? 0),
+      minor: acc.minor + (r?.summary.minor ?? 0),
+      patch: acc.patch + (r?.summary.patch ?? 0),
+    }), { major: 0, minor: 0, patch: 0 })
+    return { ...total, loading, anyLoaded: reports.length > 0 }
+  }, [depsReport0, depsReport1, depsReport2, isDepsLoading0, isDepsLoading1, isDepsLoading2])
+
   // ─── e2em — repos visible to the user that match the grant ───────────────
   const e2emMatchedRepos = e2emGrant?.granted
     ? selectedRepos
@@ -651,22 +665,33 @@ export default function Dashboard() {
       <Header />
 
       {/* Mobile tab switcher */}
-      <div className="md:hidden flex border-b border-white/5 bg-card/30">
-        <button
-          onClick={() => setMobileTab("commits")}
-          className={`flex-1 py-2.5 text-xs font-medium flex items-center justify-center gap-2 transition-colors ${mobileTab === "commits" ? "text-primary border-b-2 border-primary" : "text-muted-foreground"}`}
-        >
-          <GitCommitHorizontal className="w-3.5 h-3.5" />
-          Commits
-        </button>
-        <button
-          onClick={() => setMobileTab("ai")}
-          className={`flex-1 py-2.5 text-xs font-medium flex items-center justify-center gap-2 transition-colors ${mobileTab === "ai" ? "text-primary border-b-2 border-primary" : "text-muted-foreground"}`}
-        >
-          <Sparkles className="w-3.5 h-3.5" />
-          AI Analysis
-          {displayResult && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />}
-        </button>
+      <div className="md:hidden flex" style={{ background: "#0e0e10", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+        {([
+          { id: "commits", label: "Commits", icon: <GitCommitHorizontal className="w-4 h-4" /> },
+          { id: "ai",      label: "AI Analysis", icon: <Sparkles className="w-4 h-4" />, dot: !!displayResult },
+        ] as const).map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setMobileTab(tab.id)}
+            className="flex-1 flex flex-col items-center gap-1 py-3 transition-colors"
+          >
+            <div
+              className="flex items-center justify-center w-10 h-7 rounded-full transition-all"
+              style={mobileTab === tab.id ? { background: "rgba(59,130,246,0.15)" } : {}}
+            >
+              <span style={{ color: mobileTab === tab.id ? "#3b82f6" : "#475569" }}>{tab.icon}</span>
+            </div>
+            <span
+              className="text-[10px] font-semibold uppercase tracking-wider"
+              style={{ color: mobileTab === tab.id ? "#3b82f6" : "#475569" }}
+            >
+              {tab.label}
+            </span>
+            {"dot" in tab && tab.dot && (
+              <span className="absolute top-2.5 right-[calc(50%-12px)] w-1.5 h-1.5 rounded-full" style={{ background: "#10b981" }} />
+            )}
+          </button>
+        ))}
       </div>
 
       <main className="flex-1 container mx-auto px-4 py-4 md:py-8 flex flex-col md:flex-row gap-8 overflow-hidden h-[calc(100vh-4rem)]">
@@ -677,7 +702,7 @@ export default function Dashboard() {
           {/* Workspaces strip */}
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
-              <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+              <h2 className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5" style={{ color: "rgba(255,255,255,0.25)" }}>
                 <Bookmark className="w-3 h-3" />
                 Workspaces
               </h2>
@@ -755,7 +780,7 @@ export default function Dashboard() {
                 exit={{ opacity: 0, height: 0 }}
                 className="flex flex-col gap-2 overflow-hidden"
               >
-                <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Active Repos</h2>
+                <h2 className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.25)" }}>Active Repos</h2>
                 {selectedRepos.map((entry, i) => {
                   const color = REPO_COLORS[i]!
                   const branches = i === 0 ? branches0 : i === 1 ? branches1 : branches2
@@ -809,7 +834,7 @@ export default function Dashboard() {
           {/* Repo selector */}
           <div className="flex flex-col gap-2 flex-shrink-0">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+              <h2 className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.25)" }}>
                 {selectedRepos.length === 0 ? "Select Repository" : selectedRepos.length < 3 ? "Add Another Repo" : "Repositories (max 3)"}
               </h2>
               {selectedRepos.length > 0 && selectedRepos.length < 3 && (
@@ -900,22 +925,48 @@ export default function Dashboard() {
                 initial={{ opacity: 0, y: -6 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
-                className="flex flex-wrap gap-2"
+                className="flex flex-wrap gap-1.5"
               >
                 {[
-                  { label: "commits", value: commitCountData != null && !isMultiRepo ? String(commitCountData) : String(commitStats.totalCommits), icon: "⎇" },
-                  { label: "active days", value: String(commitStats.activeDays), icon: "📅" },
-                  ...(commitStats.dateSpan ? [{ label: "span", value: commitStats.dateSpan, icon: "🗓️" }] : []),
-                  ...(commitStats.streak >= 1 ? [{ label: "streak", value: `🔥 ${commitStats.streak}d`, icon: "" }] : []),
-                  ...(isMultiRepo ? [{ label: "repos", value: String(selectedRepos.length), icon: "🗂" }] : []),
+                  {
+                    label: "commits",
+                    value: commitCountData != null && !isMultiRepo ? String(commitCountData) : String(commitStats.totalCommits),
+                    icon: <GitCommitHorizontal className="w-3 h-3" />,
+                    accent: "#3b82f6",
+                  },
+                  {
+                    label: "active days",
+                    value: String(commitStats.activeDays),
+                    icon: <Clock className="w-3 h-3" />,
+                    accent: "#8b5cf6",
+                  },
+                  ...(commitStats.dateSpan ? [{
+                    label: commitStats.dateSpan,
+                    value: "",
+                    icon: <Calendar className="w-3 h-3" />,
+                    accent: "#64748b",
+                  }] : []),
+                  ...(commitStats.streak >= 1 ? [{
+                    label: `${commitStats.streak}d streak`,
+                    value: "",
+                    icon: <span className="text-[11px]">🔥</span>,
+                    accent: "#f59e0b",
+                  }] : []),
+                  ...(isMultiRepo ? [{
+                    label: `${selectedRepos.length} repos`,
+                    value: "",
+                    icon: <Layers className="w-3 h-3" />,
+                    accent: "#10b981",
+                  }] : []),
                 ].map(s => (
                   <div
                     key={s.label}
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-secondary/40 border border-white/8 text-[11px] text-muted-foreground"
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px]"
+                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}
                   >
-                    {s.icon && <span className="text-[11px]">{s.icon}</span>}
-                    <span className="font-semibold text-white">{s.value}</span>
-                    <span>{s.label}</span>
+                    <span style={{ color: s.accent }}>{s.icon}</span>
+                    {s.value && <span className="font-semibold text-white">{s.value}</span>}
+                    <span style={{ color: "#64748b" }}>{s.label}</span>
                   </div>
                 ))}
               </motion.div>
@@ -924,7 +975,7 @@ export default function Dashboard() {
 
           {/* Commit List */}
           <div className="flex flex-col gap-3 flex-1 overflow-hidden">
-            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider shrink-0">Recent Commits</h2>
+            <h2 className="text-[10px] font-bold uppercase tracking-widest shrink-0" style={{ color: "rgba(255,255,255,0.25)" }}>Recent Commits</h2>
             <div className="flex-1 overflow-y-auto scrollbar-hide pr-2 pb-4">
               {!selectedRepo ? (
                 <div className="h-full flex flex-col items-center justify-center border border-dashed border-primary/20 rounded-xl bg-primary/[0.03] p-8 text-center gap-4">
@@ -992,98 +1043,164 @@ export default function Dashboard() {
         {/* ── Right Column ───────────────────────────────────────────────── */}
         <div className={`w-full md:w-2/3 flex flex-col gap-4 overflow-hidden ${mobileTab === "commits" ? "hidden md:flex" : "flex"}`}>
 
-          {/* Dependency Health Panels (one per selected repo) */}
+          {/* Dependency Health — collapsible strip */}
           <AnimatePresence>
             {selectedRepos.length > 0 && (
               <motion.div
                 initial={{ opacity: 0, y: -6 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
-                className={`grid gap-3 ${selectedRepos.length > 1 ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1"}`}
+                className="flex flex-col rounded-xl overflow-hidden"
+                style={{ background: "#131314", border: "1px solid rgba(255,255,255,0.05)" }}
               >
-                {selectedRepos.map((entry, i) => {
-                  const report = i === 0 ? depsReport0 : i === 1 ? depsReport1 : depsReport2
-                  const loading = i === 0 ? isDepsLoading0 : i === 1 ? isDepsLoading1 : isDepsLoading2
-                  const error = i === 0 ? isDepsError0 : i === 1 ? isDepsError1 : isDepsError2
-                  const refetch = i === 0 ? refetchDeps0 : i === 1 ? refetchDeps1 : refetchDeps2
-                  const color = REPO_COLORS[i]!
-                  return (
-                    <div key={entry.id}>
-                      {isMultiRepo && (
-                        <div className={`flex items-center gap-1.5 mb-1.5 text-[11px] font-medium ${color.text}`}>
-                          <span className={`w-2 h-2 rounded-full ${color.dot}`} />
-                          {entry.repo.name}
-                        </div>
-                      )}
-                      <DepHealthPanel report={report} isLoading={loading} isError={error} refetch={refetch} />
-                    </div>
-                  )
-                })}
+                {/* Compact header (always visible) */}
+                <button
+                  onClick={() => setDepHealthExpanded(e => !e)}
+                  className="flex items-center justify-between px-3.5 py-2.5 w-full text-left hover:bg-white/[0.02] transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.25)" }}>
+                      Dep Health
+                    </span>
+                    {depHealthSummary.loading ? (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: "rgba(255,255,255,0.05)", color: "#475569" }}>
+                        Checking…
+                      </span>
+                    ) : depHealthSummary.major > 0 ? (
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(239,68,68,0.12)", color: "#f87171", border: "1px solid rgba(239,68,68,0.2)" }}>
+                        {depHealthSummary.major} major outdated
+                      </span>
+                    ) : depHealthSummary.minor > 0 ? (
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(245,158,11,0.12)", color: "#fbbf24", border: "1px solid rgba(245,158,11,0.2)" }}>
+                        {depHealthSummary.minor} minor
+                      </span>
+                    ) : depHealthSummary.anyLoaded ? (
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(16,185,129,0.12)", color: "#34d399", border: "1px solid rgba(16,185,129,0.2)" }}>
+                        All current
+                      </span>
+                    ) : null}
+                  </div>
+                  <ChevronDown
+                    className="w-3.5 h-3.5 transition-transform"
+                    style={{ color: "#475569", transform: depHealthExpanded ? "rotate(180deg)" : "none" }}
+                  />
+                </button>
+
+                {/* Expanded panels */}
+                <AnimatePresence>
+                  {depHealthExpanded && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden"
+                    >
+                      <div
+                        className={`p-3 pt-0 grid gap-3 ${selectedRepos.length > 1 ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1"}`}
+                      >
+                        {selectedRepos.map((entry, i) => {
+                          const report = i === 0 ? depsReport0 : i === 1 ? depsReport1 : depsReport2
+                          const loading = i === 0 ? isDepsLoading0 : i === 1 ? isDepsLoading1 : isDepsLoading2
+                          const error = i === 0 ? isDepsError0 : i === 1 ? isDepsError1 : isDepsError2
+                          const refetch = i === 0 ? refetchDeps0 : i === 1 ? refetchDeps1 : refetchDeps2
+                          const color = REPO_COLORS[i]!
+                          return (
+                            <div key={entry.id}>
+                              {isMultiRepo && (
+                                <div className={`flex items-center gap-1.5 mb-1.5 text-[11px] font-medium ${color.text}`}>
+                                  <span className={`w-2 h-2 rounded-full ${color.dot}`} />
+                                  {entry.repo.name}
+                                </div>
+                              )}
+                              <DepHealthPanel report={report} isLoading={loading} isError={error} refetch={refetch} />
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </motion.div>
             )}
           </AnimatePresence>
 
           {/* AI Summary Panel */}
           <div className="flex-1 flex flex-col bg-card border border-white/5 rounded-2xl shadow-xl overflow-hidden relative min-h-0">
-            <div className="p-5 border-b border-white/5 flex items-center justify-between bg-white/[0.02] gap-4 flex-wrap">
+            {/* Header row 1: title + copy button */}
+            <div className="px-5 pt-4 pb-0 flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-primary/20 text-primary rounded-lg">
-                  <Sparkles className="w-5 h-5" />
+                <div className="p-1.5 rounded-lg shrink-0" style={{ background: "rgba(59,130,246,0.15)" }}>
+                  <Sparkles className="w-4 h-4" style={{ color: "#3b82f6" }} />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-white">Code Brain Analysis</h2>
-                  <p className="text-sm text-muted-foreground">
+                  <h2 className="text-base font-bold text-white" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Code Brain Analysis</h2>
+                  <p className="text-xs" style={{ color: "#64748b" }}>
                     {isMultiRepo
                       ? `${selectedRepos.length} repos · AI-powered context recovery`
                       : "AI-powered context recovery"}
                   </p>
                 </div>
               </div>
+              {displayResult && (
+                <button
+                  onClick={handleCopy}
+                  className="flex items-center gap-1.5 text-xs border rounded-lg px-3 py-1.5 transition-all shrink-0"
+                  style={{ color: copied ? "#10b981" : "#64748b", borderColor: "rgba(255,255,255,0.08)", background: "transparent" }}
+                >
+                  {copied ? <><Check className="w-3 h-3" /> Copied</> : <><Copy className="w-3 h-3" /> Copy MD</>}
+                </button>
+              )}
+            </div>
 
-              <div className="flex items-center gap-3 flex-wrap">
-                {/* Mode Toggle */}
-                <div className="flex items-center bg-secondary/40 rounded-xl border border-white/10 p-1 gap-1">
-                  <button
-                    onClick={() => setSummaryMode("next_steps")}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${summaryMode === "next_steps" ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-white"}`}
-                  >
-                    <BrainCircuit className="w-3.5 h-3.5" />
-                    Next Steps
-                  </button>
-                  <button
-                    onClick={() => setSummaryMode("standup")}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${summaryMode === "standup" ? "bg-emerald-500/20 text-emerald-400" : "text-muted-foreground hover:text-white"}`}
-                  >
-                    <ClipboardList className="w-3.5 h-3.5" />
-                    Standup
-                  </button>
-                </div>
-
-                <div className="flex flex-col items-end gap-1">
-                  <Button
-                    onClick={handleGenerateSummary}
-                    disabled={!selectedRepo || !mergedCommits.length || isGenerating || isCommitsLoading}
-                    size="sm"
-                    className="gap-2"
-                    title={
-                      !selectedRepo ? "Select a repository first" :
-                      isCommitsLoading ? "Loading commits…" :
-                      !mergedCommits.length ? "No commits found" :
-                      isGenerating ? "Generating…" : undefined
-                    }
-                  >
-                    {isGenerating ? <>Analyzing...</> : (
-                      <>
-                        <Sparkles className="w-3.5 h-3.5" />
-                        {summaryMode === "standup" ? "Generate Standup" : "What's next?"}
-                      </>
-                    )}
-                  </Button>
-                  {!selectedRepo && (
-                    <span className="text-[10px] text-muted-foreground/60">← select a repo first</span>
-                  )}
-                </div>
+            {/* Header row 2: mode toggle + generate */}
+            <div className="px-5 pt-3 pb-4 flex items-center gap-3 border-b border-white/5">
+              <div className="flex items-center rounded-xl p-1 gap-1" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                <button
+                  onClick={() => setSummaryMode("next_steps")}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                  style={summaryMode === "next_steps"
+                    ? { background: "rgba(59,130,246,0.2)", color: "#3b82f6" }
+                    : { color: "#64748b" }}
+                >
+                  <BrainCircuit className="w-3.5 h-3.5" />
+                  Next Steps
+                </button>
+                <button
+                  onClick={() => setSummaryMode("standup")}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                  style={summaryMode === "standup"
+                    ? { background: "rgba(16,185,129,0.15)", color: "#10b981" }
+                    : { color: "#64748b" }}
+                >
+                  <ClipboardList className="w-3.5 h-3.5" />
+                  Standup
+                </button>
               </div>
+
+              <button
+                onClick={handleGenerateSummary}
+                disabled={!selectedRepo || !mergedCommits.length || isGenerating || isCommitsLoading}
+                className="ml-auto flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{
+                  background: isGenerating ? "rgba(59,130,246,0.3)" : "linear-gradient(135deg, #3b82f6, #2563eb)",
+                  boxShadow: isGenerating ? "none" : "0 4px 16px rgba(59,130,246,0.25)",
+                }}
+                title={
+                  !selectedRepo ? "Select a repository first" :
+                  isCommitsLoading ? "Loading commits…" :
+                  !mergedCommits.length ? "No commits found" :
+                  isGenerating ? "Generating…" : undefined
+                }
+              >
+                {isGenerating
+                  ? <><span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Analyzing…</>
+                  : <><Sparkles className="w-3.5 h-3.5" />{summaryMode === "standup" ? "Generate Standup" : "What's next?"}</>
+                }
+              </button>
+              {!selectedRepo && (
+                <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.2)" }}>← select a repo first</span>
+              )}
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 relative">
@@ -1145,33 +1262,21 @@ export default function Dashboard() {
                   className="max-w-3xl space-y-8"
                 >
                   {/* Metadata row */}
-                  <div className="flex items-center justify-between flex-wrap gap-3">
-                    <div className="flex items-center gap-2 text-[11px] text-muted-foreground/60">
-                      <Clock className="w-3 h-3" />
-                      {isFromCache ? (
-                        <span>Cached · {formatRelativeDate(cachedSummary!.generatedAt)}</span>
-                      ) : (
-                        <span>Generated {formatRelativeDate(displayResult.generated_at)}</span>
-                      )}
-                      {isFromCache && (
-                        <span className="ml-1 px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 text-[10px] font-medium border border-amber-500/20">from cache</span>
-                      )}
-                      {isMultiRepo && (
-                        <span className="ml-1 px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-400 text-[10px] font-medium border border-violet-500/20">
-                          {selectedRepos.length} repos
-                        </span>
-                      )}
-                    </div>
-                    <button
-                      onClick={handleCopy}
-                      className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-white border border-white/10 hover:border-white/20 rounded-lg px-3 py-1.5 transition-all"
-                    >
-                      {copied ? (
-                        <><Check className="w-3.5 h-3.5 text-emerald-400" />Copied!</>
-                      ) : (
-                        <><Copy className="w-3.5 h-3.5" />Copy as Markdown</>
-                      )}
-                    </button>
+                  <div className="flex items-center gap-2 text-[11px]" style={{ color: "rgba(255,255,255,0.3)" }}>
+                    <Clock className="w-3 h-3" />
+                    {isFromCache ? (
+                      <span>Cached · {formatRelativeDate(cachedSummary!.generatedAt)}</span>
+                    ) : (
+                      <span>Generated {formatRelativeDate(displayResult.generated_at)}</span>
+                    )}
+                    {isFromCache && (
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-medium" style={{ background: "rgba(245,158,11,0.1)", color: "#fbbf24", border: "1px solid rgba(245,158,11,0.2)" }}>cache</span>
+                    )}
+                    {isMultiRepo && (
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-medium" style={{ background: "rgba(139,92,246,0.1)", color: "#a78bfa", border: "1px solid rgba(139,92,246,0.2)" }}>
+                        {selectedRepos.length} repos
+                      </span>
+                    )}
                   </div>
 
                   {/* Standup */}
@@ -1303,18 +1408,37 @@ export default function Dashboard() {
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
-                className="bg-card border border-white/5 rounded-2xl shadow-xl flex flex-col overflow-hidden flex-shrink-0"
+                className="flex flex-col overflow-hidden flex-shrink-0 rounded-xl"
+                style={{ background: "#131314", border: "1px solid rgba(255,255,255,0.05)" }}
               >
-                {/* Header */}
-                <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/5 bg-white/[0.02]">
-                  <div className="w-6 h-6 rounded-md bg-blue-500/20 flex items-center justify-center">
-                    <Mail className="w-3.5 h-3.5 text-blue-400" />
+                {/* Header — clickable to expand/collapse */}
+                <button
+                  onClick={() => setE2emExpanded(e => !e)}
+                  className="flex items-center gap-2.5 px-4 py-3 w-full text-left hover:bg-white/[0.02] transition-colors"
+                >
+                  <div className="w-5 h-5 rounded-md flex items-center justify-center" style={{ background: "rgba(59,130,246,0.15)" }}>
+                    <Mail className="w-3 h-3" style={{ color: "#3b82f6" }} />
                   </div>
-                  <span className="text-sm font-semibold text-white">Daily Report (e2em)</span>
-                  <span className="ml-auto text-[10px] text-muted-foreground/50 border border-white/10 px-1.5 py-0.5 rounded-full">
+                  <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.25)" }}>Daily Report (e2em)</span>
+                  <span className="ml-auto mr-2 text-[10px] px-1.5 py-0.5 rounded-full" style={{ color: "#475569", border: "1px solid rgba(255,255,255,0.08)" }}>
                     YIP
                   </span>
-                </div>
+                  <ChevronDown
+                    className="w-3.5 h-3.5 transition-transform shrink-0"
+                    style={{ color: "#475569", transform: e2emExpanded ? "rotate(180deg)" : "none" }}
+                  />
+                </button>
+
+                {/* Collapsible body */}
+                <AnimatePresence>
+                  {e2emExpanded && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden"
+                    >
 
                 {/* Controls */}
                 <div className="flex flex-wrap gap-3 p-4 border-b border-white/5">
@@ -1417,6 +1541,10 @@ export default function Dashboard() {
                           {e2emEmailCopied ? "Copied!" : "Copy"}
                         </button>
                       </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
                     </motion.div>
                   )}
                 </AnimatePresence>

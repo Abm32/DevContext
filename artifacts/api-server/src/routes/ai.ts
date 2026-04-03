@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { SummarizeCommitsBody, SummarizeCommitsResponse } from "@workspace/api-zod";
 import OpenAI from "openai";
 import { getTokenPayload } from "./auth";
+import { checkAiAllowed, incrementAiUsage } from "./plan";
 
 const router: IRouter = Router();
 
@@ -110,8 +111,16 @@ function generateMockSummary(repoName: string, commits: CommitPayload[], mode: s
 }
 
 router.post("/summarize", async (req, res) => {
-  if (!getTokenPayload(req)) {
+  const payload = getTokenPayload(req);
+  if (!payload) {
     res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+
+  // ── Usage gate ──────────────────────────────────────────────────────────
+  const { allowed, reason } = await checkAiAllowed(payload.githubUser.login);
+  if (!allowed) {
+    res.status(402).json({ error: reason ?? "Usage limit reached", code: "USAGE_LIMIT" });
     return;
   }
 
@@ -131,6 +140,8 @@ router.post("/summarize", async (req, res) => {
 
   if (!openai) {
     req.log.warn("OpenAI not configured, using mock response");
+    // Increment usage even for mock so free tier is properly tracked
+    await incrementAiUsage(payload.githubUser.login);
     const mockData = generateMockSummary(repo_name, commits, mode);
     const data = SummarizeCommitsResponse.parse(mockData);
     res.json(data);
@@ -215,6 +226,8 @@ Be specific: reference actual filenames, mention change magnitudes where they ma
       generated_at: new Date().toISOString(),
     });
 
+    // Increment usage after successful generation
+    await incrementAiUsage(payload.githubUser.login);
     res.json(data);
   } catch (err) {
     req.log.error({ err }, "Error generating AI summary, falling back to mock");

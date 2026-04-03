@@ -2,8 +2,8 @@ import { Router, type IRouter, type Request } from "express";
 import { createHmac, timingSafeEqual } from "crypto";
 import jwt from "jsonwebtoken";
 import { db } from "@workspace/db";
-import { e2emGrants } from "@workspace/db";
-import { sql, eq } from "drizzle-orm";
+import { e2emGrants, userPlans, aiUsage } from "@workspace/db";
+import { sql, eq, desc } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -243,6 +243,63 @@ router.delete("/e2em/grants/:id", async (req, res) => {
   } catch (err) {
     req.log.error({ err }, "e2em grant delete error");
     res.status(500).json({ error: "Failed to delete grant" });
+  }
+});
+
+// ── Plan management ───────────────────────────────────────────────────────────
+
+router.get("/plans", async (req, res) => {
+  if (!verifyAdminToken(req)) { res.status(401).json({ error: "Unauthorized" }); return; }
+  try {
+    const plans = await db.select().from(userPlans).orderBy(desc(userPlans.created_at));
+    const usage = await db.select().from(aiUsage).orderBy(desc(aiUsage.updated_at));
+    const usageByUser: Record<string, number> = {};
+    for (const row of usage) {
+      const now = new Date();
+      const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+      if (row.month === currentMonth) usageByUser[row.github_username] = row.count;
+    }
+    res.json(plans.map(p => ({ ...p, ai_usage_this_month: usageByUser[p.github_username] ?? 0 })));
+  } catch (err) {
+    req.log.error({ err }, "admin plans list error");
+    res.status(500).json({ error: "Failed to list plans" });
+  }
+});
+
+router.put("/plans/:username", async (req, res) => {
+  if (!verifyAdminToken(req)) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const { username } = req.params;
+  const { plan } = req.body as { plan: string };
+  if (!["free", "pro", "team"].includes(plan)) {
+    res.status(400).json({ error: "Invalid plan" });
+    return;
+  }
+  try {
+    await db.insert(userPlans)
+      .values({ github_username: username, plan, updated_at: new Date() })
+      .onConflictDoUpdate({
+        target: [userPlans.github_username],
+        set: { plan, updated_at: sql`now()` },
+      });
+    res.json({ ok: true, github_username: username, plan });
+  } catch (err) {
+    req.log.error({ err }, "admin plan update error");
+    res.status(500).json({ error: "Failed to update plan" });
+  }
+});
+
+router.delete("/plans/:username/usage", async (req, res) => {
+  if (!verifyAdminToken(req)) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const { username } = req.params;
+  try {
+    const now = new Date();
+    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    await db.delete(aiUsage)
+      .where(eq(aiUsage.github_username, username));
+    res.json({ ok: true, reset: username, month: currentMonth });
+  } catch (err) {
+    req.log.error({ err }, "admin usage reset error");
+    res.status(500).json({ error: "Failed to reset usage" });
   }
 });
 

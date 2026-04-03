@@ -100,6 +100,54 @@ export default function AdminDashboard() {
   const [error, setError] = useState("")
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
 
+  // ─── plans state ───────────────────────────────────────────────────────
+  interface UserPlanRow {
+    id: number
+    github_username: string
+    plan: string
+    ai_usage_this_month: number
+    created_at: string
+    updated_at: string
+  }
+  const [plans, setPlans] = useState<UserPlanRow[]>([])
+  const [plansLoading, setPlansLoading] = useState(false)
+  const [planEditUser, setPlanEditUser] = useState("")
+  const [planEditValue, setPlanEditValue] = useState("free")
+  const [planSaving, setPlanSaving] = useState(false)
+
+  const fetchPlans = useCallback(async () => {
+    setPlansLoading(true)
+    try {
+      const res = await fetch("/api/admin/plans")
+      if (res.ok) setPlans((await res.json()) as UserPlanRow[])
+    } catch { /* silent */ } finally {
+      setPlansLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { void fetchPlans() }, [fetchPlans])
+
+  const handleSetPlan = async (username: string, plan: string) => {
+    setPlanSaving(true)
+    try {
+      await fetch(`/api/admin/plans/${username}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan }),
+      })
+      void fetchPlans()
+      setPlanEditUser("")
+    } finally {
+      setPlanSaving(false)
+    }
+  }
+
+  const handleResetUsage = async (username: string) => {
+    if (!confirm(`Reset AI usage for ${username}?`)) return
+    await fetch(`/api/admin/plans/${username}/usage`, { method: "DELETE" })
+    void fetchPlans()
+  }
+
   // ─── e2em state ────────────────────────────────────────────────────────
   const [e2emGrants, setE2emGrants] = useState<E2emGrant[]>([])
   const [e2emLoading, setE2emLoading] = useState(false)
@@ -598,6 +646,126 @@ export default function AdminDashboard() {
                       </td>
                       <td className="py-3 px-4 text-right text-muted-foreground whitespace-nowrap">
                         {formatDate(evt.created_at)} {formatTime(evt.created_at)}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {/* ── Plans Management ───────────────────────────────────────────────── */}
+        <div className="bg-card border border-white/5 rounded-2xl overflow-hidden">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-violet-500/20">
+                <Zap className="w-4 h-4 text-violet-400" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-white">User Plans</h2>
+                <p className="text-xs text-muted-foreground">Manage free / pro / team tiers and AI usage</p>
+              </div>
+            </div>
+            <button onClick={() => void fetchPlans()} className="p-2 rounded-lg hover:bg-white/5 transition-colors">
+              <RefreshCw className={`w-4 h-4 text-muted-foreground ${plansLoading ? "animate-spin" : ""}`} />
+            </button>
+          </div>
+
+          {/* Quick assign form */}
+          <div className="px-6 py-4 border-b border-white/5 flex flex-wrap gap-3 items-end">
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] text-muted-foreground uppercase tracking-wider">GitHub username</label>
+              <input
+                type="text"
+                value={planEditUser}
+                onChange={e => setPlanEditUser(e.target.value)}
+                placeholder="e.g. abm32"
+                className="bg-secondary/30 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-violet-500/50 w-48"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Plan</label>
+              <select
+                value={planEditValue}
+                onChange={e => setPlanEditValue(e.target.value)}
+                className="bg-secondary/30 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-violet-500/50"
+              >
+                <option value="free">Free</option>
+                <option value="pro">Pro</option>
+                <option value="team">Team</option>
+              </select>
+            </div>
+            <button
+              onClick={() => void handleSetPlan(planEditUser.trim(), planEditValue)}
+              disabled={!planEditUser.trim() || planSaving}
+              className="px-4 py-2 rounded-lg bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white text-sm font-medium transition-colors"
+            >
+              {planSaving ? "Saving…" : "Assign Plan"}
+            </button>
+          </div>
+
+          {/* Plans table */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-white/5">
+                  {["Username", "Plan", "AI Usage (this month)", "Since", "Actions"].map(h => (
+                    <th key={h} className="text-left py-3 px-4 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {plansLoading ? (
+                  <tr><td colSpan={5} className="py-8 text-center text-muted-foreground">Loading…</td></tr>
+                ) : plans.length === 0 ? (
+                  <tr><td colSpan={5} className="py-8 text-center text-muted-foreground/50">No plan records yet — users default to free until they generate an AI analysis.</td></tr>
+                ) : (
+                  plans.map(row => (
+                    <tr key={row.id} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+                      <td className="py-3 px-4">
+                        <a href={`https://github.com/${row.github_username}`} target="_blank" rel="noreferrer" className="text-white hover:text-primary transition-colors font-mono">
+                          @{row.github_username}
+                        </a>
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+                          row.plan === "pro" ? "bg-violet-500/15 text-violet-400 border border-violet-500/25" :
+                          row.plan === "team" ? "bg-blue-500/15 text-blue-400 border border-blue-500/25" :
+                          "bg-white/5 text-muted-foreground border border-white/10"
+                        }`}>
+                          {row.plan}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-sm font-medium ${row.plan === "free" && row.ai_usage_this_month >= 10 ? "text-red-400" : "text-white"}`}>
+                            {row.ai_usage_this_month}
+                          </span>
+                          {row.plan === "free" && (
+                            <span className="text-[10px] text-muted-foreground/50">/ 10</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 text-muted-foreground text-xs">{new Date(row.created_at).toLocaleDateString()}</td>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-2">
+                          <select
+                            defaultValue={row.plan}
+                            onChange={e => void handleSetPlan(row.github_username, e.target.value)}
+                            className="bg-secondary/30 border border-white/10 rounded-lg px-2 py-1 text-xs text-white focus:outline-none"
+                          >
+                            <option value="free">Free</option>
+                            <option value="pro">Pro</option>
+                            <option value="team">Team</option>
+                          </select>
+                          <button
+                            onClick={() => void handleResetUsage(row.github_username)}
+                            className="text-[11px] text-muted-foreground hover:text-red-400 transition-colors px-2 py-1 rounded hover:bg-red-500/10"
+                            title="Reset AI usage count"
+                          >
+                            Reset usage
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))

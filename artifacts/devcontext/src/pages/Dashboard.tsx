@@ -16,7 +16,9 @@ import {
   DepContextItem,
 } from "@workspace/api-client-react"
 import { useGenerateSummary } from "@/hooks/use-devcontext"
+import { usePlan } from "@/hooks/use-plan"
 import { DepHealthPanel } from "@/components/dep-health-panel"
+import { UpgradePrompt, UsageChip } from "@/components/upgrade-prompt"
 import { track } from "@/hooks/use-track"
 import { Header } from "@/components/layout/Header"
 import { Button } from "@/components/ui/button"
@@ -48,6 +50,7 @@ import {
   Send,
   ExternalLink,
   Calendar,
+  Zap,
 } from "lucide-react"
 import {
   RepoEntry,
@@ -235,6 +238,11 @@ function CommitCard({
 export default function Dashboard() {
   const [, setLocation] = useLocation()
   const { data: user, isLoading: isAuthLoading, isError } = useGetMe({ query: { retry: false } })
+
+  // ─── Plan & feature gates ──────────────────────────────────────────────────
+  const { features, usage, isFreeTier, refetch: refetchPlan } = usePlan()
+  const [showCompareUpgrade, setShowCompareUpgrade] = useState(false)
+  const [showWorkspaceUpgrade, setShowWorkspaceUpgrade] = useState(false)
 
   // ─── Repo selection state ─────────────────────────────────────────────────
   const [selectedRepos, setSelectedRepos] = useState<RepoEntry[]>([])
@@ -591,8 +599,17 @@ export default function Dashboard() {
       repoName: entry.repo.name,
       commits: (i === 0 ? commits0 : i === 1 ? commits1 : commits2) ?? [],
     }))
-    generate(repoGroups, summaryMode, depContext).catch(() => {
-      setGenerateError("Something went wrong generating your summary. Please try again.")
+    generate(repoGroups, summaryMode, depContext).then(() => {
+      // Refresh plan usage count after a successful generation
+      void refetchPlan()
+    }).catch((err: unknown) => {
+      const status = (err as { status?: number })?.status
+      if (status === 402) {
+        void refetchPlan()
+        // exhausted state is shown via usage chip + button swap; no need for extra error
+      } else {
+        setGenerateError("Something went wrong generating your summary. Please try again.")
+      }
     })
   }
 
@@ -737,14 +754,31 @@ export default function Dashboard() {
               </h2>
               {selectedRepos.length > 0 && (
                 <button
-                  onClick={() => setShowSaveWorkspace(s => !s)}
-                  className="text-[11px] text-muted-foreground hover:text-white flex items-center gap-1 transition-colors"
+                  onClick={() => features.workspaces ? setShowSaveWorkspace(s => !s) : setShowWorkspaceUpgrade(v => !v)}
+                  className="text-[11px] flex items-center gap-1 transition-colors"
+                  style={{ color: features.workspaces ? undefined : "#a78bfa" }}
+                  title={features.workspaces ? "Save as workspace" : "Upgrade to Pro to save workspaces"}
                 >
                   <BookmarkPlus className="w-3 h-3" />
                   Save
+                  {isFreeTier && <span style={{ fontSize: "8px", color: "#a78bfa", fontWeight: 800 }}>PRO</span>}
                 </button>
               )}
             </div>
+
+            {/* Workspace upgrade nudge */}
+            <AnimatePresence>
+              {showWorkspaceUpgrade && (
+                <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+                  <UpgradePrompt
+                    inline
+                    feature="Saved Workspaces"
+                    description="Save and restore your repo + branch combinations instantly."
+                    onDismiss={() => setShowWorkspaceUpgrade(false)}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             <AnimatePresence>
               {showSaveWorkspace && (
@@ -868,19 +902,36 @@ export default function Dashboard() {
                   ? "Repository"
                   : selectedRepos.length < 3 ? "Compare Repos" : "Repositories (max 3)"}
               </h2>
-              {/* Compare mode toggle */}
+              {/* Compare mode toggle — Pro feature */}
               <button
-                onClick={handleToggleMultiRepoMode}
+                onClick={() => features.compare_mode ? handleToggleMultiRepoMode() : setShowCompareUpgrade(v => !v)}
                 className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-semibold uppercase tracking-wide transition-all"
                 style={multiRepoMode
                   ? { background: "rgba(139,92,246,0.15)", color: "#a78bfa", border: "1px solid rgba(139,92,246,0.25)" }
                   : { background: "rgba(255,255,255,0.04)", color: "#475569", border: "1px solid rgba(255,255,255,0.08)" }}
-                title={multiRepoMode ? "Exit compare mode (keeps first repo)" : "Compare up to 3 repos side by side"}
+                title={features.compare_mode
+                  ? (multiRepoMode ? "Exit compare mode (keeps first repo)" : "Compare up to 3 repos side by side")
+                  : "Upgrade to Pro to compare repos"}
               >
                 <Layers className="w-3 h-3" />
                 {multiRepoMode ? "Exit Compare" : "Compare"}
+                {isFreeTier && <span style={{ fontSize: "8px", color: "#a78bfa", fontWeight: 800 }}>PRO</span>}
               </button>
             </div>
+            {/* Compare upgrade nudge */}
+            <AnimatePresence>
+              {showCompareUpgrade && (
+                <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+                  <UpgradePrompt
+                    inline
+                    feature="Compare Mode"
+                    description="Select up to 3 repos and get cross-repo AI analysis."
+                    onDismiss={() => setShowCompareUpgrade(false)}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <input
@@ -1165,7 +1216,7 @@ export default function Dashboard() {
 
           {/* AI Summary Panel */}
           <div className="flex-1 flex flex-col bg-card border border-white/5 rounded-2xl shadow-xl overflow-hidden relative min-h-0">
-            {/* Header row 1: title + copy button */}
+            {/* Header row 1: title + usage chip + copy button */}
             <div className="px-5 pt-4 pb-0 flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">
                 <div className="p-1.5 rounded-lg shrink-0" style={{ background: "rgba(59,130,246,0.15)" }}>
@@ -1180,15 +1231,24 @@ export default function Dashboard() {
                   </p>
                 </div>
               </div>
-              {displayResult && (
-                <button
-                  onClick={handleCopy}
-                  className="flex items-center gap-1.5 text-xs border rounded-lg px-3 py-1.5 transition-all shrink-0"
-                  style={{ color: copied ? "#10b981" : "#64748b", borderColor: "rgba(255,255,255,0.08)", background: "transparent" }}
-                >
-                  {copied ? <><Check className="w-3 h-3" /> Copied</> : <><Copy className="w-3 h-3" /> Copy MD</>}
-                </button>
-              )}
+              <div className="flex items-center gap-2 shrink-0">
+                {isFreeTier && usage.ai_analyses.limit !== null && (
+                  <UsageChip
+                    used={usage.ai_analyses.used}
+                    limit={usage.ai_analyses.limit}
+                    exhausted={usage.ai_analyses.exhausted}
+                  />
+                )}
+                {displayResult && (
+                  <button
+                    onClick={handleCopy}
+                    className="flex items-center gap-1.5 text-xs border rounded-lg px-3 py-1.5 transition-all"
+                    style={{ color: copied ? "#10b981" : "#64748b", borderColor: "rgba(255,255,255,0.08)", background: "transparent" }}
+                  >
+                    {copied ? <><Check className="w-3 h-3" /> Copied</> : <><Copy className="w-3 h-3" /> Copy MD</>}
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Header row 2: mode toggle + generate */}
@@ -1216,27 +1276,38 @@ export default function Dashboard() {
                 </button>
               </div>
 
-              <button
-                onClick={handleGenerateSummary}
-                disabled={!selectedRepo || !mergedCommits.length || isGenerating || isCommitsLoading}
-                className="ml-auto flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                style={{
-                  background: isGenerating ? "rgba(59,130,246,0.3)" : "linear-gradient(135deg, #3b82f6, #2563eb)",
-                  boxShadow: isGenerating ? "none" : "0 4px 16px rgba(59,130,246,0.25)",
-                }}
-                title={
-                  !selectedRepo ? "Select a repository first" :
-                  isCommitsLoading ? "Loading commits…" :
-                  !mergedCommits.length ? "No commits found" :
-                  isGenerating ? "Generating…" : undefined
-                }
-              >
-                {isGenerating
-                  ? <><span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Analyzing…</>
-                  : <><Sparkles className="w-3.5 h-3.5" />{summaryMode === "standup" ? "Generate Standup" : "What's next?"}</>
-                }
-              </button>
-              {!selectedRepo && (
+              {usage.ai_analyses.exhausted ? (
+                <a
+                  href="mailto:abhimanyurbsa@gmail.com?subject=DevContext Pro Upgrade"
+                  className="ml-auto flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all"
+                  style={{ background: "linear-gradient(135deg, #8b5cf6, #7c3aed)", boxShadow: "0 4px 16px rgba(139,92,246,0.3)" }}
+                >
+                  <Zap className="w-3.5 h-3.5" />
+                  Upgrade for Unlimited AI
+                </a>
+              ) : (
+                <button
+                  onClick={handleGenerateSummary}
+                  disabled={!selectedRepo || !mergedCommits.length || isGenerating || isCommitsLoading}
+                  className="ml-auto flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                  style={{
+                    background: isGenerating ? "rgba(59,130,246,0.3)" : "linear-gradient(135deg, #3b82f6, #2563eb)",
+                    boxShadow: isGenerating ? "none" : "0 4px 16px rgba(59,130,246,0.25)",
+                  }}
+                  title={
+                    !selectedRepo ? "Select a repository first" :
+                    isCommitsLoading ? "Loading commits…" :
+                    !mergedCommits.length ? "No commits found" :
+                    isGenerating ? "Generating…" : undefined
+                  }
+                >
+                  {isGenerating
+                    ? <><span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Analyzing…</>
+                    : <><Sparkles className="w-3.5 h-3.5" />{summaryMode === "standup" ? "Generate Standup" : "What's next?"}</>
+                  }
+                </button>
+              )}
+              {!selectedRepo && !usage.ai_analyses.exhausted && (
                 <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.2)" }}>← select a repo first</span>
               )}
             </div>

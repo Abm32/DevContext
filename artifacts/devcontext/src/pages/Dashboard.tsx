@@ -44,9 +44,55 @@ import {
   Heart,
 } from "lucide-react"
 
+// ─── Types ───────────────────────────────────────────────────────────────────
+type SummaryResult = {
+  what_you_were_doing: string
+  key_changes: string[]
+  suggested_next_steps: string[]
+  standup_update: string | null
+  generated_at: string
+}
+type CachedSummary = { result: SummaryResult; generatedAt: string; mode: "next_steps" | "standup" }
+
+function loadCachedSummary(repoFullName: string, branch: string): CachedSummary | null {
+  try {
+    const raw = localStorage.getItem(`dc_summary_${repoFullName}_${branch}`)
+    if (!raw) return null
+    return JSON.parse(raw) as CachedSummary
+  } catch { return null }
+}
+
+function saveCachedSummary(repoFullName: string, branch: string, data: CachedSummary) {
+  try {
+    localStorage.setItem(`dc_summary_${repoFullName}_${branch}`, JSON.stringify(data))
+  } catch { /* quota exceeded – ignore */ }
+}
+
+// ─── DiffView ────────────────────────────────────────────────────────────────
+function DiffView({ patch }: { patch: string }) {
+  const lines = patch.split("\n")
+  return (
+    <pre className="text-[10px] font-mono leading-5 overflow-x-auto whitespace-pre">
+      {lines.map((line, i) => {
+        const bg = line.startsWith("+") && !line.startsWith("+++")
+          ? "bg-emerald-500/10 text-emerald-300"
+          : line.startsWith("-") && !line.startsWith("---")
+          ? "bg-red-500/10 text-red-300"
+          : line.startsWith("@@")
+          ? "text-blue-400/80"
+          : "text-muted-foreground/70"
+        return (
+          <span key={i} className={`block px-2 ${bg}`}>{line || " "}</span>
+        )
+      })}
+    </pre>
+  )
+}
+
 // ─── CommitCard ─────────────────────────────────────────────────────────────
 function CommitCard({ commit, owner, repo, idx }: { commit: Commit; owner: string; repo: string; idx: number }) {
   const [expanded, setExpanded] = useState(false)
+  const [expandedFile, setExpandedFile] = useState<string | null>(null)
 
   const { data: detail, isLoading: isDetailLoading } = useGetCommitDetail(
     owner, repo, commit.sha,
@@ -70,7 +116,7 @@ function CommitCard({ commit, owner, repo, idx }: { commit: Commit; owner: strin
       <div className="absolute -left-1.5 top-1.5 w-3 h-3 rounded-full border-2 border-background bg-primary" />
       <div className="bg-card border border-white/5 rounded-xl shadow-sm overflow-hidden">
         <button
-          onClick={() => setExpanded(e => !e)}
+          onClick={() => { setExpanded(e => !e); setExpandedFile(null) }}
           className="w-full p-4 text-left hover:bg-white/[0.02] transition-colors"
         >
           <div className="flex items-center justify-between mb-2">
@@ -117,22 +163,48 @@ function CommitCard({ commit, owner, repo, idx }: { commit: Commit; owner: strin
                 ) : detail?.files.length === 0 ? (
                   <p className="text-xs text-muted-foreground py-1">No file changes.</p>
                 ) : (
-                  <div className="space-y-1">
+                  <div className="space-y-0.5">
                     {detail?.files.map(f => (
-                      <div key={f.filename} className="flex items-center gap-2 text-[11px] font-mono py-0.5">
-                        <span className={`shrink-0 ${statusColor(f.status)}`}>
-                          {f.status === "added" ? <Plus className="w-3 h-3" /> : f.status === "removed" ? <Minus className="w-3 h-3" /> : <FileCode className="w-3 h-3" />}
-                        </span>
-                        <span className="text-muted-foreground truncate flex-1">{f.filename}</span>
-                        <span className="shrink-0 text-emerald-400">+{f.additions}</span>
-                        <span className="shrink-0 text-red-400">-{f.deletions}</span>
+                      <div key={f.filename}>
+                        <button
+                          onClick={() => setExpandedFile(v => v === f.filename ? null : f.filename)}
+                          className={`w-full flex items-center gap-2 text-[11px] font-mono py-1 px-1 rounded hover:bg-white/5 transition-colors ${expandedFile === f.filename ? "bg-white/5" : ""}`}
+                        >
+                          <span className={`shrink-0 ${statusColor(f.status)}`}>
+                            {f.status === "added" ? <Plus className="w-3 h-3" /> : f.status === "removed" ? <Minus className="w-3 h-3" /> : <FileCode className="w-3 h-3" />}
+                          </span>
+                          <span className="text-muted-foreground truncate flex-1 text-left">{f.filename}</span>
+                          <span className="shrink-0 text-emerald-400">+{f.additions}</span>
+                          <span className="shrink-0 text-red-400">-{f.deletions}</span>
+                          {f.patch && (
+                            <ChevronRight className={`w-3 h-3 text-muted-foreground/40 shrink-0 transition-transform ${expandedFile === f.filename ? "rotate-90" : ""}`} />
+                          )}
+                        </button>
+                        <AnimatePresence>
+                          {expandedFile === f.filename && f.patch && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: "auto", opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.15 }}
+                              className="overflow-hidden"
+                            >
+                              <div className="mt-1 mb-1 rounded-lg border border-white/5 overflow-x-auto max-h-48 overflow-y-auto bg-black/30">
+                                <DiffView patch={f.patch} />
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                       </div>
                     ))}
                     {detail && (
-                      <div className="pt-2 border-t border-white/5 text-[11px] text-muted-foreground flex gap-3 flex-wrap">
+                      <div className="pt-2 mt-1 border-t border-white/5 text-[11px] text-muted-foreground flex gap-3 flex-wrap">
                         <span className="font-semibold text-white/60">{detail.files.length} files changed</span>
                         <span className="text-emerald-400">+{detail.stats.additions} additions</span>
                         <span className="text-red-400">−{detail.stats.deletions} deletions</span>
+                        {detail.files.some(f => f.patch) && (
+                          <span className="text-muted-foreground/40">click file for diff</span>
+                        )}
                       </div>
                     )}
                   </div>
@@ -157,10 +229,12 @@ export default function Dashboard() {
   const [summaryMode, setSummaryMode] = useState<"next_steps" | "standup">("next_steps")
   const [copied, setCopied] = useState(false)
   const [generateError, setGenerateError] = useState<string | null>(null)
+  const [mobileTab, setMobileTab] = useState<"commits" | "ai">("commits")
   const [commitLimit, setCommitLimit] = useState<15 | 30 | 50>(() => {
     const saved = localStorage.getItem('dc_commit_limit')
     return (saved === '30' ? 30 : saved === '50' ? 50 : 15) as 15 | 30 | 50
   })
+  const [cachedSummary, setCachedSummary] = useState<CachedSummary | null>(null)
 
   const initialRepo = useRef(localStorage.getItem('dc_last_repo'))
   const initialBranch = useRef(localStorage.getItem('dc_last_branch'))
@@ -293,6 +367,21 @@ export default function Dashboard() {
     }
   }, [branches, activeBranch, selectedRepo])
 
+  // Restore cached summary when repo/branch changes
+  useEffect(() => {
+    if (!selectedRepo || !activeBranch) { setCachedSummary(null); return }
+    const cached = loadCachedSummary(selectedRepo.full_name, activeBranch)
+    setCachedSummary(cached)
+  }, [selectedRepo?.full_name, activeBranch])
+
+  // Save summary to localStorage after generation
+  useEffect(() => {
+    if (!result || !selectedRepo || !activeBranch) return
+    const data: CachedSummary = { result: result as SummaryResult, generatedAt: result.generated_at ?? new Date().toISOString(), mode: summaryMode }
+    setCachedSummary(data)
+    saveCachedSummary(selectedRepo.full_name, activeBranch, data)
+  }, [result])
+
   if (isAuthLoading) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
@@ -326,21 +415,24 @@ export default function Dashboard() {
   }
 
   const buildMarkdown = () => {
-    if (!result) return ""
-    if (result.standup_update) {
-      return `## Standup – ${selectedRepo?.name ?? "Repo"}\n\n${result.standup_update}`
+    if (!displayResult) return ""
+    if (displayResult.standup_update) {
+      const dateRange = commits && commits.length > 0
+        ? ` (${new Date(commits[commits.length - 1].author_date).toLocaleDateString()} – ${new Date(commits[0].author_date).toLocaleDateString()})`
+        : ""
+      return `## Standup – ${selectedRepo?.name ?? "Repo"}${dateRange}\n\n${displayResult.standup_update}`
     }
     return [
       `## Code Brain Analysis – ${selectedRepo?.name ?? "Repo"}`,
       "",
       `### What I was doing`,
-      result.what_you_were_doing,
+      displayResult.what_you_were_doing,
       "",
       `### Key Changes`,
-      result.key_changes.map(c => `- ${c}`).join("\n"),
+      displayResult.key_changes.map(c => `- ${c}`).join("\n"),
       "",
       `### Suggested Next Steps`,
-      result.suggested_next_steps.map((s, i) => `${i + 1}. ${s}`).join("\n"),
+      displayResult.suggested_next_steps.map((s, i) => `${i + 1}. ${s}`).join("\n"),
     ].join("\n")
   }
 
@@ -351,14 +443,36 @@ export default function Dashboard() {
     setTimeout(() => setCopied(false), 2000)
   }
 
+  const displayResult = cachedSummary?.result ?? null
+  const isFromCache = !!cachedSummary && !result
+
   return (
     <div className="h-screen bg-background flex flex-col overflow-hidden">
       <Header />
 
-      <main className="flex-1 container mx-auto px-4 py-8 flex flex-col lg:flex-row gap-8 overflow-hidden h-[calc(100vh-4rem)]">
+      {/* Mobile tab switcher */}
+      <div className="md:hidden flex border-b border-white/5 bg-card/30">
+        <button
+          onClick={() => setMobileTab("commits")}
+          className={`flex-1 py-2.5 text-xs font-medium flex items-center justify-center gap-2 transition-colors ${mobileTab === "commits" ? "text-primary border-b-2 border-primary" : "text-muted-foreground"}`}
+        >
+          <GitCommitHorizontal className="w-3.5 h-3.5" />
+          Commits
+        </button>
+        <button
+          onClick={() => setMobileTab("ai")}
+          className={`flex-1 py-2.5 text-xs font-medium flex items-center justify-center gap-2 transition-colors ${mobileTab === "ai" ? "text-primary border-b-2 border-primary" : "text-muted-foreground"}`}
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          AI Analysis
+          {displayResult && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />}
+        </button>
+      </div>
+
+      <main className="flex-1 container mx-auto px-4 py-4 md:py-8 flex flex-col md:flex-row gap-8 overflow-hidden h-[calc(100vh-4rem)]">
         
         {/* Left Column: Repository, Branch & Commits */}
-        <div className="w-full lg:w-1/3 flex flex-col gap-5 overflow-hidden border-r border-white/5 pr-4">
+        <div className={`w-full md:w-1/3 flex flex-col gap-5 overflow-hidden border-r border-white/5 pr-0 md:pr-4 ${mobileTab === "ai" ? "hidden md:flex" : "flex"}`}>
           
           {/* Repo Selector */}
           <div className="flex flex-col gap-3">
@@ -492,8 +606,18 @@ export default function Dashboard() {
             
             <div className="flex-1 overflow-y-auto scrollbar-hide pr-2 pb-4">
               {!selectedRepo ? (
-                <div className="h-full flex items-center justify-center border border-dashed border-white/10 rounded-xl bg-secondary/20 p-8 text-center">
-                  <p className="text-sm text-muted-foreground">Select a repository to view recent commits.</p>
+                <div className="h-full flex flex-col items-center justify-center border border-dashed border-primary/20 rounded-xl bg-primary/[0.03] p-8 text-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+                    <FolderGit2 className="w-6 h-6 text-primary/60" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-white/70">Pick a repository to get started</p>
+                    <p className="text-xs text-muted-foreground/60 mt-1">Search or scroll above to find your project</p>
+                  </div>
+                  <div className="flex items-center gap-2 text-[11px] text-primary/50 animate-pulse">
+                    <ArrowRight className="w-3.5 h-3.5 -rotate-90" />
+                    <span>select one above</span>
+                  </div>
                 </div>
               ) : isCommitsLoading ? (
                 <div className="space-y-4">
@@ -563,7 +687,7 @@ export default function Dashboard() {
         </div>
 
         {/* Right Column: AI Summary Panel */}
-        <div className="w-full lg:w-2/3 flex flex-col gap-4 overflow-hidden">
+        <div className={`w-full md:w-2/3 flex flex-col gap-4 overflow-hidden ${mobileTab === "commits" ? "hidden md:flex" : "flex"}`}>
 
           {/* AI Summary Panel */}
           <div className="flex-1 flex flex-col bg-card border border-white/5 rounded-2xl shadow-xl overflow-hidden relative min-h-0">
@@ -685,14 +809,25 @@ export default function Dashboard() {
                     Try Again
                   </button>
                 </div>
-              ) : result ? (
+              ) : displayResult ? (
                 <motion.div 
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="max-w-3xl space-y-8"
                 >
-                  {/* Copy Button */}
-                  <div className="flex justify-end">
+                  {/* Metadata row */}
+                  <div className="flex items-center justify-between flex-wrap gap-3">
+                    <div className="flex items-center gap-2 text-[11px] text-muted-foreground/60">
+                      <Clock className="w-3 h-3" />
+                      {isFromCache ? (
+                        <span>Cached · {formatRelativeDate(cachedSummary!.generatedAt)}</span>
+                      ) : (
+                        <span>Generated {formatRelativeDate(displayResult.generated_at)}</span>
+                      )}
+                      {isFromCache && (
+                        <span className="ml-1 px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 text-[10px] font-medium border border-amber-500/20">from cache</span>
+                      )}
+                    </div>
                     <button
                       onClick={handleCopy}
                       className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-white border border-white/10 hover:border-white/20 rounded-lg px-3 py-1.5 transition-all"
@@ -706,14 +841,22 @@ export default function Dashboard() {
                   </div>
 
                   {/* Standup Mode Output */}
-                  {result.standup_update ? (
+                  {displayResult.standup_update ? (
                     <section>
-                      <h3 className="text-sm font-semibold text-emerald-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-                        <ClipboardList className="w-4 h-4" />
-                        Standup Update
-                      </h3>
+                      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                        <h3 className="text-sm font-semibold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
+                          <ClipboardList className="w-4 h-4" />
+                          Standup Update
+                        </h3>
+                        {commits && commits.length > 0 && (
+                          <span className="text-[11px] text-muted-foreground/60 flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {new Date(commits[commits.length - 1].author_date).toLocaleDateString()} – {new Date(commits[0].author_date).toLocaleDateString()}
+                          </span>
+                        )}
+                      </div>
                       <div className="p-5 rounded-xl bg-emerald-500/5 border border-emerald-500/15 text-white leading-relaxed whitespace-pre-wrap font-mono text-sm">
-                        {result.standup_update}
+                        {displayResult.standup_update}
                       </div>
                       <p className="mt-3 text-xs text-muted-foreground">Paste this directly into Slack, Notion, or your standup tool.</p>
                     </section>
@@ -726,7 +869,7 @@ export default function Dashboard() {
                       What you were doing
                     </h3>
                     <div className="p-5 rounded-xl bg-secondary/30 border border-white/5 text-white leading-relaxed">
-                      {result.what_you_were_doing}
+                      {displayResult.what_you_were_doing}
                     </div>
                   </section>
 
@@ -737,7 +880,7 @@ export default function Dashboard() {
                       Key Changes
                     </h3>
                     <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {result.key_changes.map((change, i) => (
+                      {displayResult.key_changes.map((change, i) => (
                         <li key={i} className="flex items-start gap-3 p-4 rounded-xl bg-white/[0.02] border border-white/5">
                           <div className="mt-0.5 w-1.5 h-1.5 rounded-full bg-accent shrink-0" />
                           <span className="text-sm text-muted-foreground">{change}</span>
@@ -753,7 +896,7 @@ export default function Dashboard() {
                       Suggested Next Steps
                     </h3>
                     <div className="space-y-3">
-                      {result.suggested_next_steps.map((step, i) => (
+                      {displayResult.suggested_next_steps.map((step, i) => (
                         <div key={i} className="group flex items-center gap-4 p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/10 hover:border-emerald-500/30 transition-colors cursor-default">
                           <div className="flex-shrink-0 w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm">
                             {i + 1}
@@ -770,9 +913,15 @@ export default function Dashboard() {
                     <BrainCircuit className="w-8 h-8 text-primary opacity-50" />
                   </div>
                   <h3 className="text-xl font-semibold text-white mb-2">Ready to Resume</h3>
-                  <p className="text-muted-foreground max-w-md">
-                    Click the button above to generate a{summaryMode === "standup" ? " standup update" : " fresh summary of your recent work"} in <b>{selectedRepo.name}</b>.
+                  <p className="text-muted-foreground max-w-md mb-6">
+                    Click <span className="text-primary font-medium">{summaryMode === "standup" ? "Generate Standup" : "What's next?"}</span> above to analyze your recent commits in <b>{selectedRepo.name}</b>{activeBranch ? ` on ${activeBranch}` : ""}.
                   </p>
+                  <div className="flex flex-col items-center gap-2 text-[11px] text-muted-foreground/50">
+                    <div className="flex items-center gap-4">
+                      <span className="flex items-center gap-1.5"><GitCommitHorizontal className="w-3.5 h-3.5" />{commits?.length ?? 0} commits ready to analyze</span>
+                      {activeBranch && <span className="flex items-center gap-1.5"><GitBranch className="w-3.5 h-3.5" />{activeBranch}</span>}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

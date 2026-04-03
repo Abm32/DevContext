@@ -58,6 +58,7 @@ export interface CommitFile {
   additions: number;
   deletions: number;
   changes: number;
+  patch?: string | null;
 }
 
 export type CommitDetailStats = {

@@ -122,6 +122,7 @@ export const GetCommitDetailResponse = zod.object({
       additions: zod.number(),
       deletions: zod.number(),
       changes: zod.number(),
+      patch: zod.string().nullish(),
     }),
   ),
   stats: zod.object({

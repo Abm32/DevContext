@@ -87,7 +87,7 @@ router.get("/stats", async (req, res) => {
   }
 
   try {
-    const [uniqueUsers, totalEvents, eventsByType, dailyEvents, recentEvents] = await Promise.all([
+    const [uniqueUsers, totalEvents, eventsByType, dailyEvents, recentEvents, topRepos] = await Promise.all([
       db.execute(sql`
         SELECT COUNT(DISTINCT user_id) AS count FROM analytics_events WHERE user_id IS NOT NULL
       `),
@@ -114,6 +114,17 @@ router.get("/stats", async (req, res) => {
         ORDER BY created_at DESC
         LIMIT 50
       `),
+      db.execute(sql`
+        SELECT
+          metadata->>'repo' AS repo,
+          COUNT(*) AS count
+        FROM analytics_events
+        WHERE event_type IN ('click:generate_summary', 'click:generate_standup')
+          AND metadata->>'repo' IS NOT NULL
+        GROUP BY metadata->>'repo'
+        ORDER BY count DESC
+        LIMIT 10
+      `),
     ]);
 
     const uniqueSessions = await db.execute(sql`
@@ -127,6 +138,7 @@ router.get("/stats", async (req, res) => {
       events_by_type: eventsByType.rows,
       daily_events: dailyEvents.rows,
       recent_events: recentEvents.rows,
+      top_repos: (topRepos.rows as Array<{ repo: string; count: string }>),
     });
   } catch (err) {
     req.log.error({ err }, "Admin stats error");

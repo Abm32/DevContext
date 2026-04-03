@@ -272,6 +272,7 @@ router.get("/repos/:owner/:repo/commits/:sha", async (req, res) => {
         additions: number;
         deletions: number;
         changes: number;
+        patch?: string;
       }>;
       stats: {
         additions: number;
@@ -292,6 +293,7 @@ router.get("/repos/:owner/:repo/commits/:sha", async (req, res) => {
         additions: f.additions,
         deletions: f.deletions,
         changes: f.changes,
+        patch: f.patch ?? null,
       })),
       stats: commit.stats ?? { additions: 0, deletions: 0, total: 0 },
     });

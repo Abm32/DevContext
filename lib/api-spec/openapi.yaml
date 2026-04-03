@@ -418,6 +418,9 @@ components:
           type: integer
         changes:
           type: integer
+        patch:
+          type: string
+          nullable: true
       required:
         - filename
         - status

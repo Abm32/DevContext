@@ -16,6 +16,7 @@ interface Stats {
   total_sessions: number
   events_by_type: Array<{ event_type: string; count: string }>
   daily_events: Array<{ date: string; count: string }>
+  top_repos: Array<{ repo: string; count: string }>
   recent_events: Array<{
     id: number
     event_type: string
@@ -269,6 +270,44 @@ export default function AdminDashboard() {
               </div>
             )}
           </div>
+        </div>
+
+        {/* Top Repos */}
+        <div className="bg-card border border-white/5 rounded-2xl p-5">
+          <h2 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+            <Activity className="w-4 h-4 text-muted-foreground" />
+            Most Analyzed Repos
+          </h2>
+          {loading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <Skeleton className="h-3 w-40" />
+                  <Skeleton className="h-3 flex-1" />
+                  <Skeleton className="h-3 w-8" />
+                </div>
+              ))}
+            </div>
+          ) : (stats?.top_repos ?? []).length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-4">No repo data yet — generate some summaries first</p>
+          ) : (
+            <div className="space-y-2.5">
+              {(stats?.top_repos ?? []).map((r, idx) => {
+                const max = Number(stats!.top_repos[0].count)
+                const pct = Math.round((Number(r.count) / max) * 100)
+                return (
+                  <div key={r.repo} className="flex items-center gap-3">
+                    <span className="text-xs text-muted-foreground/40 w-4 text-right shrink-0">{idx + 1}</span>
+                    <span className="text-xs text-white truncate flex-1 max-w-[220px]">{r.repo}</span>
+                    <div className="w-24 h-1.5 bg-secondary/40 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full bg-primary/60" style={{ width: `${pct}%` }} />
+                    </div>
+                    <span className="text-xs font-medium text-primary w-8 text-right shrink-0">{Number(r.count)}</span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
 
         {/* Recent Events Table */}

@@ -1,0 +1,94 @@
+# Design System Specification: High-End Developer Tooling
+
+## 1. Overview & Creative North Star
+**Creative North Star: The Monolithic Editor**
+This design system is built on the philosophy of "The Monolithic Editor." It moves away from the modular, boxy aesthetics of traditional web dashboards and toward the immersive, high-contrast focus of a premium IDE. By utilizing an obsidian-deep foundation, we create an environment where code and data feel like illuminated light on a dark canvas.
+
+The system rejects "standard" UI templates in favor of **intentional asymmetry** and **tonal depth**. We achieve "density with breathing room" by using compact typography for data, paired with expansive negative space around critical focus areas. This creates a high-information environment that remains calm and authoritative.
+
+---
+
+## 2. Colors: Tonal Architecture
+The palette is rooted in `#0A0A0B` (Obsidian), providing a near-perfect black foundation that minimizes eye strain and maximizes the vibrancy of accent colors.
+
+### The Palette
+- **Base (Background):** `#131314` (Surface) | `#0A0A0B` (Canvas)
+- **Primary (Context Blue):** `#3B82F6` / `#adc6ff`
+- **Secondary (Flow Violet):** `#8B5CF6` / `#d0bcff`
+- **Tertiary (Growth Emerald):** `#10B981` / `#4edea3`
+
+### The "No-Line" Rule
+To achieve a high-end editorial feel, **prohibit 1px solid borders for structural sectioning.** Boundaries must be defined through tonal shifts:
+- Use `surface_container_low` for secondary sidebars sitting on a `surface` background.
+- Use `surface_container_highest` for active hover states or elevated focus zones.
+- Contrast is our primary divider; vertical whitespace is our secondary.
+
+### Glassmorphism & Depth
+For floating panels (modals, command palettes, dropdowns), use:
+- **Background:** `surface_variant` at 70% opacity.
+- **Backdrop-blur:** `12px` to `20px`.
+- **Signature Gradient:** main CTAs should utilize a subtle linear gradient from `primary` to `primary_container` (e.g., at a 135-degree angle) to give a tactile, "lit from within" feel.
+
+---
+
+## 3. Typography: Editorial Precision
+The system utilizes a dual-font strategy. **Plus Jakarta Sans** is used for Display and Headlines to provide a modern, slightly geometric character. **Inter** is used for all functional UI and body text for its unparalleled legibility at small scales.
+
+| Role | Token | Font | Size | Character |
+| :--- | :--- | :--- | :--- | :--- |
+| **Display** | `display-lg` | Plus Jakarta | 3.5rem | Bold, tight tracking |
+| **Headline** | `headline-md` | Plus Jakarta | 1.75rem | Authoritative, "Editorial" |
+| **Title** | `title-sm` | Inter | 1rem | Semi-bold, functional |
+| **Body** | `body-md` | Inter | 0.875rem | Standard readability |
+| **Label** | `label-sm` | Inter | 0.6875rem | Uppercase, +0.05em tracking |
+
+---
+
+## 4. Elevation & Depth: Tonal Layering
+We move beyond traditional drop shadows. Elevation is a property of light and surface color.
+
+- **The Layering Principle:** Stack surfaces from darkest to lightest.
+    - Level 0 (Canvas): `surface_container_lowest` (#0E0E0F)
+    - Level 1 (Sections): `surface` (#131314)
+    - Level 2 (Cards/Active): `surface_container` (#201F20)
+- **Ambient Shadows:** For "floating" elements, use a shadow with a blur radius of `40px` and an opacity of `8%`. The shadow color should be a tinted blue (`#002e6a`) rather than pure black to simulate the glow of the screen.
+- **The Ghost Border Fallback:** If a border is required for accessibility, use the `outline_variant` token at **20% opacity**. This creates a "hairline" effect common in high-end dev tools like Vercel.
+
+---
+
+## 5. Components: Functional Elegance
+
+### Buttons
+- **Primary:** Gradient fill (`primary` to `primary_container`). `0.375rem` (md) radius. No border.
+- **Secondary:** Ghost style. Transparent background with a `Ghost Border`. Text color `on_surface`.
+- **Tertiary:** Pure text with `label-md` styling.
+
+### Input Fields
+- **Base:** `surface_container_low` background. 
+- **Interaction:** On focus, the border transitions to `primary` (Context Blue) at 40% opacity with a `2px` outer glow. 
+- **Typography:** Placeholder text uses `on_surface_variant` at 50% opacity.
+
+### Chips (Multi-repo Tagging)
+- Use `Flow Violet` for backend services and `Growth Emerald` for deployment/health status. 
+- Chips should be compact: `0.75rem` font size, `0.25rem` padding-y, `0.5rem` padding-x.
+
+### Cards & Lists
+- **Forbid dividers.** Use `1.5rem` (24px) of vertical space between list items. 
+- Use `surface_container_high` as a subtle hover state background for list rows.
+
+### Additional: The Context Drawer
+A signature component for this system. A slide-over panel using `surface_container_highest` with a heavy `24px` backdrop blur. This panel should overlap the main content to emphasize the "Monolithic Layering" concept.
+
+---
+
+## 6. Do's and Don'ts
+
+### Do
+- **Do** use `label-sm` in all-caps with increased letter-spacing for section headers to create a "Pro-Tool" hierarchy.
+- **Do** use `Context Blue` sparingly. It should be a "signal," not a "wash."
+- **Do** embrace density in the sidebar (12px padding) but allow the main code/data view to breathe (48px+ padding).
+
+### Don't
+- **Don't** use `#000000` (Pure Black). It kills the depth of the Obsidian theme.
+- **Don't** use standard "Select" dropdowns. Build custom, searchable "Command Palettes" that feel integrated into the editor.
+- **Don't** use high-contrast white dividers. If you must separate, use a `1px` shift in tonal background color.

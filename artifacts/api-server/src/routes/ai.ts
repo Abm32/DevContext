@@ -37,6 +37,32 @@ function buildDepContextSection(depContext: DepContextItem[]): string {
   return `\nDEPENDENCY CONTEXT (stale packages in this repo):\n${lines}\n\nWhen suggesting next steps, consider whether any of these outdated dependencies are relevant to the active work and whether upgrading them is worth prioritizing.\n`;
 }
 
+type CommitWithRepo = CommitPayload & { sha: string; author_date: string; repo_name?: string | null };
+
+function buildCommitSummary(commits: CommitWithRepo[], primaryRepoName: string): { summary: string; isMultiRepo: boolean; repoNames: string[] } {
+  const repoSet = new Set<string>();
+  commits.forEach(c => repoSet.add(c.repo_name ?? primaryRepoName));
+  const repoNames = Array.from(repoSet);
+  const isMultiRepo = repoNames.length > 1;
+
+  const summary = commits
+    .map((c, i) => {
+      const fileLines = c.files.slice(0, 20).map(f => {
+        const displayStatus = f.status === "removed" ? "deleted" : f.status;
+        const changeLabel = f.status === "removed"
+          ? "deleted"
+          : `${displayStatus}, +${f.additions}/-${f.deletions}`;
+        return `  - ${f.filename} (${changeLabel})`;
+      }).join("\n");
+      const moreFiles = c.files.length > 20 ? `\n  ... and ${c.files.length - 20} more files` : "";
+      const repoTag = isMultiRepo ? ` [${c.repo_name ?? primaryRepoName}]` : "";
+      return `Commit ${i + 1}${repoTag}: "${c.message}" (${new Date(c.author_date).toLocaleDateString()}) [+${c.stats?.additions ?? 0}/-${c.stats?.deletions ?? 0} total]\nFiles:\n${fileLines}${moreFiles}`;
+    })
+    .join("\n\n");
+
+  return { summary, isMultiRepo, repoNames };
+}
+
 function generateMockSummary(repoName: string, commits: CommitPayload[], mode: string) {
   const allFiles = [...new Set(commits.flatMap((c) => c.files.map(f => f.filename)))];
   const fileExtensions = allFiles
@@ -112,28 +138,25 @@ router.post("/summarize", async (req, res) => {
   }
 
   try {
-    const commitSummary = commits
-      .map(
-        (c: { sha: string; message: string; author_date: string; files: Array<{ filename: string; status: string; additions: number; deletions: number }>; stats: { additions: number; deletions: number } }, i: number) => {
-          const fileLines = c.files.slice(0, 20).map(f => {
-            const displayStatus = f.status === "removed" ? "deleted" : f.status;
-            const changeLabel = f.status === "removed"
-              ? "deleted"
-              : `${displayStatus}, +${f.additions}/-${f.deletions}`;
-            return `  - ${f.filename} (${changeLabel})`;
-          }).join("\n");
-          const moreFiles = c.files.length > 20 ? `\n  ... and ${c.files.length - 20} more files` : "";
-          return `Commit ${i + 1}: "${c.message}" (${new Date(c.author_date).toLocaleDateString()}) [+${c.stats.additions}/-${c.stats.deletions} total]\nFiles:\n${fileLines}${moreFiles}`;
-        }
-      )
-      .join("\n\n");
+    const { summary: commitSummary, isMultiRepo, repoNames } = buildCommitSummary(
+      commits as CommitWithRepo[],
+      repo_name
+    );
 
     const depSection = buildDepContextSection(depContext);
     const isStandup = mode === "standup";
 
-    const prompt = isStandup
-      ? `You are a developer assistant. Analyze the following recent Git commits from the repository "${repo_name}" and generate a standup update a developer could paste into Slack or their daily standup.
+    const repoContext = isMultiRepo
+      ? `the repositories ${repoNames.map(r => `"${r}"`).join(" and ")}`
+      : `the repository "${repo_name}"`;
 
+    const multiRepoNote = isMultiRepo
+      ? `\nNOTE: These commits span multiple repositories (${repoNames.join(", ")}). Each commit is tagged with [repo-name]. Look for cross-repo patterns — e.g., an API change paired with a frontend update in the same time window — and highlight them as they reveal full-stack work that's hard to see repo-by-repo.\n`
+      : "";
+
+    const prompt = isStandup
+      ? `You are a developer assistant. Analyze the following recent Git commits from ${repoContext} and generate a standup update a developer could paste into Slack or their daily standup.
+${multiRepoNote}
 Each commit includes the files changed with their status (added/modified/removed/renamed) and line counts (+additions/-deletions).
 
 Recent commits:
@@ -148,8 +171,8 @@ Respond with a JSON object with exactly these fields:
 }
 
 Be specific: name actual files and distinguish between small fixes (few lines) and large refactors (hundreds of lines). Keep it professional and brief enough to paste into a standup.`
-      : `You are a developer assistant helping a developer resume their coding work. Analyze the following recent Git commits from the repository "${repo_name}" and generate a clear, actionable summary.
-
+      : `You are a developer assistant helping a developer resume their coding work. Analyze the following recent Git commits from ${repoContext} and generate a clear, actionable summary.
+${multiRepoNote}
 Each commit includes the files changed with their status (added/modified/removed/renamed) and line counts (+additions/-deletions). Use this to distinguish a 3-line bug fix from a 400-line feature and to identify which areas of the codebase are actively evolving.
 
 Recent commits:

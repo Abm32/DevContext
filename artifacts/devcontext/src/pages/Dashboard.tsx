@@ -4,16 +4,15 @@ import { useLocation } from "wouter"
 import { motion, AnimatePresence } from "framer-motion"
 import { formatRelativeDate, getShortSha } from "@/lib/utils"
 import { computeCommitStats } from "@/lib/commit-stats"
-import { 
-  useGetMe, 
-  useListRepos, 
+import {
+  useGetMe,
+  useListRepos,
   useListBranches,
   useListCommits,
   useGetCommitDetail,
   useGetRepoDeps,
   Repository,
   Commit,
-  Branch,
   DepContextItem,
 } from "@workspace/api-client-react"
 import { useGenerateSummary } from "@/hooks/use-devcontext"
@@ -21,15 +20,13 @@ import { DepHealthPanel } from "@/components/dep-health-panel"
 import { track } from "@/hooks/use-track"
 import { Header } from "@/components/layout/Header"
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Badge } from "@/components/ui/badge"
-import { 
-  Search, 
-  GitCommitHorizontal, 
-  ChevronRight, 
+import {
+  Search,
+  GitCommitHorizontal,
+  ChevronRight,
   ChevronDown,
-  FolderGit2, 
+  FolderGit2,
   Sparkles,
   ArrowRight,
   Clock,
@@ -38,12 +35,28 @@ import {
   GitBranch,
   Copy,
   Check,
-  FileCode,
   ClipboardList,
   Plus,
   Minus,
   Heart,
+  X,
+  Layers,
+  BookmarkPlus,
+  Bookmark,
+  Trash2,
 } from "lucide-react"
+import {
+  RepoEntry,
+  Workspace,
+  REPO_COLORS,
+  RepoColor,
+  loadWorkspaces,
+  saveWorkspaces,
+  addWorkspace,
+  deleteWorkspace,
+  saveActiveRepos,
+  loadActiveRepoSlugs,
+} from "@/lib/workspaces"
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type SummaryResult = {
@@ -55,18 +68,22 @@ type SummaryResult = {
 }
 type CachedSummary = { result: SummaryResult; generatedAt: string; mode: "next_steps" | "standup" }
 
-function loadCachedSummary(repoFullName: string, branch: string): CachedSummary | null {
+function loadCachedSummary(key: string): CachedSummary | null {
   try {
-    const raw = localStorage.getItem(`dc_summary_${repoFullName}_${branch}`)
+    const raw = localStorage.getItem(`dc_summary_${key}`)
     if (!raw) return null
     return JSON.parse(raw) as CachedSummary
   } catch { return null }
 }
 
-function saveCachedSummary(repoFullName: string, branch: string, data: CachedSummary) {
+function saveCachedSummary(key: string, data: CachedSummary) {
   try {
-    localStorage.setItem(`dc_summary_${repoFullName}_${branch}`, JSON.stringify(data))
-  } catch { /* quota exceeded – ignore */ }
+    localStorage.setItem(`dc_summary_${key}`, JSON.stringify(data))
+  } catch { /* quota */ }
+}
+
+function buildCacheKey(entries: RepoEntry[]): string {
+  return entries.map(e => `${e.repo.full_name}:${e.branch ?? e.repo.default_branch ?? "default"}`).join("|")
 }
 
 // ─── DiffView ────────────────────────────────────────────────────────────────
@@ -82,16 +99,20 @@ function DiffView({ patch }: { patch: string }) {
           : line.startsWith("@@")
           ? "text-blue-400/80"
           : "text-muted-foreground/70"
-        return (
-          <span key={i} className={`block px-2 ${bg}`}>{line || " "}</span>
-        )
+        return <span key={i} className={`block px-2 ${bg}`}>{line || " "}</span>
       })}
     </pre>
   )
 }
 
-// ─── CommitCard ─────────────────────────────────────────────────────────────
-function CommitCard({ commit, owner, repo, idx }: { commit: Commit; owner: string; repo: string; idx: number }) {
+// ─── CommitCard ───────────────────────────────────────────────────────────────
+type TaggedCommit = Commit & { _repoIdx: number; _repoName: string }
+
+function CommitCard({
+  commit, owner, repo, idx, repoColor,
+}: {
+  commit: TaggedCommit; owner: string; repo: string; idx: number; repoColor?: RepoColor
+}) {
   const [expanded, setExpanded] = useState(false)
   const [expandedFile, setExpandedFile] = useState<string | null>(null)
 
@@ -100,85 +121,77 @@ function CommitCard({ commit, owner, repo, idx }: { commit: Commit; owner: strin
     { query: { enabled: expanded } }
   )
 
-  const statusColor = (s: string) => {
-    if (s === "added") return "text-emerald-400"
-    if (s === "removed") return "text-red-400"
-    if (s === "renamed") return "text-amber-400"
-    return "text-blue-400"
-  }
-
   return (
-    <motion.div 
-      initial={{ opacity: 0, x: -10 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: idx * 0.04 }}
-      className="relative pl-6"
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: idx * 0.04, duration: 0.25 }}
+      className="group rounded-xl border border-white/5 bg-secondary/10 hover:bg-secondary/20 transition-all overflow-hidden"
     >
-      <div className="absolute -left-1.5 top-1.5 w-3 h-3 rounded-full border-2 border-background bg-primary" />
-      <div className="bg-card border border-white/5 rounded-xl shadow-sm overflow-hidden">
-        <button
-          onClick={() => { setExpanded(e => !e); setExpandedFile(null) }}
-          className="w-full p-4 text-left hover:bg-white/[0.02] transition-colors"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <Badge variant="outline" className="font-mono text-[10px] text-muted-foreground border-white/10">
-              {getShortSha(commit.sha)}
-            </Badge>
-            <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-              <Clock className="w-3 h-3" />
-              {formatRelativeDate(commit.author_date)}
-            </span>
-          </div>
-          <p className="text-sm text-white font-medium leading-snug line-clamp-2">
-            {commit.message.split('\n')[0]}
-          </p>
-          <div className="mt-3 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-5 h-5 rounded-full bg-secondary flex items-center justify-center text-[10px] font-bold text-muted-foreground uppercase">
-                {commit.author_name.charAt(0)}
+      <div
+        className="p-4 cursor-pointer"
+        onClick={() => { setExpanded(e => !e); setExpandedFile(null) }}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-2.5 min-w-0">
+            <GitCommitHorizontal className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
+            <div className="min-w-0">
+              <p className="text-sm text-white font-medium leading-snug line-clamp-2">{commit.message}</p>
+              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                <span className="text-[11px] font-mono text-muted-foreground/70">{getShortSha(commit.sha)}</span>
+                <span className="text-[11px] text-muted-foreground">{commit.author_name}</span>
+                <span className="text-[11px] text-muted-foreground/50">{formatRelativeDate(commit.author_date)}</span>
+                {repoColor && (
+                  <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${repoColor.bg} ${repoColor.text} border ${repoColor.border}`}>
+                    {commit._repoName}
+                  </span>
+                )}
               </div>
-              <span className="text-xs text-muted-foreground">{commit.author_name}</span>
             </div>
-            <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-              <FileCode className="w-3 h-3" />
-              {expanded ? "Hide files" : "Show files"}
-              {expanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-            </span>
           </div>
-        </button>
+          <div className="shrink-0 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors mt-0.5">
+            {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+          </div>
+        </div>
+      </div>
 
-        <AnimatePresence>
-          {expanded && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="overflow-hidden border-t border-white/5"
-            >
-              <div className="p-3 bg-black/20 max-h-72 overflow-y-auto scrollbar-hide">
-                {isDetailLoading ? (
-                  <div className="space-y-2 py-1">
-                    {[1,2,3].map(i => <Skeleton key={i} className="h-4 w-full" />)}
-                  </div>
-                ) : detail?.files.length === 0 ? (
-                  <p className="text-xs text-muted-foreground py-1">No file changes.</p>
-                ) : (
-                  <div className="space-y-0.5">
-                    {detail?.files.map(f => (
+      <AnimatePresence>
+        {expanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="border-t border-white/5 overflow-hidden"
+          >
+            <div className="p-4 pt-3 space-y-2">
+              {isDetailLoading ? (
+                <div className="space-y-2">
+                  {[1, 2, 3].map(i => <Skeleton key={i} className="h-5 w-full" />)}
+                </div>
+              ) : detail ? (
+                <>
+                  <div className="space-y-1">
+                    {detail.files.map(f => (
                       <div key={f.filename}>
                         <button
-                          onClick={() => setExpandedFile(v => v === f.filename ? null : f.filename)}
-                          className={`w-full flex items-center gap-2 text-[11px] font-mono py-1 px-1 rounded hover:bg-white/5 transition-colors ${expandedFile === f.filename ? "bg-white/5" : ""}`}
+                          onClick={() => setExpandedFile(prev => prev === f.filename ? null : f.filename)}
+                          className={`w-full flex items-center gap-2 text-[11px] font-mono py-1 px-2 rounded hover:bg-white/5 text-left transition-colors ${expandedFile === f.filename ? "bg-white/5" : ""}`}
                         >
-                          <span className={`shrink-0 ${statusColor(f.status)}`}>
-                            {f.status === "added" ? <Plus className="w-3 h-3" /> : f.status === "removed" ? <Minus className="w-3 h-3" /> : <FileCode className="w-3 h-3" />}
+                          <span className={
+                            f.status === "added" ? "text-emerald-400" :
+                            f.status === "removed" ? "text-red-400" :
+                            f.status === "renamed" ? "text-blue-400" : "text-amber-400"
+                          }>
+                            {f.status === "added" ? "+" : f.status === "removed" ? "−" : f.status === "renamed" ? "→" : "~"}
                           </span>
-                          <span className="text-muted-foreground truncate flex-1 text-left">{f.filename}</span>
-                          <span className="shrink-0 text-emerald-400">+{f.additions}</span>
-                          <span className="shrink-0 text-red-400">-{f.deletions}</span>
+                          <span className="truncate text-muted-foreground/80 flex-1">{f.filename}</span>
+                          <span className="text-muted-foreground/40 shrink-0">
+                            {f.status !== "removed" && f.additions > 0 && <span className="text-emerald-400/60">+{f.additions}</span>}
+                            {f.status !== "added" && f.deletions > 0 && <span className="text-red-400/60 ml-1">-{f.deletions}</span>}
+                          </span>
                           {f.patch && (
-                            <ChevronRight className={`w-3 h-3 text-muted-foreground/40 shrink-0 transition-transform ${expandedFile === f.filename ? "rotate-90" : ""}`} />
+                            <ChevronDown className={`w-3 h-3 text-muted-foreground/40 shrink-0 transition-transform ${expandedFile === f.filename ? "rotate-180" : ""}`} />
                           )}
                         </button>
                         <AnimatePresence>
@@ -187,34 +200,29 @@ function CommitCard({ commit, owner, repo, idx }: { commit: Commit; owner: strin
                               initial={{ height: 0, opacity: 0 }}
                               animate={{ height: "auto", opacity: 1 }}
                               exit={{ height: 0, opacity: 0 }}
-                              transition={{ duration: 0.15 }}
-                              className="overflow-hidden"
+                              className="overflow-hidden rounded-lg mt-1 border border-white/5 max-h-64 overflow-y-auto"
                             >
-                              <div className="mt-1 mb-1 rounded-lg border border-white/5 overflow-x-auto max-h-48 overflow-y-auto bg-black/30">
-                                <DiffView patch={f.patch} />
-                              </div>
+                              <DiffView patch={f.patch} />
                             </motion.div>
                           )}
                         </AnimatePresence>
                       </div>
                     ))}
-                    {detail && (
-                      <div className="pt-2 mt-1 border-t border-white/5 text-[11px] text-muted-foreground flex gap-3 flex-wrap">
-                        <span className="font-semibold text-white/60">{detail.files.length} files changed</span>
-                        <span className="text-emerald-400">+{detail.stats.additions} additions</span>
-                        <span className="text-red-400">−{detail.stats.deletions} deletions</span>
-                        {detail.files.some(f => f.patch) && (
-                          <span className="text-muted-foreground/40">click file for diff</span>
-                        )}
-                      </div>
+                  </div>
+                  <div className="pt-2 mt-1 border-t border-white/5 text-[11px] text-muted-foreground flex gap-3 flex-wrap">
+                    <span className="font-semibold text-white/60">{detail.files.length} files changed</span>
+                    <span className="text-emerald-400">+{detail.stats.additions} additions</span>
+                    <span className="text-red-400">−{detail.stats.deletions} deletions</span>
+                    {detail.files.some(f => f.patch) && (
+                      <span className="text-muted-foreground/40">click file for diff</span>
                     )}
                   </div>
-                )}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+                </>
+              ) : null}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   )
 }
@@ -224,178 +232,198 @@ export default function Dashboard() {
   const [, setLocation] = useLocation()
   const { data: user, isLoading: isAuthLoading, isError } = useGetMe({ query: { retry: false } })
 
-  const [selectedRepo, setSelectedRepo] = useState<Repository | null>(null)
-  const [selectedBranch, setSelectedBranch] = useState<string | null>(null)
+  // ─── Multi-repo state ────────────────────────────────────────────────────
+  const [selectedRepos, setSelectedRepos] = useState<RepoEntry[]>([])
   const [repoSearch, setRepoSearch] = useState("")
+  const [workspaces, setWorkspaces] = useState<Workspace[]>(() => loadWorkspaces())
+  const [showSaveWorkspace, setShowSaveWorkspace] = useState(false)
+  const [workspaceName, setWorkspaceName] = useState("")
+
   const [summaryMode, setSummaryMode] = useState<"next_steps" | "standup">("next_steps")
   const [copied, setCopied] = useState(false)
   const [generateError, setGenerateError] = useState<string | null>(null)
   const [mobileTab, setMobileTab] = useState<"commits" | "ai">("commits")
-  const commitLimit = 30
   const [cachedSummary, setCachedSummary] = useState<CachedSummary | null>(null)
+  const commitLimit = 30
 
-  const initialRepo = useRef(localStorage.getItem('dc_last_repo'))
-  const initialBranch = useRef(localStorage.getItem('dc_last_branch'))
-  const repoRestored = useRef(false)
-  const branchRestored = useRef(false)
+  const reposRestored = useRef(false)
 
-  const { data: repos, isLoading: isReposLoading } = useListRepos({
-    query: { enabled: !!user }
-  })
+  // ─── Slot accessors ──────────────────────────────────────────────────────
+  const entry0 = selectedRepos[0] ?? null
+  const entry1 = selectedRepos[1] ?? null
+  const entry2 = selectedRepos[2] ?? null
 
-  const owner = selectedRepo?.full_name.split('/')[0] || ""
+  const owner0 = entry0?.repo.full_name.split("/")[0] ?? ""
+  const owner1 = entry1?.repo.full_name.split("/")[0] ?? ""
+  const owner2 = entry2?.repo.full_name.split("/")[0] ?? ""
 
-  const { data: branches, isLoading: isBranchesLoading } = useListBranches(
-    owner,
-    selectedRepo?.name || "",
-    { query: { enabled: !!selectedRepo } }
+  const name0 = entry0?.repo.name ?? ""
+  const name1 = entry1?.repo.name ?? ""
+  const name2 = entry2?.repo.name ?? ""
+
+  const branch0 = entry0?.branch ?? entry0?.repo.default_branch ?? undefined
+  const branch1 = entry1?.branch ?? entry1?.repo.default_branch ?? undefined
+  const branch2 = entry2?.branch ?? entry2?.repo.default_branch ?? undefined
+
+  // Primary accessor for backward-compat with right column logic
+  const selectedRepo = entry0?.repo ?? null
+  const activeBranch = branch0
+
+  // ─── Repo list ───────────────────────────────────────────────────────────
+  const { data: repos, isLoading: isReposLoading } = useListRepos({ query: { enabled: !!user } })
+
+  // ─── Branch queries (3 fixed slots) ─────────────────────────────────────
+  const { data: branches0, isLoading: isBranchesLoading0 } = useListBranches(owner0, name0, { query: { enabled: !!entry0 } })
+  const { data: branches1, isLoading: isBranchesLoading1 } = useListBranches(owner1, name1, { query: { enabled: !!entry1 } })
+  const { data: branches2, isLoading: isBranchesLoading2 } = useListBranches(owner2, name2, { query: { enabled: !!entry2 } })
+
+  // ─── Commit queries (3 fixed slots) ─────────────────────────────────────
+  const { data: commits0, isLoading: isCommitsLoading0, isError: isCommitsError0 } = useListCommits(
+    owner0, name0, { per_page: commitLimit, branch: branch0 }, { query: { enabled: !!entry0, retry: 1 } }
+  )
+  const { data: commits1 } = useListCommits(
+    owner1, name1, { per_page: commitLimit, branch: branch1 }, { query: { enabled: !!entry1, retry: 1 } }
+  )
+  const { data: commits2 } = useListCommits(
+    owner2, name2, { per_page: commitLimit, branch: branch2 }, { query: { enabled: !!entry2, retry: 1 } }
   )
 
-  // Reset branch when repo changes, persist to localStorage
-  const handleSelectRepo = (repo: Repository) => {
-    setSelectedRepo(repo)
-    setSelectedBranch(null)
-    localStorage.setItem('dc_last_repo', repo.full_name)
-    localStorage.removeItem('dc_last_branch')
-  }
-
-  const activeBranch = selectedBranch ?? selectedRepo?.default_branch ?? undefined
-
-  const { data: commits, isLoading: isCommitsLoading, isError: isCommitsError } = useListCommits(
-    owner,
-    selectedRepo?.name || "",
-    { per_page: commitLimit, branch: activeBranch },
-    { query: { enabled: !!selectedRepo, retry: 1 } }
-  )
-
-  // Fetch the real total commit count for the branch (1-commit request + Link header parsing)
+  // ─── Commit count (slot 0 only, for stats strip) ─────────────────────────
   const { data: commitCountData } = useQuery({
-    queryKey: ["commitCount", owner, selectedRepo?.name, activeBranch],
+    queryKey: ["commitCount", owner0, name0, branch0],
     queryFn: async () => {
       const params = new URLSearchParams()
-      if (activeBranch) params.set("branch", activeBranch)
+      if (branch0) params.set("branch", branch0)
       const res = await fetch(
-        `${import.meta.env.BASE_URL}api/github/repos/${owner}/${selectedRepo!.name}/commit-count?${params}`,
+        `${import.meta.env.BASE_URL}api/github/repos/${owner0}/${name0}/commit-count?${params}`,
         { credentials: "include" }
       )
       if (!res.ok) return null
       const data = await res.json() as { total: number }
       return data.total
     },
-    enabled: !!selectedRepo && !!owner,
+    enabled: !!entry0,
     staleTime: 5 * 60 * 1000,
   })
 
-  // Fetch recent commit details to collect changed filenames for dep manifest detection.
-  // GitHub list-commits API does not include per-commit file lists; we fetch
-  // the 3 most recent commit details in parallel and union all unique filenames.
-  const recentShas = useMemo(() => commits?.slice(0, 3).map((c) => c.sha) ?? [], [commits])
-  const { data: detail0 } = useGetCommitDetail(owner, selectedRepo?.name || "", recentShas[0] ?? "", {
-    query: { enabled: !!selectedRepo && !!recentShas[0] },
-  })
-  const { data: detail1 } = useGetCommitDetail(owner, selectedRepo?.name || "", recentShas[1] ?? "", {
-    query: { enabled: !!selectedRepo && !!recentShas[1] },
-  })
-  const { data: detail2 } = useGetCommitDetail(owner, selectedRepo?.name || "", recentShas[2] ?? "", {
-    query: { enabled: !!selectedRepo && !!recentShas[2] },
-  })
-  // Union all unique filenames from the fetched commit details
-  const recentFiles = useMemo(() => {
-    const all = [detail0, detail1, detail2]
-      .flatMap((d) => d?.files.map((f) => f.filename) ?? [])
-    const unique = [...new Set(all)]
-    return unique.length > 0 ? unique.join(",") : undefined
-  }, [detail0, detail1, detail2])
+  // ─── Merged commit list ──────────────────────────────────────────────────
+  const mergedCommits = useMemo((): TaggedCommit[] => {
+    const all: TaggedCommit[] = [
+      ...(commits0 ?? []).map(c => ({ ...c, _repoIdx: 0, _repoName: name0 })),
+      ...(commits1 ?? []).map(c => ({ ...c, _repoIdx: 1, _repoName: name1 })),
+      ...(commits2 ?? []).map(c => ({ ...c, _repoIdx: 2, _repoName: name2 })),
+    ]
+    return all.sort((a, b) => new Date(b.author_date).getTime() - new Date(a.author_date).getTime())
+  }, [commits0, commits1, commits2, name0, name1, name2])
 
-  // Dependency health data (generated hook)
-  const {
-    data: depsReport,
-    isLoading: isDepsLoading,
-    isError: isDepsError,
-    refetch: refetchDeps,
-  } = useGetRepoDeps(
-    owner,
-    selectedRepo?.name || "",
-    {
-      branch: activeBranch,
-      language: selectedRepo?.language ?? undefined,
-      files: recentFiles,
-    },
-    { query: { enabled: !!selectedRepo && !!owner } }
+  const isMultiRepo = selectedRepos.length > 1
+  const isCommitsLoading = isCommitsLoading0
+  const isCommitsError = isCommitsError0
+
+  // ─── Dep health queries (3 slots) ────────────────────────────────────────
+  // Gather changed filenames for dep detection
+  const recentShas0 = useMemo(() => commits0?.slice(0, 3).map(c => c.sha) ?? [], [commits0])
+  const { data: d0a } = useGetCommitDetail(owner0, name0, recentShas0[0] ?? "", { query: { enabled: !!entry0 && !!recentShas0[0] } })
+  const { data: d0b } = useGetCommitDetail(owner0, name0, recentShas0[1] ?? "", { query: { enabled: !!entry0 && !!recentShas0[1] } })
+  const { data: d0c } = useGetCommitDetail(owner0, name0, recentShas0[2] ?? "", { query: { enabled: !!entry0 && !!recentShas0[2] } })
+  const changedFiles0 = useMemo(() => {
+    const all = [...(d0a?.files ?? []), ...(d0b?.files ?? []), ...(d0c?.files ?? [])]
+    return [...new Set(all.map(f => f.filename))]
+  }, [d0a, d0b, d0c])
+
+  const recentShas1 = useMemo(() => commits1?.slice(0, 3).map(c => c.sha) ?? [], [commits1])
+  const { data: d1a } = useGetCommitDetail(owner1, name1, recentShas1[0] ?? "", { query: { enabled: !!entry1 && !!recentShas1[0] } })
+  const { data: d1b } = useGetCommitDetail(owner1, name1, recentShas1[1] ?? "", { query: { enabled: !!entry1 && !!recentShas1[1] } })
+  const { data: d1c } = useGetCommitDetail(owner1, name1, recentShas1[2] ?? "", { query: { enabled: !!entry1 && !!recentShas1[2] } })
+  const changedFiles1 = useMemo(() => {
+    const all = [...(d1a?.files ?? []), ...(d1b?.files ?? []), ...(d1c?.files ?? [])]
+    return [...new Set(all.map(f => f.filename))]
+  }, [d1a, d1b, d1c])
+
+  const recentShas2 = useMemo(() => commits2?.slice(0, 3).map(c => c.sha) ?? [], [commits2])
+  const { data: d2a } = useGetCommitDetail(owner2, name2, recentShas2[0] ?? "", { query: { enabled: !!entry2 && !!recentShas2[0] } })
+  const { data: d2b } = useGetCommitDetail(owner2, name2, recentShas2[1] ?? "", { query: { enabled: !!entry2 && !!recentShas2[1] } })
+  const { data: d2c } = useGetCommitDetail(owner2, name2, recentShas2[2] ?? "", { query: { enabled: !!entry2 && !!recentShas2[2] } })
+  const changedFiles2 = useMemo(() => {
+    const all = [...(d2a?.files ?? []), ...(d2b?.files ?? []), ...(d2c?.files ?? [])]
+    return [...new Set(all.map(f => f.filename))]
+  }, [d2a, d2b, d2c])
+
+  const { data: depsReport0, isLoading: isDepsLoading0, isError: isDepsError0, refetch: refetchDeps0 } = useGetRepoDeps(
+    owner0, name0, { files: changedFiles0.join(",") }, { query: { enabled: !!entry0 && changedFiles0.length > 0 } }
+  )
+  const { data: depsReport1, isLoading: isDepsLoading1, isError: isDepsError1, refetch: refetchDeps1 } = useGetRepoDeps(
+    owner1, name1, { files: changedFiles1.join(",") }, { query: { enabled: !!entry1 && changedFiles1.length > 0 } }
+  )
+  const { data: depsReport2, isLoading: isDepsLoading2, isError: isDepsError2, refetch: refetchDeps2 } = useGetRepoDeps(
+    owner2, name2, { files: changedFiles2.join(",") }, { query: { enabled: !!entry2 && changedFiles2.length > 0 } }
   )
 
-  // Build dep_context for AI: top 5 major-severity deps only (critical upgrade risk)
+  // ─── Dep context (aggregate major deps from all repos for AI) ─────────────
   const depContext = useMemo((): DepContextItem[] => {
-    if (!depsReport?.deps) return []
-    return depsReport.deps
+    const all = [
+      ...(depsReport0?.deps ?? []),
+      ...(depsReport1?.deps ?? []),
+      ...(depsReport2?.deps ?? []),
+    ]
+    return all
       .filter((d): d is typeof d & { latest_version: string } =>
         d.severity === "major" && d.latest_version != null
       )
-      .slice(0, 5)
-      .map((d) => ({
+      .slice(0, 8)
+      .map(d => ({
         name: d.name,
         current_version: d.current_version,
         latest_version: d.latest_version,
         severity: "major" as const,
         ecosystem: d.ecosystem,
       }))
-  }, [depsReport])
+  }, [depsReport0, depsReport1, depsReport2])
 
   const { generate, isGenerating, progress, result } = useGenerateSummary()
 
   const commitStats = useMemo(() => {
-    if (!commits || commits.length === 0) return null
-    return computeCommitStats(commits)
-  }, [commits])
+    if (!mergedCommits.length) return null
+    return computeCommitStats(mergedCommits)
+  }, [mergedCommits])
 
+  // ─── Auth / lifecycle effects ─────────────────────────────────────────────
+  useEffect(() => { if (isError) setLocation("/") }, [isError, setLocation])
 
+  useEffect(() => { if (user) void track("page_view", { page: "/dashboard" }) }, [user])
+
+  // ─── Restore active repos from localStorage (one-time) ───────────────────
   useEffect(() => {
-    if (isError) setLocation("/")
-  }, [isError, setLocation])
-
-  useEffect(() => {
-    if (user) {
-      void track("page_view", { page: "/dashboard" })
+    if (reposRestored.current || !repos) return
+    reposRestored.current = true
+    const slugs = loadActiveRepoSlugs()
+    if (!slugs.length) return
+    const entries: RepoEntry[] = []
+    for (const slug of slugs) {
+      const match = repos.find(r => r.full_name === slug.fullName)
+      if (match) entries.push({ id: crypto.randomUUID(), repo: match, branch: slug.branch })
     }
-  }, [user])
-
-  // One-time repo restoration from localStorage
-  useEffect(() => {
-    if (repoRestored.current || !repos || !initialRepo.current) return
-    repoRestored.current = true
-    const match = repos.find(r => r.full_name === initialRepo.current)
-    if (match) setSelectedRepo(match)
+    if (entries.length) setSelectedRepos(entries)
   }, [repos])
 
-  // One-time branch restoration from localStorage
+  // ─── Restore cached summary when selection changes ────────────────────────
   useEffect(() => {
-    if (branchRestored.current || !branches || !initialBranch.current) return
-    branchRestored.current = true
-    const match = branches.find(b => b.name === initialBranch.current)
-    if (match) setSelectedBranch(match.name)
-  }, [branches])
+    if (!selectedRepos.length) { setCachedSummary(null); return }
+    const key = buildCacheKey(selectedRepos)
+    setCachedSummary(loadCachedSummary(key))
+  }, [JSON.stringify(selectedRepos.map(e => ({ f: e.repo.full_name, b: e.branch })))])
 
-  // Persist the active branch whenever branches load and storage is empty.
+  // ─── Save summary to cache after generation ───────────────────────────────
   useEffect(() => {
-    if (!branches || !activeBranch || !selectedRepo) return
-    if (!localStorage.getItem('dc_last_branch')) {
-      localStorage.setItem('dc_last_branch', activeBranch)
+    if (!result || !selectedRepos.length) return
+    const key = buildCacheKey(selectedRepos)
+    const data: CachedSummary = {
+      result: result as SummaryResult,
+      generatedAt: result.generated_at ?? new Date().toISOString(),
+      mode: summaryMode,
     }
-  }, [branches, activeBranch, selectedRepo])
-
-  // Restore cached summary when repo/branch changes
-  useEffect(() => {
-    if (!selectedRepo || !activeBranch) { setCachedSummary(null); return }
-    const cached = loadCachedSummary(selectedRepo.full_name, activeBranch)
-    setCachedSummary(cached)
-  }, [selectedRepo?.full_name, activeBranch])
-
-  // Save summary to localStorage after generation
-  useEffect(() => {
-    if (!result || !selectedRepo || !activeBranch) return
-    const data: CachedSummary = { result: result as SummaryResult, generatedAt: result.generated_at ?? new Date().toISOString(), mode: summaryMode }
     setCachedSummary(data)
-    saveCachedSummary(selectedRepo.full_name, activeBranch, data)
+    saveCachedSummary(key, data)
   }, [result])
 
   if (isAuthLoading) {
@@ -411,35 +439,105 @@ export default function Dashboard() {
 
   if (!user) return null
 
-  const filteredRepos = repos?.filter(r => 
+  const filteredRepos = repos?.filter(r =>
     r.full_name.toLowerCase().includes(repoSearch.toLowerCase())
   ).slice(0, 50)
 
-  const handleGenerateSummary = () => {
-    if (selectedRepo && commits) {
-      const eventType = summaryMode === "standup" ? "click:generate_standup" : "click:generate_summary"
-      void track(eventType, {
-        page: "/dashboard",
-        element: "generate_button",
-        metadata: { repo: selectedRepo.full_name, commits: commits.length, mode: summaryMode },
-      })
-      setGenerateError(null)
-      generate(owner, selectedRepo.name, commits, summaryMode, depContext).catch(() => {
-        setGenerateError("Something went wrong generating your summary. Please try again.")
-      })
+  // ─── Repo toggle (add/remove from selectedRepos) ─────────────────────────
+  const handleToggleRepo = (repo: Repository) => {
+    const idx = selectedRepos.findIndex(e => e.repo.id === repo.id)
+    let updated: RepoEntry[]
+    if (idx >= 0) {
+      updated = selectedRepos.filter((_, i) => i !== idx)
+    } else if (selectedRepos.length < 3) {
+      updated = [...selectedRepos, { id: crypto.randomUUID(), repo, branch: null }]
+    } else {
+      return // max 3
     }
+    setSelectedRepos(updated)
+    saveActiveRepos(updated)
+    setCachedSummary(null)
+    setGenerateError(null)
+  }
+
+  const handleBranchChange = (entryId: string, branch: string) => {
+    const updated = selectedRepos.map(e =>
+      e.id === entryId ? { ...e, branch } : e
+    )
+    setSelectedRepos(updated)
+    saveActiveRepos(updated)
+    setCachedSummary(null)
+  }
+
+  const handleRemoveRepo = (entryId: string) => {
+    const updated = selectedRepos.filter(e => e.id !== entryId)
+    setSelectedRepos(updated)
+    saveActiveRepos(updated)
+    setCachedSummary(null)
+    setGenerateError(null)
+  }
+
+  // ─── Workspace actions ────────────────────────────────────────────────────
+  const handleSaveWorkspace = () => {
+    if (!workspaceName.trim() || !selectedRepos.length) return
+    const updated = addWorkspace(workspaceName, selectedRepos)
+    setWorkspaces(updated)
+    setWorkspaceName("")
+    setShowSaveWorkspace(false)
+  }
+
+  const handleLoadWorkspace = (ws: Workspace) => {
+    if (!repos) return
+    const entries: RepoEntry[] = []
+    for (const wr of ws.repos) {
+      const match = repos.find(r => r.full_name === wr.fullName)
+      if (match) entries.push({ id: crypto.randomUUID(), repo: match, branch: wr.branch })
+    }
+    setSelectedRepos(entries)
+    saveActiveRepos(entries)
+    setCachedSummary(null)
+    setGenerateError(null)
+  }
+
+  const handleDeleteWorkspace = (id: string) => {
+    setWorkspaces(deleteWorkspace(id))
+  }
+
+  // ─── Generate handler ─────────────────────────────────────────────────────
+  const handleGenerateSummary = () => {
+    if (!selectedRepos.length || !mergedCommits.length) return
+    const eventType = summaryMode === "standup" ? "click:generate_standup" : "click:generate_summary"
+    void track(eventType, {
+      page: "/dashboard",
+      element: "generate_button",
+      metadata: {
+        repos: selectedRepos.map(e => e.repo.full_name),
+        commits: mergedCommits.length,
+        mode: summaryMode,
+      },
+    })
+    setGenerateError(null)
+    const repoGroups = selectedRepos.map((entry, i) => ({
+      owner: entry.repo.full_name.split("/")[0],
+      repoName: entry.repo.name,
+      commits: (i === 0 ? commits0 : i === 1 ? commits1 : commits2) ?? [],
+    }))
+    generate(repoGroups, summaryMode, depContext).catch(() => {
+      setGenerateError("Something went wrong generating your summary. Please try again.")
+    })
   }
 
   const buildMarkdown = () => {
     if (!displayResult) return ""
+    const repoLabel = selectedRepos.map(e => e.repo.name).join(" + ")
     if (displayResult.standup_update) {
-      const dateRange = commits && commits.length > 0
-        ? ` (${new Date(commits[commits.length - 1].author_date).toLocaleDateString()} – ${new Date(commits[0].author_date).toLocaleDateString()})`
+      const dateRange = mergedCommits.length > 0
+        ? ` (${new Date(mergedCommits[mergedCommits.length - 1].author_date).toLocaleDateString()} – ${new Date(mergedCommits[0].author_date).toLocaleDateString()})`
         : ""
-      return `## Standup – ${selectedRepo?.name ?? "Repo"}${dateRange}\n\n${displayResult.standup_update}`
+      return `## Standup – ${repoLabel}${dateRange}\n\n${displayResult.standup_update}`
     }
     return [
-      `## Code Brain Analysis – ${selectedRepo?.name ?? "Repo"}`,
+      `## Code Brain Analysis – ${repoLabel}`,
       "",
       `### What I was doing`,
       displayResult.what_you_were_doing,
@@ -462,6 +560,7 @@ export default function Dashboard() {
   const displayResult = cachedSummary?.result ?? null
   const isFromCache = !!cachedSummary && !result
 
+  // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="h-screen bg-background flex flex-col overflow-hidden">
       <Header />
@@ -486,88 +585,210 @@ export default function Dashboard() {
       </div>
 
       <main className="flex-1 container mx-auto px-4 py-4 md:py-8 flex flex-col md:flex-row gap-8 overflow-hidden h-[calc(100vh-4rem)]">
-        
-        {/* Left Column: Repository, Branch & Commits */}
-        <div className={`w-full md:w-1/3 flex flex-col gap-5 overflow-hidden border-r border-white/5 pr-0 md:pr-4 ${mobileTab === "ai" ? "hidden md:flex" : "flex"}`}>
-          
-          {/* Repo Selector */}
-          <div className="flex flex-col gap-3">
-            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Select Repository</h2>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Search repositories..."
-                value={repoSearch}
-                onChange={(e) => setRepoSearch(e.target.value)}
-                className="w-full bg-secondary/30 border border-white/10 rounded-xl py-2.5 pl-9 pr-4 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-              />
-            </div>
-            
-            <div className="bg-card border border-white/5 rounded-xl overflow-y-auto max-h-[28vh] scrollbar-hide">
-              {isReposLoading ? (
-                <div className="p-4 space-y-3">
-                  {[1,2,3].map(i => <Skeleton key={i} className="h-10 w-full" />)}
-                </div>
-              ) : filteredRepos?.length === 0 ? (
-                <div className="p-8 text-center text-muted-foreground text-sm">No repositories found.</div>
-              ) : (
-                <div className="p-2 flex flex-col gap-1">
-                  {filteredRepos?.map(repo => (
-                    <button
-                      key={repo.id}
-                      onClick={() => handleSelectRepo(repo)}
-                      className={`flex items-center gap-3 w-full p-2.5 rounded-lg text-left transition-all ${
-                        selectedRepo?.id === repo.id 
-                          ? 'bg-primary/10 text-primary border border-primary/20' 
-                          : 'hover:bg-white/5 text-muted-foreground hover:text-white border border-transparent'
-                      }`}
-                    >
-                      <FolderGit2 className="w-4 h-4 shrink-0" />
-                      <span className="truncate text-sm font-medium">{repo.full_name}</span>
-                      {selectedRepo?.id === repo.id && <ChevronRight className="w-4 h-4 ml-auto shrink-0" />}
-                    </button>
-                  ))}
-                </div>
+
+        {/* ── Left Column ────────────────────────────────────────────────── */}
+        <div className={`w-full md:w-1/3 flex flex-col gap-4 overflow-hidden border-r border-white/5 pr-0 md:pr-4 ${mobileTab === "ai" ? "hidden md:flex" : "flex"}`}>
+
+          {/* Workspaces strip */}
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                <Bookmark className="w-3 h-3" />
+                Workspaces
+              </h2>
+              {selectedRepos.length > 0 && (
+                <button
+                  onClick={() => setShowSaveWorkspace(s => !s)}
+                  className="text-[11px] text-muted-foreground hover:text-white flex items-center gap-1 transition-colors"
+                >
+                  <BookmarkPlus className="w-3 h-3" />
+                  Save
+                </button>
               )}
             </div>
+
+            <AnimatePresence>
+              {showSaveWorkspace && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="flex gap-2 overflow-hidden"
+                >
+                  <input
+                    autoFocus
+                    type="text"
+                    placeholder="Workspace name..."
+                    value={workspaceName}
+                    onChange={e => setWorkspaceName(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter") handleSaveWorkspace(); if (e.key === "Escape") setShowSaveWorkspace(false) }}
+                    className="flex-1 bg-secondary/30 border border-white/10 rounded-lg py-1.5 px-3 text-xs text-white placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+                  />
+                  <button
+                    onClick={handleSaveWorkspace}
+                    disabled={!workspaceName.trim()}
+                    className="px-3 py-1.5 rounded-lg bg-primary/20 text-primary text-xs font-medium hover:bg-primary/30 disabled:opacity-40 transition-colors"
+                  >
+                    Save
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {workspaces.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5">
+                {workspaces.map(ws => (
+                  <div key={ws.id} className="group flex items-center gap-1 pl-2.5 pr-1 py-1 rounded-lg bg-secondary/30 border border-white/8 text-[11px] text-muted-foreground hover:border-white/15 transition-colors">
+                    <button
+                      onClick={() => handleLoadWorkspace(ws)}
+                      className="flex items-center gap-1.5 hover:text-white transition-colors"
+                      title={ws.repos.map(r => r.fullName).join(", ")}
+                    >
+                      <Layers className="w-3 h-3 text-primary/60" />
+                      {ws.name}
+                    </button>
+                    <button
+                      onClick={() => handleDeleteWorkspace(ws.id)}
+                      className="ml-1 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground/50 hover:text-red-400"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[11px] text-muted-foreground/40">No saved workspaces yet. Select repos and save a workspace.</p>
+            )}
           </div>
 
-          {/* Branch Selector */}
+          {/* Selected repos */}
           <AnimatePresence>
-            {selectedRepo && (
+            {selectedRepos.length > 0 && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
                 className="flex flex-col gap-2 overflow-hidden"
               >
-                <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                  <GitBranch className="w-3.5 h-3.5" />
-                  Branch
-                </h2>
-                {isBranchesLoading || !branches ? (
-                  <Skeleton className="h-9 w-full rounded-xl" />
-                ) : (
-                  <select
-                    key={selectedRepo?.id}
-                    value={activeBranch ?? ""}
-                    onChange={(e) => {
-                      setSelectedBranch(e.target.value)
-                      localStorage.setItem('dc_last_branch', e.target.value)
-                    }}
-                    className="w-full bg-secondary/30 border border-white/10 rounded-xl py-2 px-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none cursor-pointer"
-                  >
-                    {branches.map(b => (
-                      <option key={b.name} value={b.name} className="bg-background">
-                        {b.name}{b.is_default ? " (default)" : ""}
-                      </option>
-                    ))}
-                  </select>
-                )}
+                <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Active Repos</h2>
+                {selectedRepos.map((entry, i) => {
+                  const color = REPO_COLORS[i]!
+                  const branches = i === 0 ? branches0 : i === 1 ? branches1 : branches2
+                  const isBranchLoading = i === 0 ? isBranchesLoading0 : i === 1 ? isBranchesLoading1 : isBranchesLoading2
+                  const activeBr = entry.branch ?? entry.repo.default_branch ?? ""
+                  return (
+                    <motion.div
+                      key={entry.id}
+                      initial={{ opacity: 0, x: -8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -8 }}
+                      className={`rounded-xl border ${color.border} ${color.bg} p-3 flex flex-col gap-2`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className={`w-2 h-2 rounded-full ${color.dot} shrink-0`} />
+                          <span className={`text-xs font-semibold truncate ${color.text}`}>{entry.repo.full_name}</span>
+                        </div>
+                        <button
+                          onClick={() => handleRemoveRepo(entry.id)}
+                          className="text-muted-foreground/40 hover:text-red-400 transition-colors shrink-0"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <GitBranch className={`w-3 h-3 shrink-0 ${color.text} opacity-60`} />
+                        {isBranchLoading || !branches ? (
+                          <Skeleton className="h-6 flex-1 rounded-lg" />
+                        ) : (
+                          <select
+                            value={activeBr}
+                            onChange={e => handleBranchChange(entry.id, e.target.value)}
+                            className={`flex-1 bg-transparent border border-white/10 rounded-lg py-1 px-2 text-xs ${color.text} focus:outline-none focus:ring-1 focus:ring-white/20 appearance-none cursor-pointer`}
+                          >
+                            {branches.map(b => (
+                              <option key={b.name} value={b.name} className="bg-background text-white">
+                                {b.name}{b.is_default ? " (default)" : ""}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
+                    </motion.div>
+                  )
+                })}
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* Repo selector */}
+          <div className="flex flex-col gap-2 flex-shrink-0">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                {selectedRepos.length === 0 ? "Select Repository" : selectedRepos.length < 3 ? "Add Another Repo" : "Repositories (max 3)"}
+              </h2>
+              {selectedRepos.length > 0 && selectedRepos.length < 3 && (
+                <span className="text-[10px] text-muted-foreground/40 flex items-center gap-1">
+                  <Plus className="w-3 h-3" />
+                  click to add
+                </span>
+              )}
+            </div>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Search repositories..."
+                value={repoSearch}
+                onChange={e => setRepoSearch(e.target.value)}
+                className="w-full bg-secondary/30 border border-white/10 rounded-xl py-2.5 pl-9 pr-4 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+              />
+            </div>
+            <div className="bg-card border border-white/5 rounded-xl overflow-y-auto max-h-[22vh] scrollbar-hide">
+              {isReposLoading ? (
+                <div className="p-4 space-y-3">
+                  {[1, 2, 3].map(i => <Skeleton key={i} className="h-10 w-full" />)}
+                </div>
+              ) : filteredRepos?.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground text-sm">No repositories found.</div>
+              ) : (
+                <div className="p-2 flex flex-col gap-1">
+                  {filteredRepos?.map(repo => {
+                    const slotIdx = selectedRepos.findIndex(e => e.repo.id === repo.id)
+                    const isSelected = slotIdx >= 0
+                    const slotColor = isSelected ? REPO_COLORS[slotIdx] : null
+                    const isFull = selectedRepos.length >= 3 && !isSelected
+                    return (
+                      <button
+                        key={repo.id}
+                        onClick={() => !isFull && handleToggleRepo(repo)}
+                        disabled={isFull}
+                        className={`flex items-center gap-3 w-full p-2.5 rounded-lg text-left transition-all ${
+                          isSelected
+                            ? `${slotColor?.bg} border ${slotColor?.border}`
+                            : isFull
+                            ? "opacity-30 cursor-not-allowed text-muted-foreground border border-transparent"
+                            : "hover:bg-white/5 text-muted-foreground hover:text-white border border-transparent"
+                        }`}
+                      >
+                        {isSelected && slotColor ? (
+                          <span className={`w-2 h-2 rounded-full ${slotColor.dot} shrink-0`} />
+                        ) : (
+                          <FolderGit2 className="w-4 h-4 shrink-0" />
+                        )}
+                        <span className={`truncate text-sm font-medium ${isSelected ? slotColor?.text : ""}`}>{repo.full_name}</span>
+                        {isSelected ? (
+                          <Check className={`w-4 h-4 ml-auto shrink-0 ${slotColor?.text}`} />
+                        ) : !isFull && (
+                          <Plus className="w-3.5 h-3.5 ml-auto shrink-0 opacity-0 group-hover:opacity-100" />
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
 
           {/* Stats Strip */}
           <AnimatePresence>
@@ -579,11 +800,12 @@ export default function Dashboard() {
                 className="flex flex-wrap gap-2"
               >
                 {[
-                  { label: "commits", value: commitCountData != null ? String(commitCountData) : String(commitStats.totalCommits), icon: "⎇" },
+                  { label: "commits", value: commitCountData != null && !isMultiRepo ? String(commitCountData) : String(commitStats.totalCommits), icon: "⎇" },
                   { label: "active days", value: String(commitStats.activeDays), icon: "📅" },
                   ...(commitStats.dateSpan ? [{ label: "span", value: commitStats.dateSpan, icon: "🗓️" }] : []),
                   ...(commitStats.streak >= 1 ? [{ label: "streak", value: `🔥 ${commitStats.streak}d`, icon: "" }] : []),
-                ].map((s) => (
+                  ...(isMultiRepo ? [{ label: "repos", value: String(selectedRepos.length), icon: "🗂" }] : []),
+                ].map(s => (
                   <div
                     key={s.label}
                     className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-secondary/40 border border-white/8 text-[11px] text-muted-foreground"
@@ -593,17 +815,13 @@ export default function Dashboard() {
                     <span>{s.label}</span>
                   </div>
                 ))}
-                <span className="text-[10px] text-muted-foreground/40 self-center ml-auto pl-1">last 30 commits</span>
               </motion.div>
             )}
           </AnimatePresence>
 
           {/* Commit List */}
           <div className="flex flex-col gap-3 flex-1 overflow-hidden">
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Recent Commits</h2>
-            </div>
-            
+            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider shrink-0">Recent Commits</h2>
             <div className="flex-1 overflow-y-auto scrollbar-hide pr-2 pb-4">
               {!selectedRepo ? (
                 <div className="h-full flex flex-col items-center justify-center border border-dashed border-primary/20 rounded-xl bg-primary/[0.03] p-8 text-center gap-4">
@@ -621,7 +839,7 @@ export default function Dashboard() {
                 </div>
               ) : isCommitsLoading ? (
                 <div className="space-y-4">
-                  {[1,2,3,4].map(i => (
+                  {[1, 2, 3, 4].map(i => (
                     <div key={i} className="p-4 rounded-xl border border-white/5 bg-secondary/20 space-y-3">
                       <div className="flex justify-between">
                         <Skeleton className="w-20 h-4" />
@@ -638,60 +856,72 @@ export default function Dashboard() {
                     <p className="text-xs text-muted-foreground leading-relaxed max-w-[220px]">
                       This is likely a private org repo. Reconnect GitHub and approve access for your organization.
                     </p>
-                    <button
-                      onClick={() => { window.location.href = "/api/auth/github" }}
-                      className="mt-1 text-xs font-medium text-primary underline underline-offset-2 hover:text-primary/80 transition-colors"
-                    >
-                      Reconnect GitHub →
-                    </button>
                   </div>
                 </div>
-              ) : !commits || commits.length === 0 ? (
-                <div className="h-full flex items-center justify-center border border-dashed border-white/10 rounded-xl bg-secondary/20 p-8 text-center">
-                  <p className="text-sm text-muted-foreground">No commits found in this repository.</p>
+              ) : mergedCommits.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center p-8 text-center">
+                  <GitCommitHorizontal className="w-8 h-8 text-muted-foreground/30 mb-3" />
+                  <p className="text-sm text-muted-foreground">No commits found on this branch.</p>
                 </div>
               ) : (
-                <div className="relative border-l border-white/10 ml-4 space-y-5">
-                  {commits.map((commit, idx) => (
-                    <CommitCard
-                      key={commit.sha}
-                      commit={commit}
-                      owner={owner}
-                      repo={selectedRepo.name}
-                      idx={idx}
-                    />
-                  ))}
+                <div className="space-y-3">
+                  {mergedCommits.map((commit, idx) => {
+                    const owner = selectedRepos[commit._repoIdx]?.repo.full_name.split("/")[0] ?? owner0
+                    const repoName = commit._repoName
+                    const color = isMultiRepo ? REPO_COLORS[commit._repoIdx] : undefined
+                    return (
+                      <CommitCard
+                        key={`${commit._repoIdx}-${commit.sha}`}
+                        commit={commit}
+                        owner={owner}
+                        repo={repoName}
+                        idx={idx}
+                        repoColor={color}
+                      />
+                    )
+                  })}
                 </div>
               )}
-
             </div>
           </div>
         </div>
 
-        {/* Right Column: AI Summary Panel */}
+        {/* ── Right Column ───────────────────────────────────────────────── */}
         <div className={`w-full md:w-2/3 flex flex-col gap-4 overflow-hidden ${mobileTab === "commits" ? "hidden md:flex" : "flex"}`}>
 
-          {/* Dependency Health Panel — always visible at top of right column */}
+          {/* Dependency Health Panels (one per selected repo) */}
           <AnimatePresence>
-            {selectedRepo && (
+            {selectedRepos.length > 0 && (
               <motion.div
                 initial={{ opacity: 0, y: -6 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
+                className={`grid gap-3 ${selectedRepos.length > 1 ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1"}`}
               >
-                <DepHealthPanel
-                  report={depsReport}
-                  isLoading={isDepsLoading}
-                  isError={isDepsError}
-                  refetch={refetchDeps}
-                />
+                {selectedRepos.map((entry, i) => {
+                  const report = i === 0 ? depsReport0 : i === 1 ? depsReport1 : depsReport2
+                  const loading = i === 0 ? isDepsLoading0 : i === 1 ? isDepsLoading1 : isDepsLoading2
+                  const error = i === 0 ? isDepsError0 : i === 1 ? isDepsError1 : isDepsError2
+                  const refetch = i === 0 ? refetchDeps0 : i === 1 ? refetchDeps1 : refetchDeps2
+                  const color = REPO_COLORS[i]!
+                  return (
+                    <div key={entry.id}>
+                      {isMultiRepo && (
+                        <div className={`flex items-center gap-1.5 mb-1.5 text-[11px] font-medium ${color.text}`}>
+                          <span className={`w-2 h-2 rounded-full ${color.dot}`} />
+                          {entry.repo.name}
+                        </div>
+                      )}
+                      <DepHealthPanel report={report} isLoading={loading} isError={error} refetch={refetch} />
+                    </div>
+                  )
+                })}
               </motion.div>
             )}
           </AnimatePresence>
 
           {/* AI Summary Panel */}
           <div className="flex-1 flex flex-col bg-card border border-white/5 rounded-2xl shadow-xl overflow-hidden relative min-h-0">
-          
             <div className="p-5 border-b border-white/5 flex items-center justify-between bg-white/[0.02] gap-4 flex-wrap">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-primary/20 text-primary rounded-lg">
@@ -699,31 +929,27 @@ export default function Dashboard() {
                 </div>
                 <div>
                   <h2 className="text-lg font-bold text-white">Code Brain Analysis</h2>
-                  <p className="text-sm text-muted-foreground">AI-powered context recovery</p>
+                  <p className="text-sm text-muted-foreground">
+                    {isMultiRepo
+                      ? `${selectedRepos.length} repos · AI-powered context recovery`
+                      : "AI-powered context recovery"}
+                  </p>
                 </div>
               </div>
-              
+
               <div className="flex items-center gap-3 flex-wrap">
                 {/* Mode Toggle */}
                 <div className="flex items-center bg-secondary/40 rounded-xl border border-white/10 p-1 gap-1">
                   <button
                     onClick={() => setSummaryMode("next_steps")}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                      summaryMode === "next_steps"
-                        ? "bg-primary/20 text-primary"
-                        : "text-muted-foreground hover:text-white"
-                    }`}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${summaryMode === "next_steps" ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-white"}`}
                   >
                     <BrainCircuit className="w-3.5 h-3.5" />
                     Next Steps
                   </button>
                   <button
                     onClick={() => setSummaryMode("standup")}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                      summaryMode === "standup"
-                        ? "bg-emerald-500/20 text-emerald-400"
-                        : "text-muted-foreground hover:text-white"
-                    }`}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${summaryMode === "standup" ? "bg-emerald-500/20 text-emerald-400" : "text-muted-foreground hover:text-white"}`}
                   >
                     <ClipboardList className="w-3.5 h-3.5" />
                     Standup
@@ -731,21 +957,19 @@ export default function Dashboard() {
                 </div>
 
                 <div className="flex flex-col items-end gap-1">
-                  <Button 
-                    onClick={handleGenerateSummary} 
-                    disabled={!selectedRepo || !commits?.length || isGenerating || isCommitsLoading}
+                  <Button
+                    onClick={handleGenerateSummary}
+                    disabled={!selectedRepo || !mergedCommits.length || isGenerating || isCommitsLoading}
                     size="sm"
                     className="gap-2"
                     title={
                       !selectedRepo ? "Select a repository first" :
                       isCommitsLoading ? "Loading commits…" :
-                      !commits?.length ? "No commits found in this repository" :
+                      !mergedCommits.length ? "No commits found" :
                       isGenerating ? "Generating…" : undefined
                     }
                   >
-                    {isGenerating ? (
-                      <>Analyzing...</>
-                    ) : (
+                    {isGenerating ? <>Analyzing...</> : (
                       <>
                         <Sparkles className="w-3.5 h-3.5" />
                         {summaryMode === "standup" ? "Generate Standup" : "What's next?"}
@@ -784,11 +1008,13 @@ export default function Dashboard() {
                       {summaryMode === "standup" ? "Writing Standup..." : "Engaging Code Brain..."}
                     </h3>
                     <p className="text-sm text-muted-foreground">
-                      Fetching commit details, reading diffs, and synthesizing your recent work momentum.
+                      {isMultiRepo
+                        ? `Fetching commit details across ${selectedRepos.length} repos and synthesizing cross-repo context.`
+                        : "Fetching commit details, reading diffs, and synthesizing your recent work momentum."}
                     </p>
                   </div>
                   <div className="w-full h-2 bg-secondary rounded-full overflow-hidden">
-                    <div 
+                    <div
                       className="h-full bg-primary transition-all duration-300 ease-out"
                       style={{ width: `${progress}%` }}
                     />
@@ -810,7 +1036,7 @@ export default function Dashboard() {
                   </button>
                 </div>
               ) : displayResult ? (
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="max-w-3xl space-y-8"
@@ -827,6 +1053,11 @@ export default function Dashboard() {
                       {isFromCache && (
                         <span className="ml-1 px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 text-[10px] font-medium border border-amber-500/20">from cache</span>
                       )}
+                      {isMultiRepo && (
+                        <span className="ml-1 px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-400 text-[10px] font-medium border border-violet-500/20">
+                          {selectedRepos.length} repos
+                        </span>
+                      )}
                     </div>
                     <button
                       onClick={handleCopy}
@@ -840,7 +1071,7 @@ export default function Dashboard() {
                     </button>
                   </div>
 
-                  {/* Standup Mode Output */}
+                  {/* Standup */}
                   {displayResult.standup_update ? (
                     <section>
                       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
@@ -848,10 +1079,10 @@ export default function Dashboard() {
                           <ClipboardList className="w-4 h-4" />
                           Standup Update
                         </h3>
-                        {commits && commits.length > 0 && (
+                        {mergedCommits.length > 0 && (
                           <span className="text-[11px] text-muted-foreground/60 flex items-center gap-1">
                             <Clock className="w-3 h-3" />
-                            {new Date(commits[commits.length - 1].author_date).toLocaleDateString()} – {new Date(commits[0].author_date).toLocaleDateString()}
+                            {new Date(mergedCommits[mergedCommits.length - 1].author_date).toLocaleDateString()} – {new Date(mergedCommits[0].author_date).toLocaleDateString()}
                           </span>
                         )}
                       </div>
@@ -914,12 +1145,19 @@ export default function Dashboard() {
                   </div>
                   <h3 className="text-xl font-semibold text-white mb-2">Ready to Resume</h3>
                   <p className="text-muted-foreground max-w-md mb-6">
-                    Click <span className="text-primary font-medium">{summaryMode === "standup" ? "Generate Standup" : "What's next?"}</span> above to analyze your recent commits in <b>{selectedRepo.name}</b>{activeBranch ? ` on ${activeBranch}` : ""}.
+                    Click <span className="text-primary font-medium">{summaryMode === "standup" ? "Generate Standup" : "What's next?"}</span> above to analyze your recent work{isMultiRepo ? ` across ${selectedRepos.length} repos` : ` in ${selectedRepo.name}`}.
                   </p>
                   <div className="flex flex-col items-center gap-2 text-[11px] text-muted-foreground/50">
                     <div className="flex items-center gap-4">
-                      <span className="flex items-center gap-1.5"><GitCommitHorizontal className="w-3.5 h-3.5" />{commits?.length ?? 0} commits ready to analyze</span>
-                      {activeBranch && <span className="flex items-center gap-1.5"><GitBranch className="w-3.5 h-3.5" />{activeBranch}</span>}
+                      <span className="flex items-center gap-1.5">
+                        <GitCommitHorizontal className="w-3.5 h-3.5" />
+                        {mergedCommits.length} commits ready to analyze
+                      </span>
+                      {!isMultiRepo && activeBranch && (
+                        <span className="flex items-center gap-1.5">
+                          <GitBranch className="w-3.5 h-3.5" />{activeBranch}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -940,7 +1178,7 @@ export default function Dashboard() {
                     <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Dev Health</span>
                   </div>
                   <div className="flex flex-col gap-2">
-                    {commitStats.flags.map((flag) => (
+                    {commitStats.flags.map(flag => (
                       <div key={flag.type} className="flex items-start gap-3">
                         <span className="text-base leading-none mt-0.5">{flag.emoji}</span>
                         <div className="flex-1 min-w-0">

@@ -222,6 +222,7 @@ export const SummarizeCommitsBody = zod.object({
         additions: zod.number(),
         deletions: zod.number(),
       }),
+      repo_name: zod.string().nullish(),
     }),
   ),
 });

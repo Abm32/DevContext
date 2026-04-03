@@ -544,6 +544,9 @@ components:
                 required:
                   - additions
                   - deletions
+              repo_name:
+                type: string
+                nullable: true
             required:
               - sha
               - message

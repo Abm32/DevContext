@@ -8,37 +8,65 @@ import {
 
 export type { DepContextItem };
 
+export type RepoCommitGroup = {
+  owner: string;
+  repoName: string;
+  commits: Commit[];
+};
+
 export function useGenerateSummary() {
   const mutation = useSummarizeCommits();
   const [isGenerating, setIsGenerating] = useState(false);
   const [progress, setProgress] = useState(0);
 
+  /**
+   * Generate a summary for one or more repos.
+   * When multiple repos are passed, commits are interleaved chronologically
+   * and each carries a per-commit repo_name so the AI can reason cross-repo.
+   */
   const generate = async (
-    owner: string,
-    repoName: string,
-    commits: Commit[],
+    repoGroups: RepoCommitGroup[],
     mode: "next_steps" | "standup" = "next_steps",
     depContext?: DepContextItem[]
   ) => {
-    if (!commits.length) return;
+    const allCommits = repoGroups.flatMap(g => g.commits)
+    if (!allCommits.length) return;
     setIsGenerating(true);
     setProgress(10);
     
     try {
       let completed = 0;
-      const details = await Promise.all(
-        commits.map(async (commit) => {
-          const detail = await getCommitDetail(owner, repoName, commit.sha);
-          completed++;
-          setProgress(10 + Math.round((completed / commits.length) * 60));
-          return detail;
+      const totalCommits = allCommits.length;
+
+      // Fetch details for all commits from all repos in parallel
+      const detailsByGroup = await Promise.all(
+        repoGroups.map(async (group) => {
+          const details = await Promise.all(
+            group.commits.map(async (commit) => {
+              const detail = await getCommitDetail(group.owner, group.repoName, commit.sha);
+              completed++;
+              setProgress(10 + Math.round((completed / totalCommits) * 60));
+              return { ...detail, _repoName: group.repoName };
+            })
+          );
+          return details;
         })
       );
 
+      // Flatten and sort chronologically (newest first matches the commit list order)
+      const allDetails = detailsByGroup
+        .flat()
+        .sort((a, b) => new Date(b.author_date).getTime() - new Date(a.author_date).getTime());
+
+      // Primary repo name = first group (for prompt fallback / cache key)
+      const primaryRepoName = repoGroups[0]?.repoName ?? "repo";
+      const primaryOwner = repoGroups[0]?.owner ?? "";
+      void primaryOwner; // used for cache key at call site
+
       const payload = {
-        repo_name: repoName,
+        repo_name: primaryRepoName,
         mode,
-        commits: details.map(d => ({
+        commits: allDetails.map(d => ({
           sha: d.sha,
           message: d.message,
           author_date: d.author_date,
@@ -52,6 +80,7 @@ export function useGenerateSummary() {
             additions: d.stats.additions,
             deletions: d.stats.deletions,
           },
+          repo_name: repoGroups.length > 1 ? d._repoName : null,
         })),
         dep_context: depContext && depContext.length > 0 ? depContext : null,
       };

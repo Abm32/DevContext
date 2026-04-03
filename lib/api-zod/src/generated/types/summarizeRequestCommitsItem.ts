@@ -14,4 +14,5 @@ export type SummarizeRequestCommitsItem = {
   author_date: string;
   files: SummarizeCommitFile[];
   stats: SummarizeRequestCommitsItemStats;
+  repo_name?: string | null;
 };

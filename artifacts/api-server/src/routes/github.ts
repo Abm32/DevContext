@@ -32,43 +32,83 @@ async function githubFetch(
   return res as unknown as Response;
 }
 
+type GHRepo = {
+  id: number;
+  name: string;
+  full_name: string;
+  description: string | null;
+  private: boolean;
+  html_url: string;
+  updated_at: string | null;
+  language: string | null;
+  stargazers_count: number;
+  default_branch: string;
+};
+
+async function ghFetch<T>(url: string, token: string): Promise<T | null> {
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+    },
+  });
+  if (!res.ok) return null;
+  return res.json() as Promise<T>;
+}
+
 router.get("/repos", async (req, res) => {
   const token = requireAuth(req, res as unknown as Response);
   if (!token) return;
 
   try {
-    const response = await fetch(
-      "https://api.github.com/user/repos?sort=updated&per_page=100&type=all",
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/vnd.github+json",
-          "X-GitHub-Api-Version": "2022-11-28",
-        },
-      }
+    // Fetch personal repos and org list in parallel
+    const [personalRepos, orgs] = await Promise.all([
+      ghFetch<GHRepo[]>(
+        "https://api.github.com/user/repos?sort=updated&per_page=100&type=owner",
+        token
+      ),
+      ghFetch<Array<{ login: string }>>(
+        "https://api.github.com/user/orgs?per_page=100",
+        token
+      ),
+    ]);
+
+    // Fetch repos from every org the user belongs to (parallel)
+    const orgRepoArrays = await Promise.all(
+      (orgs ?? []).map(org =>
+        ghFetch<GHRepo[]>(
+          `https://api.github.com/orgs/${org.login}/repos?sort=updated&per_page=100&type=member`,
+          token
+        )
+      )
     );
 
-    if (!response.ok) {
-      req.log.error({ status: response.status }, "GitHub API error listing repos");
-      res.status(response.status).json({ error: "GitHub API error" });
-      return;
-    }
+    // Also fetch repos where the user is a collaborator (covers forks, team repos, etc.)
+    const allUserRepos = await ghFetch<GHRepo[]>(
+      "https://api.github.com/user/repos?sort=updated&per_page=100&type=all",
+      token
+    );
 
-    const repos = (await response.json()) as Array<{
-      id: number;
-      name: string;
-      full_name: string;
-      description: string | null;
-      private: boolean;
-      html_url: string;
-      updated_at: string | null;
-      language: string | null;
-      stargazers_count: number;
-      default_branch: string;
-    }>;
+    // Merge and deduplicate by id, sort by updated_at descending
+    const seen = new Set<number>();
+    const merged: GHRepo[] = [];
+    for (const repo of [
+      ...(allUserRepos ?? []),
+      ...(personalRepos ?? []),
+      ...orgRepoArrays.flatMap(arr => arr ?? []),
+    ]) {
+      if (!seen.has(repo.id)) {
+        seen.add(repo.id);
+        merged.push(repo);
+      }
+    }
+    merged.sort((a, b) =>
+      new Date(b.updated_at ?? 0).getTime() - new Date(a.updated_at ?? 0).getTime()
+    );
 
     const data = ListReposResponse.parse(
-      repos.map((r) => ({
+      merged.map((r) => ({
         id: r.id,
         name: r.name,
         full_name: r.full_name,

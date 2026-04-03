@@ -60,7 +60,7 @@ router.get("/github", (req, res) => {
   const params = new URLSearchParams({
     client_id: GITHUB_CLIENT_ID,
     redirect_uri: `${baseUrl}/api/auth/github/callback`,
-    scope: "read:user repo",
+    scope: "read:user repo read:org",
   });
   res.redirect(`https://github.com/login/oauth/authorize?${params}`);
 });

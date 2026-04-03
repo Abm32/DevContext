@@ -788,6 +788,24 @@ export default function Dashboard() {
                 </div>
               )}
             </div>
+            {/* Org access note — shown once repos have loaded */}
+            {!isReposLoading && repos && repos.length > 0 && (
+              <div className="px-3 pb-2 flex items-start gap-1.5 text-[11px] text-muted-foreground/60 leading-snug">
+                <span className="mt-0.5 shrink-0">ℹ️</span>
+                <span>
+                  Missing an org repo?{" "}
+                  <a
+                    href="https://github.com/settings/connections/applications"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline underline-offset-2 hover:text-muted-foreground transition-colors"
+                  >
+                    Grant org access on GitHub
+                  </a>{" "}
+                  or ask your org admin to approve this app.
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Stats Strip */}

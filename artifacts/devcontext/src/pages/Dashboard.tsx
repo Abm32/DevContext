@@ -598,9 +598,17 @@ export default function Dashboard() {
   const displayResult = cachedSummary?.result ?? null
   const isFromCache = !!cachedSummary && !result
 
+  // ─── e2em — repos visible to the user that match the grant ───────────────
+  const e2emMatchedRepos = e2emGrant?.granted
+    ? selectedRepos
+        .map(entry => entry.repo.full_name)
+        .filter(name => (e2emGrant.repos ?? []).includes(name))
+    : []
+  const showE2emPanel = e2emMatchedRepos.length > 0
+
   // ─── e2em generate ───────────────────────────────────────────────────────
   const handleGenerateEmail = async () => {
-    if (!e2emGrant) return
+    if (!e2emGrant || e2emMatchedRepos.length === 0) return
     setIsGeneratingEmail(true)
     setE2emError(null)
     setE2emResult(null)
@@ -609,6 +617,7 @@ export default function Dashboard() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          repos: e2emMatchedRepos,
           date: e2emDate,
           recipient_name: e2emRecipient,
           recipient_email: e2emEmail,
@@ -1289,7 +1298,7 @@ export default function Dashboard() {
 
           {/* ── e2em Daily Standup ─────────────────────────────────────────── */}
           <AnimatePresence>
-            {e2emGrant?.granted && (
+            {showE2emPanel && (
               <motion.div
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}

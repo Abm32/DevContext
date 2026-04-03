@@ -1,10 +1,11 @@
-import { useEffect } from "react"
+import { useEffect, useState, useRef } from "react"
 import { useLocation } from "wouter"
-import { motion } from "framer-motion"
+import { motion, AnimatePresence } from "framer-motion"
 import {
   Github, Zap, CheckCircle2, ArrowRight, GitBranch, FileText,
   Layers, Brain, Monitor, Settings, Box, Clock, Sparkles, ShieldCheck,
-  Cloud, Code2, Database, CreditCard,
+  Cloud, Code2, Database, CreditCard, Play, RotateCcw, GitCommit, Plus,
+  Minus, ChevronRight,
 } from "lucide-react"
 import { useGetMe } from "@workspace/api-client-react"
 import { track } from "@/hooks/use-track"
@@ -156,6 +157,443 @@ function MobileFeatureCard({
       </div>
       {children}
     </motion.div>
+  )
+}
+
+// ─── Interactive Demo ─────────────────────────────────────────────────────────
+const DEMO_COMMITS = [
+  {
+    sha: "a1b2c3d",
+    message: "feat: add Stripe webhook handler for subscription events",
+    ago: "2h ago",
+    files: [
+      { name: "src/webhooks/stripe.ts", add: 142, del: 0 },
+      { name: "src/routes/billing.ts", add: 28, del: 5 },
+    ],
+  },
+  {
+    sha: "e4f5g6h",
+    message: "fix: race condition in auth token refresh flow",
+    ago: "6h ago",
+    files: [
+      { name: "src/middleware/auth.ts", add: 18, del: 6 },
+      { name: "src/utils/token.ts", add: 4, del: 2 },
+    ],
+  },
+  {
+    sha: "i7j8k9l",
+    message: "refactor: extract PaymentService into standalone module",
+    ago: "1d ago",
+    files: [
+      { name: "src/services/payment.ts", add: 89, del: 0 },
+      { name: "src/api/checkout.ts", add: 12, del: 67 },
+    ],
+  },
+]
+
+const DEMO_NEXT_STEPS = `You've been hardening the payments pipeline and auth layer. Here's where to pick up:
+
+→ Wire the webhook handler to your subscription state machine
+→ Add idempotency keys to prevent duplicate Stripe event processing  
+→ Write integration tests for the token refresh race condition fix
+→ Update CORS policy to allow Stripe webhook origin in staging`
+
+const DEMO_STANDUP = `Yesterday: Added a Stripe webhook handler for subscription events, fixed a race condition in the auth token refresh flow, and extracted PaymentService into its own module.
+
+Today: Wire webhooks into the subscription state machine and add idempotency key handling.
+
+Blockers: None — the payment module is cleanly isolated and ready to extend.`
+
+function InteractiveDemo({ onConnect }: { onConnect: (el: string) => void }) {
+  type Phase = "idle" | "loading" | "done"
+  const [phase, setPhase] = useState<Phase>("idle")
+  const [progress, setProgress] = useState(0)
+  const [mode, setMode] = useState<"next_steps" | "standup">("next_steps")
+  const [displayed, setDisplayed] = useState("")
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const fullText = mode === "next_steps" ? DEMO_NEXT_STEPS : DEMO_STANDUP
+
+  const clearTimers = () => {
+    if (timerRef.current) clearTimeout(timerRef.current)
+  }
+
+  const runDemo = () => {
+    clearTimers()
+    setPhase("loading")
+    setProgress(0)
+    setDisplayed("")
+
+    // Animate progress bar from 0 → 100 over ~1.6s
+    let p = 0
+    const tick = () => {
+      p += p < 70 ? 8 : p < 90 ? 3 : 1
+      if (p >= 100) {
+        setProgress(100)
+        timerRef.current = setTimeout(() => {
+          setPhase("done")
+          setDisplayed("")
+        }, 250)
+      } else {
+        setProgress(p)
+        timerRef.current = setTimeout(tick, 60)
+      }
+    }
+    timerRef.current = setTimeout(tick, 60)
+  }
+
+  // Typewriter when phase transitions to done
+  useEffect(() => {
+    if (phase !== "done") return
+    setDisplayed("")
+    let i = 0
+    const TYPE_SPEED = 18
+    const type = () => {
+      if (i <= fullText.length) {
+        setDisplayed(fullText.slice(0, i))
+        i++
+        timerRef.current = setTimeout(type, TYPE_SPEED)
+      }
+    }
+    timerRef.current = setTimeout(type, 120)
+    return clearTimers
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase])
+
+  // Restart typewriter when mode tab changes (during done phase)
+  useEffect(() => {
+    if (phase !== "done") return
+    clearTimers()
+    setDisplayed("")
+    let i = 0
+    const TYPE_SPEED = 14
+    const type = () => {
+      if (i <= fullText.length) {
+        setDisplayed(fullText.slice(0, i))
+        i++
+        timerRef.current = setTimeout(type, TYPE_SPEED)
+      }
+    }
+    timerRef.current = setTimeout(type, 80)
+    return clearTimers
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode])
+
+  const reset = () => {
+    clearTimers()
+    setPhase("idle")
+    setProgress(0)
+    setDisplayed("")
+  }
+
+  useEffect(() => () => clearTimers(), [])
+
+  return (
+    <section className="px-6 md:px-12 pb-20">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="text-center mb-10"
+        >
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full mb-4"
+            style={{ background: "rgba(139,92,246,0.1)", border: "1px solid rgba(139,92,246,0.2)" }}>
+            <Play className="w-3 h-3" style={{ color: "#8b5cf6" }} />
+            <span className="text-[11px] font-bold uppercase tracking-widest" style={{ color: "#8b5cf6" }}>
+              Live Demo
+            </span>
+          </div>
+          <h2 className="font-bold mb-3"
+            style={{
+              fontFamily: "'Plus Jakarta Sans', sans-serif",
+              fontSize: "clamp(1.6rem, 3vw, 2.25rem)",
+              letterSpacing: "-0.02em",
+              color: "#f1f5f9",
+            }}>
+            See it in action — no login required
+          </h2>
+          <p className="text-sm leading-relaxed max-w-md mx-auto" style={{ color: "#64748b" }}>
+            Click Generate to watch DevContext analyse a real commit history and produce an AI briefing, right here.
+          </p>
+        </motion.div>
+
+        {/* Demo panel */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
+          className="rounded-2xl overflow-hidden"
+          style={{
+            background: "#131314",
+            boxShadow: "0 40px 80px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.06)",
+          }}
+        >
+          {/* Toolbar bar */}
+          <div className="flex items-center justify-between px-5 py-3.5"
+            style={{ background: "#1a1a1c", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full" style={{ background: "#ff5f57" }} />
+              <span className="w-3 h-3 rounded-full" style={{ background: "#febc2e" }} />
+              <span className="w-3 h-3 rounded-full" style={{ background: "#28c840" }} />
+            </div>
+            <div className="flex items-center gap-2 px-3 py-1 rounded-lg"
+              style={{ background: "#0d0d0f" }}>
+              <GitBranch className="w-3 h-3" style={{ color: "#3b82f6" }} />
+              <span className="text-xs font-mono" style={{ color: "#94a3b8" }}>acme / my-saas-app</span>
+              <ChevronRight className="w-3 h-3" style={{ color: "#334155" }} />
+              <span className="text-xs font-mono" style={{ color: "#64748b" }}>main</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {phase === "done" && (
+                <button
+                  onClick={reset}
+                  className="flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-lg transition-colors"
+                  style={{ color: "#64748b", background: "rgba(255,255,255,0.04)" }}
+                  onMouseEnter={e => (e.currentTarget.style.color = "#e2e8f0")}
+                  onMouseLeave={e => (e.currentTarget.style.color = "#64748b")}
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  Reset
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x"
+            style={{ borderColor: "rgba(255,255,255,0.05)" }}>
+            {/* Left: Commits */}
+            <div className="p-5 flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-widest"
+                  style={{ color: "rgba(255,255,255,0.25)" }}>
+                  Recent Commits · 3 selected
+                </span>
+                <span className="text-[10px]" style={{ color: "#3b82f6" }}>branch: main</span>
+              </div>
+
+              <div className="flex flex-col gap-2.5">
+                {DEMO_COMMITS.map((commit) => (
+                  <div
+                    key={commit.sha}
+                    className="rounded-xl p-3.5"
+                    style={{
+                      background: "#0d0d0f",
+                      border: "1px solid rgba(59,130,246,0.18)",
+                    }}
+                  >
+                    <div className="flex items-start gap-2.5">
+                      <div className="mt-0.5 shrink-0 w-5 h-5 rounded-md flex items-center justify-center"
+                        style={{ background: "rgba(59,130,246,0.15)" }}>
+                        <GitCommit className="w-3 h-3" style={{ color: "#3b82f6" }} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-white leading-snug mb-1.5 font-medium">
+                          {commit.message}
+                        </p>
+                        <div className="flex flex-col gap-1">
+                          {commit.files.map(f => (
+                            <div key={f.name} className="flex items-center gap-2">
+                              <FileText className="w-2.5 h-2.5 shrink-0" style={{ color: "#475569" }} />
+                              <span className="text-[10px] font-mono truncate" style={{ color: "#475569" }}>
+                                {f.name}
+                              </span>
+                              <div className="flex items-center gap-1 ml-auto shrink-0">
+                                <span className="text-[10px] flex items-center gap-0.5" style={{ color: "#10b981" }}>
+                                  <Plus className="w-2 h-2" />{f.add}
+                                </span>
+                                {f.del > 0 && (
+                                  <span className="text-[10px] flex items-center gap-0.5" style={{ color: "#f87171" }}>
+                                    <Minus className="w-2 h-2" />{f.del}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <span className="text-[10px] shrink-0 mt-0.5" style={{ color: "#334155" }}>
+                        {commit.ago}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Generate button */}
+              <button
+                onClick={phase === "idle" ? runDemo : undefined}
+                disabled={phase === "loading" || phase === "done"}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all"
+                style={{
+                  background: phase === "idle"
+                    ? "linear-gradient(135deg, #8b5cf6, #6d28d9)"
+                    : phase === "done"
+                    ? "rgba(139,92,246,0.1)"
+                    : "rgba(139,92,246,0.15)",
+                  color: phase === "done" ? "#64748b" : "#ffffff",
+                  boxShadow: phase === "idle" ? "0 4px 20px rgba(139,92,246,0.3)" : "none",
+                  cursor: phase === "idle" ? "pointer" : "default",
+                  fontFamily: "'Inter', sans-serif",
+                }}
+              >
+                {phase === "idle" && <><Sparkles className="w-4 h-4" /> Generate Analysis</>}
+                {phase === "loading" && <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Analysing commits…</>}
+                {phase === "done" && <><CheckCircle2 className="w-4 h-4 text-emerald-500" /> Analysis complete</>}
+              </button>
+            </div>
+
+            {/* Right: AI Output */}
+            <div className="p-5 flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-widest"
+                  style={{ color: "rgba(255,255,255,0.25)" }}>
+                  AI Analysis
+                </span>
+                {/* Mode toggle — only active after done */}
+                <div className="flex items-center gap-0.5 p-0.5 rounded-lg"
+                  style={{ background: "#0d0d0f" }}>
+                  {(["next_steps", "standup"] as const).map(m => (
+                    <button
+                      key={m}
+                      onClick={() => phase === "done" && setMode(m)}
+                      className="text-[10px] font-semibold px-2.5 py-1 rounded-md transition-colors"
+                      style={{
+                        background: mode === m && phase === "done" ? "rgba(139,92,246,0.2)" : "transparent",
+                        color: mode === m && phase === "done" ? "#a78bfa" : "#334155",
+                        cursor: phase === "done" ? "pointer" : "default",
+                      }}
+                    >
+                      {m === "next_steps" ? "Next Steps" : "Standup"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <AnimatePresence mode="wait">
+                {phase === "idle" && (
+                  <motion.div
+                    key="idle"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="flex-1 flex flex-col items-center justify-center gap-4 py-12"
+                  >
+                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
+                      style={{ background: "rgba(139,92,246,0.1)", border: "1px solid rgba(139,92,246,0.15)" }}>
+                      <Brain className="w-7 h-7" style={{ color: "#8b5cf6" }} />
+                    </div>
+                    <div className="text-center">
+                      <p className="text-sm font-medium text-white mb-1">Ready to analyse</p>
+                      <p className="text-xs" style={{ color: "#475569" }}>Hit Generate to see what DevContext produces</p>
+                    </div>
+                  </motion.div>
+                )}
+
+                {phase === "loading" && (
+                  <motion.div
+                    key="loading"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="flex-1 flex flex-col gap-5 justify-center py-8"
+                  >
+                    {[
+                      { label: "Fetching diffs", done: progress > 25 },
+                      { label: "Building context graph", done: progress > 55 },
+                      { label: "Running AI model", done: progress > 80 },
+                      { label: "Formatting output", done: progress > 95 },
+                    ].map((step, i) => (
+                      <div key={i} className="flex items-center gap-3">
+                        <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
+                          style={{
+                            background: step.done ? "rgba(16,185,129,0.15)" : "rgba(255,255,255,0.05)",
+                            border: `1px solid ${step.done ? "rgba(16,185,129,0.3)" : "rgba(255,255,255,0.08)"}`,
+                          }}>
+                          {step.done
+                            ? <CheckCircle2 className="w-3 h-3" style={{ color: "#10b981" }} />
+                            : <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#334155" }} />
+                          }
+                        </div>
+                        <span className="text-xs" style={{ color: step.done ? "#94a3b8" : "#334155" }}>
+                          {step.label}
+                        </span>
+                      </div>
+                    ))}
+                    <div className="mt-4">
+                      <div className="flex justify-between text-[10px] mb-1.5" style={{ color: "#334155" }}>
+                        <span>Analysing 3 commits</span>
+                        <span>{progress}%</span>
+                      </div>
+                      <div className="rounded-full h-1.5 overflow-hidden" style={{ background: "#1e293b" }}>
+                        <motion.div
+                          className="h-full rounded-full"
+                          style={{ background: "linear-gradient(90deg, #8b5cf6, #3b82f6)", width: `${progress}%` }}
+                          transition={{ duration: 0.1 }}
+                        />
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
+                {phase === "done" && (
+                  <motion.div
+                    key="done"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex-1 flex flex-col gap-3"
+                  >
+                    {/* Header chip */}
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full"
+                        style={{ background: "rgba(139,92,246,0.12)", border: "1px solid rgba(139,92,246,0.2)" }}>
+                        <Sparkles className="w-3 h-3" style={{ color: "#a78bfa" }} />
+                        <span className="text-[10px] font-semibold" style={{ color: "#a78bfa" }}>
+                          {mode === "next_steps" ? "Next Steps" : "Standup Update"}
+                        </span>
+                      </div>
+                      <span className="text-[10px]" style={{ color: "#334155" }}>acme/my-saas-app · main</span>
+                    </div>
+
+                    {/* Output text */}
+                    <div className="rounded-xl p-4 flex-1 min-h-[200px]"
+                      style={{ background: "#0d0d0f", border: "1px solid rgba(255,255,255,0.04)" }}>
+                      <pre className="text-xs leading-relaxed whitespace-pre-wrap font-sans"
+                        style={{ color: "#cbd5e1", fontFamily: "'Inter', sans-serif" }}>
+                        {displayed}
+                        <span
+                          className="inline-block w-0.5 h-3.5 ml-0.5 align-middle animate-pulse"
+                          style={{
+                            background: "#8b5cf6",
+                            opacity: displayed.length < fullText.length ? 1 : 0,
+                          }}
+                        />
+                      </pre>
+                    </div>
+
+                    {/* CTA */}
+                    <button
+                      onClick={() => onConnect("demo_cta")}
+                      className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:scale-[1.01] active:scale-[0.99]"
+                      style={{
+                        background: "linear-gradient(135deg, #3b82f6, #2563eb)",
+                        boxShadow: "0 4px 20px rgba(59,130,246,0.3)",
+                        fontFamily: "'Inter', sans-serif",
+                      }}
+                    >
+                      <Github className="w-4 h-4" />
+                      Connect Your Repo — It's Free
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    </section>
   )
 }
 
@@ -580,6 +1018,9 @@ export default function Landing() {
             </motion.div>
           </div>
         </section>
+
+        {/* ── Interactive Demo ── */}
+        <InteractiveDemo onConnect={handleConnect} />
 
         {/* ── Engineered for Focus ── */}
         <section className="px-6 md:px-12 pb-20 pt-4">

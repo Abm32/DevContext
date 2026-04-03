@@ -174,11 +174,23 @@ export function DepHealthPanel({ report, isLoading, isError, refetch }: DepHealt
 
   if (isLoading) {
     return (
-      <div className="bg-card border border-white/5 rounded-2xl p-4 flex items-center gap-3">
-        <RefreshCw className="w-4 h-4 text-muted-foreground animate-spin" />
-        <div className="flex-1 space-y-2">
-          <Skeleton className="h-3 w-32" />
-          <Skeleton className="h-3 w-48" />
+      <div className="bg-card border border-white/5 rounded-2xl overflow-hidden">
+        <div className="flex items-center gap-3 p-4">
+          <div className="p-1.5 bg-violet-500/10 rounded-lg shrink-0">
+            <RefreshCw className="w-4 h-4 text-violet-400/50 animate-spin" />
+          </div>
+          <div className="flex-1 space-y-2">
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-3.5 w-32" />
+              <Skeleton className="h-3.5 w-12 rounded-md" />
+            </div>
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-3 w-16" />
+              <Skeleton className="h-3 w-16" />
+              <Skeleton className="h-3 w-16" />
+            </div>
+          </div>
+          <Skeleton className="h-3.5 w-3.5 rounded shrink-0" />
         </div>
       </div>
     )

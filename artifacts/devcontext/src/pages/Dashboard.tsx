@@ -109,7 +109,7 @@ function CommitCard({ commit, owner, repo, idx }: { commit: Commit; owner: strin
               transition={{ duration: 0.2 }}
               className="overflow-hidden border-t border-white/5"
             >
-              <div className="p-3 bg-black/20 max-h-48 overflow-y-auto scrollbar-hide">
+              <div className="p-3 bg-black/20 max-h-72 overflow-y-auto scrollbar-hide">
                 {isDetailLoading ? (
                   <div className="space-y-2 py-1">
                     {[1,2,3].map(i => <Skeleton key={i} className="h-4 w-full" />)}
@@ -129,10 +129,10 @@ function CommitCard({ commit, owner, repo, idx }: { commit: Commit; owner: strin
                       </div>
                     ))}
                     {detail && (
-                      <div className="pt-2 border-t border-white/5 text-[11px] text-muted-foreground flex gap-3">
-                        <span>{detail.files.length} files</span>
-                        <span className="text-emerald-400">+{detail.stats.additions}</span>
-                        <span className="text-red-400">-{detail.stats.deletions}</span>
+                      <div className="pt-2 border-t border-white/5 text-[11px] text-muted-foreground flex gap-3 flex-wrap">
+                        <span className="font-semibold text-white/60">{detail.files.length} files changed</span>
+                        <span className="text-emerald-400">+{detail.stats.additions} additions</span>
+                        <span className="text-red-400">−{detail.stats.deletions} deletions</span>
                       </div>
                     )}
                   </div>
@@ -156,6 +156,7 @@ export default function Dashboard() {
   const [repoSearch, setRepoSearch] = useState("")
   const [summaryMode, setSummaryMode] = useState<"next_steps" | "standup">("next_steps")
   const [copied, setCopied] = useState(false)
+  const [generateError, setGenerateError] = useState<string | null>(null)
   const [commitLimit, setCommitLimit] = useState<15 | 30 | 50>(() => {
     const saved = localStorage.getItem('dc_commit_limit')
     return (saved === '30' ? 30 : saved === '50' ? 50 : 15) as 15 | 30 | 50
@@ -230,7 +231,7 @@ export default function Dashboard() {
       language: selectedRepo?.language ?? undefined,
       files: recentFiles,
     },
-    { query: { enabled: !!selectedRepo } }
+    { query: { enabled: !!selectedRepo && !!owner } }
   )
 
   // Build dep_context for AI: top 5 major-severity deps only (critical upgrade risk)
@@ -317,7 +318,10 @@ export default function Dashboard() {
         element: "generate_button",
         metadata: { repo: selectedRepo.full_name, commits: commits.length, mode: summaryMode },
       })
-      generate(owner, selectedRepo.name, commits, summaryMode, depContext)
+      setGenerateError(null)
+      generate(owner, selectedRepo.name, commits, summaryMode, depContext).catch(() => {
+        setGenerateError("Something went wrong generating your summary. Please try again.")
+      })
     }
   }
 
@@ -412,10 +416,11 @@ export default function Dashboard() {
                   <GitBranch className="w-3.5 h-3.5" />
                   Branch
                 </h2>
-                {isBranchesLoading ? (
+                {isBranchesLoading || !branches ? (
                   <Skeleton className="h-9 w-full rounded-xl" />
                 ) : (
                   <select
+                    key={selectedRepo?.id}
                     value={activeBranch ?? ""}
                     onChange={(e) => {
                       setSelectedBranch(e.target.value)
@@ -423,7 +428,7 @@ export default function Dashboard() {
                     }}
                     className="w-full bg-secondary/30 border border-white/10 rounded-xl py-2 px-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none cursor-pointer"
                   >
-                    {branches?.map(b => (
+                    {branches.map(b => (
                       <option key={b.name} value={b.name} className="bg-background">
                         {b.name}{b.is_default ? " (default)" : ""}
                       </option>
@@ -601,21 +606,32 @@ export default function Dashboard() {
                   </button>
                 </div>
 
-                <Button 
-                  onClick={handleGenerateSummary} 
-                  disabled={!selectedRepo || !commits?.length || isGenerating}
-                  size="sm"
-                  className="gap-2"
-                >
-                  {isGenerating ? (
-                    <>Analyzing...</>
-                  ) : (
-                    <>
-                      <Sparkles className="w-3.5 h-3.5" />
-                      {summaryMode === "standup" ? "Generate Standup" : "What's next?"}
-                    </>
+                <div className="flex flex-col items-end gap-1">
+                  <Button 
+                    onClick={handleGenerateSummary} 
+                    disabled={!selectedRepo || !commits?.length || isGenerating || isCommitsLoading}
+                    size="sm"
+                    className="gap-2"
+                    title={
+                      !selectedRepo ? "Select a repository first" :
+                      isCommitsLoading ? "Loading commits…" :
+                      !commits?.length ? "No commits found in this repository" :
+                      isGenerating ? "Generating…" : undefined
+                    }
+                  >
+                    {isGenerating ? (
+                      <>Analyzing...</>
+                    ) : (
+                      <>
+                        <Sparkles className="w-3.5 h-3.5" />
+                        {summaryMode === "standup" ? "Generate Standup" : "What's next?"}
+                      </>
+                    )}
+                  </Button>
+                  {!selectedRepo && (
+                    <span className="text-[10px] text-muted-foreground/60">← select a repo first</span>
                   )}
-                </Button>
+                </div>
               </div>
             </div>
 
@@ -653,6 +669,21 @@ export default function Dashboard() {
                       style={{ width: `${progress}%` }}
                     />
                   </div>
+                </div>
+              ) : generateError ? (
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8">
+                  <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-5">
+                    <Sparkles className="w-7 h-7 text-red-400" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-white mb-2">Generation Failed</h3>
+                  <p className="text-sm text-muted-foreground max-w-sm mb-6">{generateError}</p>
+                  <button
+                    onClick={handleGenerateSummary}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary/20 border border-primary/30 text-primary text-sm font-medium hover:bg-primary/30 transition-colors"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    Try Again
+                  </button>
                 </div>
               ) : result ? (
                 <motion.div 

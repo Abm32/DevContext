@@ -1,0 +1,25 @@
+Medium Priority (Missing Features)
+No "last analyzed" timestamp — users have no way to know if the summary is fresh or stale; a "Generated X minutes ago" label would add trust
+
+No diff expansion for individual files — the commit card shows additions/deletions per file but no actual line-by-line diff; clicking a file should show the unified diff
+
+Dep health panel never refreshes automatically — it fetches once on load. Adding a manual "refresh" button (already there) is good, but auto-invalidation when branch changes is not wired up
+
+Standup output lacks date context — the standup summary doesn't include the commit date range it's summarizing, which makes it less usable in real standups
+
+No persistence of last AI summary — switching repos clears the generated summary; a simple localStorage cache keyed by repo+branch would make the tool much stickier
+
+Admin analytics are missing per-repo breakdown — the admin dashboard shows global stats but no breakdown by which repos are most analyzed
+
+Polish & Code Quality
+Analytics events table creation can fail silently — track.ts imports analyticsEvents from @workspace/db which isn't exported; analytics tracking is currently broken (the pre-existing TypeScript error we've been filtering out)
+
+No empty state on the landing page for returning users — if a user is already authenticated and hits /, they get the landing/marketing page instead of being redirected to the dashboard
+
+Mobile layout is not handled — the two-column layout collapses poorly on small screens; the left column disappears behind the right panel on viewports under ~900px
+
+The pitch deck is a separate artifact but shares no styling — if you're using this for demos, the pitch deck and the app look nothing alike
+
+No onboarding flow — first-time users see the full dashboard with all the panels empty and no guidance on what to do; a brief "pick a repo to start" prompt with an arrow or highlight would help
+
+Error messages are generic — when GitHub API calls fail (e.g. rate limit, private org repo), the messages could be much more specific and actionable

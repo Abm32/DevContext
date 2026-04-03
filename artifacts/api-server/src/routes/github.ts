@@ -229,6 +229,49 @@ router.get("/repos/:owner/:repo/commits", async (req, res) => {
   }
 });
 
+// Returns the total commit count for a branch by reading GitHub's Link header
+// (fetches only 1 commit so it is extremely cheap API-rate-wise)
+router.get("/repos/:owner/:repo/commit-count", async (req, res) => {
+  const token = requireAuth(req, res as unknown as Response);
+  if (!token) return;
+
+  const { owner, repo } = req.params;
+  const branch = req.query["branch"] as string | undefined;
+
+  try {
+    const url = branch
+      ? `https://api.github.com/repos/${owner}/${repo}/commits?per_page=1&sha=${encodeURIComponent(branch)}`
+      : `https://api.github.com/repos/${owner}/${repo}/commits?per_page=1`;
+
+    const response = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+    });
+
+    if (response.status === 409) {
+      res.json({ total: 0 });
+      return;
+    }
+
+    if (!response.ok) {
+      res.status(response.status).json({ error: "GitHub API error" });
+      return;
+    }
+
+    const linkHeader = response.headers.get("link") ?? "";
+    const lastMatch = linkHeader.match(/[?&]page=(\d+)>;\s*rel="last"/);
+    const total = lastMatch ? parseInt(lastMatch[1], 10) : 1;
+
+    res.json({ total });
+  } catch (err) {
+    req.log.error({ err }, "Error fetching commit count");
+    res.status(500).json({ error: "Failed to fetch commit count" });
+  }
+});
+
 router.get("/repos/:owner/:repo/commits/:sha", async (req, res) => {
   const token = requireAuth(req, res as unknown as Response);
   if (!token) return;

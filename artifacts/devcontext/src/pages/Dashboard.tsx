@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { useLocation } from "wouter"
 import { motion, AnimatePresence } from "framer-motion"
 import { formatRelativeDate, getShortSha } from "@/lib/utils"
@@ -266,6 +267,24 @@ export default function Dashboard() {
     { per_page: commitLimit, branch: activeBranch },
     { query: { enabled: !!selectedRepo, retry: 1 } }
   )
+
+  // Fetch the real total commit count for the branch (1-commit request + Link header parsing)
+  const { data: commitCountData } = useQuery({
+    queryKey: ["commitCount", owner, selectedRepo?.name, activeBranch],
+    queryFn: async () => {
+      const params = new URLSearchParams()
+      if (activeBranch) params.set("branch", activeBranch)
+      const res = await fetch(
+        `${import.meta.env.BASE_URL}api/github/repos/${owner}/${selectedRepo!.name}/commit-count?${params}`,
+        { credentials: "include" }
+      )
+      if (!res.ok) return null
+      const data = await res.json() as { total: number }
+      return data.total
+    },
+    enabled: !!selectedRepo && !!owner,
+    staleTime: 5 * 60 * 1000,
+  })
 
   // Fetch recent commit details to collect changed filenames for dep manifest detection.
   // GitHub list-commits API does not include per-commit file lists; we fetch
@@ -560,7 +579,7 @@ export default function Dashboard() {
                 className="flex flex-wrap gap-2"
               >
                 {[
-                  { label: "commits", value: String(commitStats.totalCommits), icon: "⎇" },
+                  { label: "commits", value: commitCountData != null ? String(commitCountData) : String(commitStats.totalCommits), icon: "⎇" },
                   { label: "active days", value: String(commitStats.activeDays), icon: "📅" },
                   ...(commitStats.dateSpan ? [{ label: "span", value: commitStats.dateSpan, icon: "🗓️" }] : []),
                   ...(commitStats.streak >= 1 ? [{ label: "streak", value: `🔥 ${commitStats.streak}d`, icon: "" }] : []),

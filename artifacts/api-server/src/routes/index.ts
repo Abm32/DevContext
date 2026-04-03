@@ -6,6 +6,7 @@ import depsRouter from "./deps";
 import aiRouter from "./ai";
 import trackRouter from "./track";
 import adminRouter from "./admin";
+import e2emRouter from "./e2em";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use("/github", depsRouter);
 router.use("/ai", aiRouter);
 router.use("/track", trackRouter);
 router.use("/admin", adminRouter);
+router.use("/e2em", e2emRouter);
 
 export default router;

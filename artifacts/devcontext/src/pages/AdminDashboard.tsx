@@ -2,13 +2,25 @@ import { useState, useEffect, useCallback } from "react"
 import { useLocation } from "wouter"
 import { motion } from "framer-motion"
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts"
 import {
   Users, Eye, MousePointerClick, Activity, LogOut, RefreshCw, BrainCircuit, Zap,
+  Mail, Plus, Trash2, ToggleLeft, ToggleRight, Check, X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+
+interface E2emGrant {
+  id: number
+  github_username: string
+  repos: string[]
+  recipient_name: string
+  recipient_email: string | null
+  user_display_name: string | null
+  enabled: boolean
+  created_at: string
+}
 
 interface Stats {
   total_users: number
@@ -88,6 +100,20 @@ export default function AdminDashboard() {
   const [error, setError] = useState("")
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
 
+  // ─── e2em state ────────────────────────────────────────────────────────
+  const [e2emGrants, setE2emGrants] = useState<E2emGrant[]>([])
+  const [e2emLoading, setE2emLoading] = useState(false)
+  const [showAddGrant, setShowAddGrant] = useState(false)
+  const [newGrant, setNewGrant] = useState({
+    github_username: "",
+    repos: "",
+    recipient_name: "Sir",
+    recipient_email: "",
+    user_display_name: "",
+  })
+  const [addingGrant, setAddingGrant] = useState(false)
+  const [grantError, setGrantError] = useState("")
+
   const fetchStats = useCallback(async () => {
     setLoading(true)
     setError("")
@@ -119,6 +145,59 @@ export default function AdminDashboard() {
   const handleLogout = async () => {
     await fetch("/api/admin/logout", { method: "POST" })
     setLocation("/admin/login")
+  }
+
+  // ─── e2em grant handlers ──────────────────────────────────────────────────
+  const fetchE2emGrants = useCallback(async () => {
+    setE2emLoading(true)
+    try {
+      const res = await fetch("/api/admin/e2em/grants")
+      if (res.ok) setE2emGrants((await res.json()) as E2emGrant[])
+    } catch { /* silent */ } finally {
+      setE2emLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { void fetchE2emGrants() }, [fetchE2emGrants])
+
+  const handleToggleGrant = async (id: number, enabled: boolean) => {
+    await fetch(`/api/admin/e2em/grants/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled: !enabled }),
+    })
+    void fetchE2emGrants()
+  }
+
+  const handleDeleteGrant = async (id: number) => {
+    if (!confirm("Delete this e2em grant?")) return
+    await fetch(`/api/admin/e2em/grants/${id}`, { method: "DELETE" })
+    void fetchE2emGrants()
+  }
+
+  const handleCreateGrant = async () => {
+    setGrantError("")
+    if (!newGrant.github_username.trim()) { setGrantError("GitHub username required"); return }
+    setAddingGrant(true)
+    try {
+      const repos = newGrant.repos.split(",").map(r => r.trim()).filter(Boolean)
+      const res = await fetch("/api/admin/e2em/grants", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          github_username: newGrant.github_username.trim(),
+          repos,
+          recipient_name: newGrant.recipient_name.trim() || "Sir",
+          recipient_email: newGrant.recipient_email.trim() || null,
+          user_display_name: newGrant.user_display_name.trim() || null,
+        }),
+      })
+      if (!res.ok) { setGrantError("Failed to create grant"); return }
+      setNewGrant({ github_username: "", repos: "", recipient_name: "Sir", recipient_email: "", user_display_name: "" })
+      setShowAddGrant(false)
+      void fetchE2emGrants()
+    } catch { setGrantError("Network error") }
+    finally { setAddingGrant(false) }
   }
 
   const totalPageViews = stats?.events_by_type.find(e => e.event_type === "page_view")?.count ?? "0"
@@ -306,6 +385,144 @@ export default function AdminDashboard() {
                   </div>
                 )
               })}
+            </div>
+          )}
+        </div>
+
+        {/* e2em Access Management */}
+        <div className="bg-card border border-white/5 rounded-2xl overflow-hidden">
+          <div className="p-5 border-b border-white/5 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+              <Mail className="w-4 h-4 text-blue-400" />
+              e2em Access Management
+            </h2>
+            <button
+              onClick={() => setShowAddGrant(s => !s)}
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 transition-colors"
+            >
+              {showAddGrant ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+              {showAddGrant ? "Cancel" : "Add Grant"}
+            </button>
+          </div>
+
+          {/* Add Grant Form */}
+          {showAddGrant && (
+            <div className="p-5 border-b border-white/5 bg-blue-500/[0.04] space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] text-muted-foreground uppercase tracking-wider">GitHub Username *</label>
+                  <input
+                    type="text"
+                    value={newGrant.github_username}
+                    onChange={e => setNewGrant(g => ({ ...g, github_username: e.target.value }))}
+                    placeholder="octocat"
+                    className="bg-secondary/40 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Display Name</label>
+                  <input
+                    type="text"
+                    value={newGrant.user_display_name}
+                    onChange={e => setNewGrant(g => ({ ...g, user_display_name: e.target.value }))}
+                    placeholder="Abhimanyu R B"
+                    className="bg-secondary/40 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Recipient Name</label>
+                  <input
+                    type="text"
+                    value={newGrant.recipient_name}
+                    onChange={e => setNewGrant(g => ({ ...g, recipient_name: e.target.value }))}
+                    placeholder="Kumaresan"
+                    className="bg-secondary/40 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Recipient Email</label>
+                  <input
+                    type="email"
+                    value={newGrant.recipient_email}
+                    onChange={e => setNewGrant(g => ({ ...g, recipient_email: e.target.value }))}
+                    placeholder="manager@example.com"
+                    className="bg-secondary/40 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+                  />
+                </div>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Repos (comma-separated full names)</label>
+                <input
+                  type="text"
+                  value={newGrant.repos}
+                  onChange={e => setNewGrant(g => ({ ...g, repos: e.target.value }))}
+                  placeholder="YIP-KDISC/web_client, YIP-KDISC/web_server"
+                  className="bg-secondary/40 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-blue-500/50 w-full"
+                />
+              </div>
+              {grantError && <p className="text-xs text-red-400">{grantError}</p>}
+              <button
+                onClick={() => void handleCreateGrant()}
+                disabled={addingGrant}
+                className="flex items-center gap-1.5 text-xs px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold transition-colors"
+              >
+                {addingGrant ? "Creating…" : <><Check className="w-3.5 h-3.5" /> Create Grant</>}
+              </button>
+            </div>
+          )}
+
+          {/* Grant list */}
+          {e2emLoading ? (
+            <div className="p-5 space-y-3">
+              {[1, 2].map(i => <Skeleton key={i} className="h-12 w-full" />)}
+            </div>
+          ) : e2emGrants.length === 0 ? (
+            <div className="p-8 text-center text-muted-foreground text-sm">No e2em grants yet</div>
+          ) : (
+            <div className="divide-y divide-white/[0.03]">
+              {e2emGrants.map(g => (
+                <div key={g.id} className="px-5 py-3.5 flex items-start gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <a
+                        href={`https://github.com/${g.github_username}`}
+                        target="_blank" rel="noopener noreferrer"
+                        className="text-sm font-medium text-white hover:text-primary transition-colors"
+                      >
+                        @{g.github_username}
+                      </a>
+                      {g.user_display_name && (
+                        <span className="text-xs text-muted-foreground/60">({g.user_display_name})</span>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 mb-1.5">
+                      {(g.repos ?? []).map(r => (
+                        <span key={r} className="text-[10px] px-1.5 py-0.5 rounded bg-secondary/60 text-muted-foreground border border-white/5 font-mono">{r}</span>
+                      ))}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground/50">
+                      To: {g.recipient_name}{g.recipient_email ? ` <${g.recipient_email}>` : ""}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={() => void handleToggleGrant(g.id, g.enabled)}
+                      title={g.enabled ? "Disable" : "Enable"}
+                      className="text-muted-foreground hover:text-white transition-colors"
+                    >
+                      {g.enabled
+                        ? <ToggleRight className="w-5 h-5 text-emerald-400" />
+                        : <ToggleLeft className="w-5 h-5" />}
+                    </button>
+                    <button
+                      onClick={() => void handleDeleteGrant(g.id)}
+                      className="text-muted-foreground hover:text-red-400 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>

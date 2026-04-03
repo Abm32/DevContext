@@ -2,7 +2,8 @@ import { Router, type IRouter, type Request } from "express";
 import { createHmac, timingSafeEqual } from "crypto";
 import jwt from "jsonwebtoken";
 import { db } from "@workspace/db";
-import { sql } from "drizzle-orm";
+import { e2emGrants } from "@workspace/db";
+import { sql, eq } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -143,6 +144,105 @@ router.get("/stats", async (req, res) => {
   } catch (err) {
     req.log.error({ err }, "Admin stats error");
     res.status(500).json({ error: "Failed to fetch stats" });
+  }
+});
+
+// ── e2em grant management ─────────────────────────────────────────────────────
+
+router.get("/e2em/grants", async (req, res) => {
+  if (!verifyAdminToken(req)) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+  try {
+    const grants = await db.select().from(e2emGrants).orderBy(e2emGrants.created_at);
+    res.json(grants);
+  } catch (err) {
+    req.log.error({ err }, "e2em grants list error");
+    res.status(500).json({ error: "Failed to list grants" });
+  }
+});
+
+router.post("/e2em/grants", async (req, res) => {
+  if (!verifyAdminToken(req)) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+  const body = req.body as {
+    github_username?: string;
+    repos?: string[];
+    recipient_name?: string;
+    recipient_email?: string;
+    user_display_name?: string;
+    enabled?: boolean;
+  };
+  if (!body.github_username) {
+    res.status(400).json({ error: "github_username required" });
+    return;
+  }
+  try {
+    const [grant] = await db.insert(e2emGrants).values({
+      github_username: body.github_username.toLowerCase(),
+      repos: body.repos ?? [],
+      recipient_name: body.recipient_name ?? "Sir",
+      recipient_email: body.recipient_email ?? null,
+      user_display_name: body.user_display_name ?? null,
+      enabled: body.enabled ?? true,
+    }).returning();
+    res.json(grant);
+  } catch (err) {
+    req.log.error({ err }, "e2em grant create error");
+    res.status(500).json({ error: "Failed to create grant" });
+  }
+});
+
+router.put("/e2em/grants/:id", async (req, res) => {
+  if (!verifyAdminToken(req)) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+  const id = Number(req.params["id"]);
+  if (!id) { res.status(400).json({ error: "Invalid id" }); return; }
+  const body = req.body as {
+    repos?: string[];
+    recipient_name?: string;
+    recipient_email?: string;
+    user_display_name?: string;
+    enabled?: boolean;
+  };
+  try {
+    const [updated] = await db.update(e2emGrants)
+      .set({
+        ...(body.repos !== undefined ? { repos: body.repos } : {}),
+        ...(body.recipient_name !== undefined ? { recipient_name: body.recipient_name } : {}),
+        ...(body.recipient_email !== undefined ? { recipient_email: body.recipient_email } : {}),
+        ...(body.user_display_name !== undefined ? { user_display_name: body.user_display_name } : {}),
+        ...(body.enabled !== undefined ? { enabled: body.enabled } : {}),
+        updated_at: new Date(),
+      })
+      .where(eq(e2emGrants.id, id))
+      .returning();
+    if (!updated) { res.status(404).json({ error: "Grant not found" }); return; }
+    res.json(updated);
+  } catch (err) {
+    req.log.error({ err }, "e2em grant update error");
+    res.status(500).json({ error: "Failed to update grant" });
+  }
+});
+
+router.delete("/e2em/grants/:id", async (req, res) => {
+  if (!verifyAdminToken(req)) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+  const id = Number(req.params["id"]);
+  if (!id) { res.status(400).json({ error: "Invalid id" }); return; }
+  try {
+    await db.delete(e2emGrants).where(eq(e2emGrants.id, id));
+    res.json({ ok: true });
+  } catch (err) {
+    req.log.error({ err }, "e2em grant delete error");
+    res.status(500).json({ error: "Failed to delete grant" });
   }
 });
 

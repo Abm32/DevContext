@@ -44,6 +44,10 @@ import {
   BookmarkPlus,
   Bookmark,
   Trash2,
+  Mail,
+  Send,
+  ExternalLink,
+  Calendar,
 } from "lucide-react"
 import {
   RepoEntry,
@@ -242,6 +246,25 @@ export default function Dashboard() {
   const [summaryMode, setSummaryMode] = useState<"next_steps" | "standup">("next_steps")
   const [copied, setCopied] = useState(false)
   const [generateError, setGenerateError] = useState<string | null>(null)
+
+  // ─── e2em state ──────────────────────────────────────────────────────────
+  type E2emGrant = {
+    granted: boolean
+    id?: number
+    repos?: string[]
+    recipient_name?: string
+    recipient_email?: string
+    user_display_name?: string
+  }
+  type E2emResult = { subject: string; body: string; gmail_url: string; mailto_url: string; commit_count: number }
+  const [e2emGrant, setE2emGrant] = useState<E2emGrant | null>(null)
+  const [e2emDate, setE2emDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [e2emRecipient, setE2emRecipient] = useState("")
+  const [e2emEmail, setE2emEmail] = useState("")
+  const [isGeneratingEmail, setIsGeneratingEmail] = useState(false)
+  const [e2emResult, setE2emResult] = useState<E2emResult | null>(null)
+  const [e2emError, setE2emError] = useState<string | null>(null)
+  const [e2emEmailCopied, setE2emEmailCopied] = useState(false)
   const [mobileTab, setMobileTab] = useState<"commits" | "ai">("commits")
   const [cachedSummary, setCachedSummary] = useState<CachedSummary | null>(null)
   const commitLimit = 30
@@ -391,6 +414,21 @@ export default function Dashboard() {
   useEffect(() => { if (isError) setLocation("/") }, [isError, setLocation])
 
   useEffect(() => { if (user) void track("page_view", { page: "/dashboard" }) }, [user])
+
+  // ─── Fetch e2em grant ────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!user) return
+    fetch("/api/e2em/grant")
+      .then(r => r.ok ? r.json() : null)
+      .then((data: E2emGrant | null) => {
+        if (data?.granted) {
+          setE2emGrant(data)
+          setE2emRecipient(data.recipient_name ?? "Sir")
+          setE2emEmail(data.recipient_email ?? "")
+        }
+      })
+      .catch(() => undefined)
+  }, [user])
 
   // ─── Restore active repos from localStorage (one-time) ───────────────────
   useEffect(() => {
@@ -559,6 +597,44 @@ export default function Dashboard() {
 
   const displayResult = cachedSummary?.result ?? null
   const isFromCache = !!cachedSummary && !result
+
+  // ─── e2em generate ───────────────────────────────────────────────────────
+  const handleGenerateEmail = async () => {
+    if (!e2emGrant) return
+    setIsGeneratingEmail(true)
+    setE2emError(null)
+    setE2emResult(null)
+    try {
+      const res = await fetch("/api/e2em/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          date: e2emDate,
+          recipient_name: e2emRecipient,
+          recipient_email: e2emEmail,
+          user_display_name: e2emGrant.user_display_name,
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json() as { error?: string }
+        setE2emError(err.error ?? "Generation failed")
+        return
+      }
+      const data = await res.json() as E2emResult
+      setE2emResult(data)
+    } catch {
+      setE2emError("Network error — please try again")
+    } finally {
+      setIsGeneratingEmail(false)
+    }
+  }
+
+  const handleCopyEmail = async () => {
+    if (!e2emResult) return
+    await navigator.clipboard.writeText(`${e2emResult.subject}\n\n${e2emResult.body}`)
+    setE2emEmailCopied(true)
+    setTimeout(() => setE2emEmailCopied(false), 2000)
+  }
 
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
@@ -1210,6 +1286,134 @@ export default function Dashboard() {
               )}
             </AnimatePresence>
           </div>
+
+          {/* ── e2em Daily Standup ─────────────────────────────────────────── */}
+          <AnimatePresence>
+            {e2emGrant?.granted && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="bg-card border border-white/5 rounded-2xl shadow-xl flex flex-col overflow-hidden flex-shrink-0"
+              >
+                {/* Header */}
+                <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/5 bg-white/[0.02]">
+                  <div className="w-6 h-6 rounded-md bg-blue-500/20 flex items-center justify-center">
+                    <Mail className="w-3.5 h-3.5 text-blue-400" />
+                  </div>
+                  <span className="text-sm font-semibold text-white">Daily Report (e2em)</span>
+                  <span className="ml-auto text-[10px] text-muted-foreground/50 border border-white/10 px-1.5 py-0.5 rounded-full">
+                    YIP
+                  </span>
+                </div>
+
+                {/* Controls */}
+                <div className="flex flex-wrap gap-3 p-4 border-b border-white/5">
+                  <div className="flex flex-col gap-1 flex-1 min-w-[120px]">
+                    <label className="text-[10px] text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                      <Calendar className="w-3 h-3" /> Date
+                    </label>
+                    <input
+                      type="date"
+                      value={e2emDate}
+                      onChange={e => { setE2emDate(e.target.value); setE2emResult(null) }}
+                      className="bg-secondary/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1 flex-1 min-w-[140px]">
+                    <label className="text-[10px] text-muted-foreground uppercase tracking-wider">To (name)</label>
+                    <input
+                      type="text"
+                      value={e2emRecipient}
+                      onChange={e => { setE2emRecipient(e.target.value); setE2emResult(null) }}
+                      placeholder="Kumaresan"
+                      className="bg-secondary/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1 flex-1 min-w-[180px]">
+                    <label className="text-[10px] text-muted-foreground uppercase tracking-wider">To (email)</label>
+                    <input
+                      type="email"
+                      value={e2emEmail}
+                      onChange={e => { setE2emEmail(e.target.value); setE2emResult(null) }}
+                      placeholder="recipient@example.com"
+                      className="bg-secondary/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+                    />
+                  </div>
+                </div>
+
+                {/* Generate button */}
+                <div className="px-4 py-3 border-b border-white/5">
+                  <button
+                    onClick={() => void handleGenerateEmail()}
+                    disabled={isGeneratingEmail}
+                    className="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-semibold transition-colors"
+                  >
+                    {isGeneratingEmail ? (
+                      <>
+                        <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Generating…
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-3.5 h-3.5" />
+                        Generate Daily Report
+                      </>
+                    )}
+                  </button>
+                  {e2emError && (
+                    <p className="text-xs text-red-400 mt-2 text-center">{e2emError}</p>
+                  )}
+                </div>
+
+                {/* Result */}
+                <AnimatePresence>
+                  {e2emResult && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="flex flex-col"
+                    >
+                      {/* Subject */}
+                      <div className="px-4 pt-3 pb-1">
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Subject</p>
+                        <p className="text-xs text-white font-medium">{e2emResult.subject}</p>
+                      </div>
+                      {/* Body */}
+                      <div className="px-4 pt-2 pb-3">
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1.5">Body</p>
+                        <pre className="text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed font-sans bg-secondary/20 rounded-lg p-3 border border-white/5 max-h-64 overflow-y-auto scrollbar-hide">
+                          {e2emResult.body}
+                        </pre>
+                        {e2emResult.commit_count === 0 && (
+                          <p className="text-[11px] text-amber-400/80 mt-1.5">No commits found for this date — email generated with placeholder content.</p>
+                        )}
+                      </div>
+                      {/* Actions */}
+                      <div className="px-4 pb-4 flex gap-2">
+                        <a
+                          href={e2emResult.gmail_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition-colors"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          Open in Gmail
+                        </a>
+                        <button
+                          onClick={() => void handleCopyEmail()}
+                          className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-secondary/60 hover:bg-secondary text-muted-foreground hover:text-white text-xs font-medium transition-colors"
+                        >
+                          {e2emEmailCopied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                          {e2emEmailCopied ? "Copied!" : "Copy"}
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </main>
     </div>

@@ -3,7 +3,7 @@ import { useLocation } from "wouter"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   Github, Zap, CheckCircle2, ArrowRight, GitBranch, FileText,
-  Layers, Brain, Monitor, Settings, Box, Clock, Sparkles, ShieldCheck,
+  Layers, Brain, Monitor, Sparkles, ShieldCheck,
   Cloud, Code2, Database, CreditCard, Play, RotateCcw, GitCommit, Plus,
   Minus, ChevronRight,
 } from "lucide-react"
@@ -599,13 +599,6 @@ function InteractiveDemo({ onConnect }: { onConnect: (el: string) => void }) {
 
 // ─── Mobile Landing ───────────────────────────────────────────────────────────
 function MobileLanding({ onConnect }: { onConnect: (el: string) => void }) {
-  const tabs = [
-    { icon: <Clock className="w-5 h-5" />, label: "Commits", active: true },
-    { icon: <Sparkles className="w-5 h-5" />, label: "Insights", active: false },
-    { icon: <Box className="w-5 h-5" />, label: "Repos", active: false },
-    { icon: <Settings className="w-5 h-5" />, label: "Settings", active: false },
-  ]
-
   const brands = [
     { icon: <Cloud className="w-4 h-4" />, name: "AWS" },
     { icon: <Code2 className="w-4 h-4" />, name: "Vercel" },
@@ -637,7 +630,7 @@ function MobileLanding({ onConnect }: { onConnect: (el: string) => void }) {
       </nav>
 
       {/* Scrollable content */}
-      <div className="flex-1 overflow-y-auto pb-20 px-4">
+      <div className="flex-1 overflow-y-auto px-4">
         {/* Status badge */}
         <motion.div
           initial={{ opacity: 0 }}
@@ -785,36 +778,29 @@ function MobileLanding({ onConnect }: { onConnect: (el: string) => void }) {
         </motion.div>
       </div>
 
-      {/* Bottom Tab Bar */}
-      <div
-        className="fixed bottom-0 left-0 right-0 flex items-center justify-around h-16 z-50"
-        style={{
-          background: "rgba(13,13,15,0.95)",
-          backdropFilter: "blur(16px)",
-          borderTop: "1px solid rgba(255,255,255,0.06)",
-        }}
+      {/* Footer */}
+      <footer
+        className="px-4 py-6 flex flex-col items-center gap-2"
+        style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}
       >
-        {tabs.map((tab) => (
-          <button key={tab.label} className="flex flex-col items-center gap-1 flex-1 py-2">
-            {tab.active ? (
-              <div className="flex flex-col items-center gap-1">
-                <div className="w-10 h-7 rounded-full flex items-center justify-center"
-                  style={{ background: "rgba(59,130,246,0.15)" }}>
-                  <span style={{ color: "#3b82f6" }}>{tab.icon}</span>
-                </div>
-                <span className="text-[10px] font-semibold" style={{ color: "#3b82f6" }}>{tab.label}</span>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center gap-1">
-                <div className="w-10 h-7 flex items-center justify-center">
-                  <span style={{ color: "#334155" }}>{tab.icon}</span>
-                </div>
-                <span className="text-[10px]" style={{ color: "#334155" }}>{tab.label}</span>
-              </div>
-            )}
-          </button>
-        ))}
-      </div>
+        <span className="font-extrabold text-xs tracking-widest text-white"
+          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+          DEVCONTEXT
+        </span>
+        <p className="text-[11px] text-center" style={{ color: "#334155" }}>
+          The intelligence layer for complex engineering.
+        </p>
+        <div className="flex items-center gap-3 mt-1">
+          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md"
+            style={{ background: "rgba(16,185,129,0.1)", color: "#10b981", border: "1px solid rgba(16,185,129,0.2)" }}>
+            Free to Use
+          </span>
+          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md"
+            style={{ background: "rgba(255,255,255,0.04)", color: "#475569", border: "1px solid rgba(255,255,255,0.07)" }}>
+            No Credit Card
+          </span>
+        </div>
+      </footer>
     </div>
   )
 }

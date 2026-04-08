@@ -12,6 +12,24 @@ uri = "file://artifacts/pitch-deck/public/problem.png"
 type = "image"
 title = "developer confused at desk"
 
+[[generated]]
+id = "zoLjuiWcvxT0CZlgPm0_E"
+uri = "file://artifacts/devcontext/public/images/bg-network.png"
+type = "image"
+title = "dark code network background"
+
+[[generated]]
+id = "4UdnHuv3GcPtIaQr8jj-L"
+uri = "file://artifacts/devcontext/public/images/bg-editor.png"
+type = "image"
+title = "dark glassmorphism code editor"
+
+[[generated]]
+id = "Gn0um344zo_lSWKKTCt3r"
+uri = "file://artifacts/devcontext-video/public/images/neural-bg.png"
+type = "image"
+title = "Dark neural network background"
+
 [[outputs]]
 id = "qRl6h6Br2MgBDvUIj_dYw"
 uri = "file://.local/outputs/Code-Brain-Resume.pdf"

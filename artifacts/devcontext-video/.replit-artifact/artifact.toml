@@ -1,0 +1,31 @@
+kind = "video"
+previewPath = "/devcontext-video/"
+title = "DevContext Pitch Video"
+version = "1.0.0"
+id = "artifacts/devcontext-video"
+router = "path"
+
+[[integratedSkills]]
+name = "video-js"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/devcontext-video/" ]
+localPort = 20667
+
+[services.development]
+run = "pnpm --filter @workspace/devcontext-video run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/devcontext-video", "run", "build" ]
+publicDir = "artifacts/devcontext-video/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "20667"
+BASE_PATH = "/devcontext-video/"

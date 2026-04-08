@@ -81,6 +81,32 @@ and which ones carry vulnerabilities...
 before they become problems.
 
 
+And DevContext reads the health of your codebase...
+
+from your commit history itself.
+
+Which files change the most?
+
+How much of your work is bug fixes versus features?
+
+Where are the hotspots hiding?
+
+Now you know.
+
+
+Working across multiple repositories?
+
+Create a Workspace.
+
+Bundle two repos, five repos, an entire microservice ecosystem...
+
+into one unified AI context.
+
+One briefing.
+
+The full picture.
+
+
 This is DevContext.
 
 The intelligence layer for complex engineering.
@@ -90,6 +116,10 @@ AI briefings.
 Standup generation.
 
 Dependency health.
+
+Commit health signals.
+
+Multi-repo Workspaces.
 
 All from your GitHub,
 

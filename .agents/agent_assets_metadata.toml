@@ -41,3 +41,9 @@ id = "jgT98CAM8Tl-EZw3cqbt9"
 uri = "file://.local/outputs/Code-Brain-Resume.pptx"
 type = "slides"
 title = "Code Brain Resume.pptx"
+
+[[outputs]]
+id = "GbVdxSs_CCQUn6OmbKYQA"
+uri = "file://devcontext-voiceover-script.txt"
+type = "text"
+title = "DevContext Voiceover Script — ElevenLabs Ready"

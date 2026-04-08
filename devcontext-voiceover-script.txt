@@ -1,0 +1,98 @@
+Every developer loses context.
+
+After a break...
+
+After a meeting...
+
+After a single night's sleep,
+
+you come back and ask:
+
+What was I even working on?
+
+
+This isn't a focus problem.
+
+It's a memory problem.
+
+The average developer spends thirty minutes,
+
+just re-orienting.
+
+Every. Single. Day.
+
+
+With DevContext,
+
+you connect your GitHub repositories in seconds.
+
+Select your repo.
+
+Choose your branch.
+
+That's it.
+
+
+DevContext reads your recent commits,
+
+your file changes,
+
+your pull requests...
+
+and builds a picture of exactly where you left off.
+
+
+Then the magic happens.
+
+Your AI briefing arrives...
+
+"You were building the Stripe webhook integration.
+
+Your last commit fixed an auth race condition.
+
+Next step: wire webhook events to subscription state."
+
+No digging.
+
+No confusion.
+
+Just clarity.
+
+
+Need to share what you did yesterday?
+
+One click generates your standup.
+
+Yesterday, today, blockers...
+
+Done.
+
+In seconds.
+
+
+DevContext also checks your dependency health.
+
+See which packages are current,
+
+which are behind,
+
+and which ones carry vulnerabilities...
+
+before they become problems.
+
+
+This is DevContext.
+
+The intelligence layer for complex engineering.
+
+AI briefings.
+
+Standup generation.
+
+Dependency health.
+
+All from your GitHub,
+
+in seconds.
+
+Resume your code brain.

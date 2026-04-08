@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useVideoPlayer } from '@/lib/video';
 import { Scene1 } from './video_scenes/Scene1';
@@ -124,24 +124,9 @@ function SubtitleOverlay({ currentScene }: { currentScene: number }) {
 
 export default function VideoTemplate() {
   const { currentScene } = useVideoPlayer({ durations: SCENE_DURATIONS });
-  const audioRef = useRef<HTMLAudioElement>(null);
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    audio.volume = 1;
-    audio.play().catch(() => {});
-  }, []);
 
   return (
     <div className="w-full h-screen overflow-hidden relative bg-[var(--color-bg-light)] text-[var(--color-text-primary)]">
-      <audio
-        ref={audioRef}
-        src={`${import.meta.env.BASE_URL}audio/voiceover.mp3`}
-        loop
-        preload="auto"
-      />
-
       {/* Persistent ambient background orbs */}
       <div className="absolute inset-0 pointer-events-none">
         <motion.div className="absolute w-[80vw] h-[80vh] rounded-full opacity-20 blur-3xl"

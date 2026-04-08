@@ -1,58 +1,52 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { sceneTransitions } from '@/lib/video/animations';
 
 export function Scene1() {
   const [phase, setPhase] = useState(0);
 
   useEffect(() => {
     const timers = [
-      setTimeout(() => setPhase(1), 300),
-      setTimeout(() => setPhase(2), 1000),
-      setTimeout(() => setPhase(3), 1800),
-      setTimeout(() => setPhase(4), 2800),
+      setTimeout(() => setPhase(1), 500),
+      setTimeout(() => setPhase(2), 1500),
+      setTimeout(() => setPhase(3), 2500),
+      setTimeout(() => setPhase(4), 3800),
     ];
     return () => timers.forEach(t => clearTimeout(t));
   }, []);
 
   return (
     <motion.div 
-      className="absolute inset-0 flex items-center justify-start px-[10vw]"
-      {...sceneTransitions.clipPolygon}
+      className="absolute inset-0 flex items-center justify-center"
+      initial={{ clipPath: 'circle(0% at 50% 50%)' }}
+      animate={{ clipPath: 'circle(100% at 50% 50%)' }}
+      exit={{ clipPath: 'inset(0 100% 0 0)' }}
+      transition={{ duration: 1, ease: [0.4, 0, 0.2, 1] }}
     >
-      <div className="flex flex-col gap-4 max-w-[60vw]">
-        <motion.div
-          className="text-[8vw] font-black leading-none tracking-tight text-white/10"
-          initial={{ opacity: 0, x: -50 }}
-          animate={phase >= 1 ? { opacity: 1, x: 0 } : { opacity: 0, x: -50 }}
-          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-        >
-          9:47 AM.
-        </motion.div>
-        
-        <motion.div
-          className="text-[6vw] font-bold leading-none tracking-tight text-white/50"
-          initial={{ opacity: 0, x: -50 }}
-          animate={phase >= 2 ? { opacity: 1, x: 0 } : { opacity: 0, x: -50 }}
-          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-        >
-          You open your editor.
-        </motion.div>
-
-        <motion.div
-          className="text-[6vw] font-bold leading-none tracking-tight text-white"
-          initial={{ opacity: 0, scale: 0.9, y: 20 }}
-          animate={phase >= 3 ? { opacity: 1, scale: 1, y: 0 } : { opacity: 0, scale: 0.9, y: 20 }}
-          transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-        >
-          30 minutes lost. <span className="text-[var(--color-error)]">Again.</span>
-        </motion.div>
-        
-        <motion.div 
-          className="w-4 h-12 bg-white mt-8"
-          animate={{ opacity: [1, 0, 1] }}
-          transition={{ duration: 0.8, repeat: Infinity, ease: "steps(2)" }}
-        />
+      <div className="relative z-10 text-left w-[80vw] mx-auto">
+        <div className="flex flex-col gap-[2vh] text-[8vw] leading-[0.9] font-black tracking-tighter" style={{ fontFamily: 'var(--font-display)' }}>
+          <motion.div
+            initial={{ opacity: 0, y: 50, filter: 'blur(10px)' }}
+            animate={phase >= 1 ? { opacity: 1, y: 0, filter: 'blur(0px)' } : { opacity: 0, y: 50, filter: 'blur(10px)' }}
+            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+          >
+            Every developer
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 50, filter: 'blur(10px)' }}
+            animate={phase >= 2 ? { opacity: 1, y: 0, filter: 'blur(0px)' } : { opacity: 0, y: 50, filter: 'blur(10px)' }}
+            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+            className="text-[var(--color-accent-violet)]"
+          >
+            loses time
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 50, filter: 'blur(10px)' }}
+            animate={phase >= 3 ? { opacity: 1, y: 0, filter: 'blur(0px)' } : { opacity: 0, y: 50, filter: 'blur(10px)' }}
+            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+          >
+            re-entering their own code.
+          </motion.div>
+        </div>
       </div>
     </motion.div>
   );

@@ -5,29 +5,32 @@ import { Scene2 } from './video_scenes/Scene2';
 import { Scene3 } from './video_scenes/Scene3';
 import { Scene4 } from './video_scenes/Scene4';
 import { Scene5 } from './video_scenes/Scene5';
+import { Scene6 } from './video_scenes/Scene6';
+import { Scene7 } from './video_scenes/Scene7';
+import { Scene8 } from './video_scenes/Scene8';
 
-const SCENE_DURATIONS = { s1: 3500, s2: 4500, s3: 5000, s4: 3000, s5: 4000 };
+const SCENE_DURATIONS = { s1: 4000, s2: 3500, s3: 4500, s4: 4000, s5: 5500, s6: 3500, s7: 3500, s8: 4500 };
 
 export default function VideoTemplate() {
   const { currentScene } = useVideoPlayer({ durations: SCENE_DURATIONS });
 
   return (
-    <div className="w-full h-screen overflow-hidden relative bg-[var(--color-bg-light)]">
+    <div className="w-full h-screen overflow-hidden relative bg-[var(--color-bg-light)] text-[var(--color-text-primary)]">
       <div className="absolute inset-0 pointer-events-none">
         <motion.div className="absolute w-[80vw] h-[80vh] rounded-full opacity-20 blur-3xl"
           style={{ background: 'radial-gradient(circle, var(--color-accent), transparent)' }}
           animate={{
-            x: ['-20%', '40%', '10%', '-10%', '50%'][currentScene % 5],
-            y: ['10%', '-10%', '40%', '50%', '20%'][currentScene % 5],
-            scale: [1, 1.2, 0.8, 1.1, 0.9][currentScene % 5],
+            x: ['-20%', '40%', '10%', '-10%', '50%', '30%', '-20%', '10%'][currentScene % 8],
+            y: ['10%', '-10%', '40%', '50%', '20%', '60%', '10%', '-10%'][currentScene % 8],
+            scale: [1, 1.2, 0.8, 1.1, 0.9, 1.3, 0.9, 1.1][currentScene % 8],
           }}
           transition={{ duration: 3, ease: 'easeInOut' }} />
           
         <motion.div className="absolute w-[60vw] h-[60vh] rounded-full opacity-15 blur-3xl right-0 bottom-0"
           style={{ background: 'radial-gradient(circle, var(--color-accent-violet), transparent)' }}
           animate={{
-            x: ['10%', '-30%', '5%', '-20%', '15%'][currentScene % 5],
-            y: ['-10%', '20%', '-20%', '10%', '-30%'][currentScene % 5],
+            x: ['10%', '-30%', '5%', '-20%', '15%', '-10%', '20%', '-15%'][currentScene % 8],
+            y: ['-10%', '20%', '-20%', '10%', '-30%', '15%', '-5%', '25%'][currentScene % 8],
           }}
           transition={{ duration: 4, ease: 'easeInOut' }} />
       </div>
@@ -35,10 +38,10 @@ export default function VideoTemplate() {
       <motion.div
         className="absolute h-[2px] bg-gradient-to-r from-[var(--color-accent)] to-[var(--color-accent-violet)] z-50 shadow-[0_0_10px_var(--color-accent)]"
         animate={{
-          left: ['0%', '10%', '50%', '20%', '40%'][currentScene % 5],
-          width: ['100%', '80%', '50%', '60%', '20%'][currentScene % 5],
-          top: ['10%', '90%', '5%', '50%', '80%'][currentScene % 5],
-          opacity: [0.8, 0.5, 0.9, 0.6, 1][currentScene % 5],
+          left: ['0%', '10%', '50%', '20%', '40%', '15%', '60%', '30%'][currentScene % 8],
+          width: ['100%', '80%', '50%', '60%', '20%', '70%', '40%', '50%'][currentScene % 8],
+          top: ['10%', '90%', '5%', '50%', '80%', '15%', '85%', '50%'][currentScene % 8],
+          opacity: [0.8, 0.5, 0.9, 0.6, 1, 0.7, 0.8, 1][currentScene % 8],
         }}
         transition={{ duration: 1.5, ease: [0.22, 1, 0.36, 1] }}
       />
@@ -49,6 +52,9 @@ export default function VideoTemplate() {
         {currentScene === 2 && <Scene3 key="s3" />}
         {currentScene === 3 && <Scene4 key="s4" />}
         {currentScene === 4 && <Scene5 key="s5" />}
+        {currentScene === 5 && <Scene6 key="s6" />}
+        {currentScene === 6 && <Scene7 key="s7" />}
+        {currentScene === 7 && <Scene8 key="s8" />}
       </AnimatePresence>
     </div>
   );

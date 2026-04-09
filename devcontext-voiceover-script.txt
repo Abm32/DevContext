@@ -1,7 +1,7 @@
-DEVCONTEXT VOICEOVER SCRIPT — ElevenLabs Ready (v3)
-=====================================================
-Total target duration: ~87 seconds
-(Video extended from 84s → 87s to match ElevenLabs max speed of 1.20)
+DEVCONTEXT VOICEOVER SCRIPT — ElevenLabs Ready (v4 — FINAL)
+============================================================
+Total target duration: ~80 seconds  ← CONFIRMED at speed 1.20
+(Video scaled down to 80s to match actual ElevenLabs output)
 
 REQUIRED SETTINGS:
   Speed:        1.20  ← use max available speed

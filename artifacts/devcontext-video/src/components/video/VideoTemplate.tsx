@@ -12,18 +12,18 @@ import { Scene8 } from './video_scenes/Scene8';
 import { Scene9 } from './video_scenes/Scene9';
 import { Scene10 } from './video_scenes/Scene10';
 
-// Extended to ~87s to match ElevenLabs output at max speed 1.20
+// Scaled to ~80s to match ElevenLabs audio at speed 1.20
 const SCENE_DURATIONS = {
-  s1:  8300,
-  s2:  7300,
-  s3:  8300,
-  s4:  7800,
-  s5: 11500,
-  s6:  7300,
-  s7:  8400,
-  s8:  9300,
-  s9: 10300,
-  s10: 9400,
+  s1:  7500,
+  s2:  6600,
+  s3:  7500,
+  s4:  7100,
+  s5: 10500,
+  s6:  6600,
+  s7:  7600,
+  s8:  8500,
+  s9:  9400,
+  s10: 8600,
 };
 
 // Subtitle delays scaled proportionally to the new scene durations

@@ -100,7 +100,7 @@ title = "V3 — Radial Context Node (minimal)"
 id = "tMsKoKeJ5vcnoEqbe6PFf"
 uri = "file://artifacts/devcontext/public/images/banner.png"
 type = "image"
-title = "DevContext – Banner (16:9 widescreen)"
+title = "DevContext – Banner (wide letterbox composition)"
 
 [[outputs]]
 id = "aSYeLVaHaZ0c7eeveTSyF"

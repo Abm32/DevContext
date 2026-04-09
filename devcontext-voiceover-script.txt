@@ -1,10 +1,10 @@
-DEVCONTEXT VOICEOVER SCRIPT — ElevenLabs Ready (v2)
+DEVCONTEXT VOICEOVER SCRIPT — ElevenLabs Ready (v3)
 =====================================================
-Total target duration: ~84 seconds
-Audio was 2m09s (129s) at speed 0.95 — fix: raise speed to 1.1 and cut all padding breaks.
+Total target duration: ~87 seconds
+(Video extended from 84s → 87s to match ElevenLabs max speed of 1.20)
 
 REQUIRED SETTINGS:
-  Speed:        1.25  ← confirmed from 1.15→91s measurement; 1.25 targets ~84s
+  Speed:        1.20  ← use max available speed
   Stability:    0.55
   Similarity:   0.80
   Style:        0.30
@@ -12,7 +12,7 @@ REQUIRED SETTINGS:
 
 HOW THE BREAKS WORK:
   Breaks total ~3.9s fixed time (not affected by speed).
-  At speed 1.25 the speech takes ~80s → total ~84s.
+  At speed 1.20, speech takes ~83s → total ~87s → matches the video exactly.
   Every <break/> below is carefully budgeted — do not add more.
 
 =====================================================

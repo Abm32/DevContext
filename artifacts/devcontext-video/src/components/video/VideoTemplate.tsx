@@ -12,18 +12,18 @@ import { Scene8 } from './video_scenes/Scene8';
 import { Scene9 } from './video_scenes/Scene9';
 import { Scene10 } from './video_scenes/Scene10';
 
-// Doubled durations to give the voiceover room to breathe — total ~84s
+// Extended to ~87s to match ElevenLabs output at max speed 1.20
 const SCENE_DURATIONS = {
-  s1:  8000,
-  s2:  7000,
-  s3:  8000,
-  s4:  7500,
-  s5: 11000,
-  s6:  7000,
-  s7:  8000,
-  s8:  9000,
-  s9: 10000,
-  s10: 9000,
+  s1:  8300,
+  s2:  7300,
+  s3:  8300,
+  s4:  7800,
+  s5: 11500,
+  s6:  7300,
+  s7:  8400,
+  s8:  9300,
+  s9: 10300,
+  s10: 9400,
 };
 
 // Subtitle delays scaled proportionally to the new scene durations

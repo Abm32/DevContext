@@ -51,7 +51,7 @@ export default function Slide1Title() {
             ))}
           </div>
           <div className="font-mono text-[1.1vw] text-[#6366f1]/60 tracking-wider">
-            devcontext.replit.app
+            devcontext.abhimanyurb.com
           </div>
         </div>
       </div>

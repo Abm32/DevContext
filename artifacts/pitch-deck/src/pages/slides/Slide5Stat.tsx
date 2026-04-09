@@ -9,17 +9,32 @@ export default function Slide5Stat() {
           The Cost of Lost Context
         </div>
 
-        <div className="font-display font-bold text-[14vw] leading-none tracking-tighter bg-gradient-to-br from-white via-white to-[#6366f1] bg-clip-text text-transparent mb-[2vh]">
+        <div className="font-display font-bold text-[15vw] leading-none tracking-tighter bg-gradient-to-br from-white via-white to-[#6366f1] bg-clip-text text-transparent mb-[1.5vh]">
           23
         </div>
         <div className="font-display text-[3vw] font-semibold text-white/80 mb-[3vh]">
           minutes to regain full focus
         </div>
-        <p className="font-body text-[1.6vw] text-white/45 max-w-[50vw] leading-snug mb-[1.5vh]">
-          after a single context switch. Multiply that by every repo, every sprint, every Monday morning.
+        <p className="font-body text-[1.6vw] text-white/45 max-w-[52vw] leading-snug mb-[4vh]">
+          after a single context switch — multiply that by every repo, every sprint, every morning standup.
         </p>
-        <p className="font-body text-[1.1vw] text-white/25 tracking-wide">
-          Source: Gloria Mark, UC Irvine — research on attention and multitasking
+
+        {/* Supporting stats row */}
+        <div className="flex items-center gap-[4vw]">
+          {[
+            { val: "27M+", label: "developers globally" },
+            { val: "$58B", label: "lost annually to context switching" },
+            { val: "4.6x", label: "ROI from reducing interruptions" },
+          ].map((s, i) => (
+            <div key={i} className="text-center px-[2vw]">
+              <div className="font-display text-[2.2vw] font-bold text-white mb-[0.3vh]">{s.val}</div>
+              <div className="font-body text-[1.1vw] text-white/35 max-w-[14vw] leading-tight">{s.label}</div>
+            </div>
+          ))}
+        </div>
+
+        <p className="font-body text-[1vw] text-white/20 tracking-wide mt-[4vh]">
+          Source: Gloria Mark, UC Irvine — research on attention and multitasking · IDC Productivity Report 2024
         </p>
       </div>
     </div>

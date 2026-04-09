@@ -4,7 +4,7 @@
     "position": 1,
     "filepath": "src/pages/slides/Slide1Title.tsx",
     "title": "Resume Your Code Brain",
-    "description": "Hero title slide with DevContext brand and tagline.",
+    "description": "Hero title slide with DevContext brand, tagline, and all 5 feature names.",
     "speakerNotes": ""
   },
   {
@@ -12,47 +12,71 @@
     "position": 2,
     "filepath": "src/pages/slides/Slide2Problem.tsx",
     "title": "The Problem",
-    "description": "The Monday Morning Wall — developer context loss pain point.",
+    "description": "The Monday Morning Wall — developer context loss pain points with stat callouts.",
+    "speakerNotes": ""
+  },
+  {
+    "id": "dc-slide-08-market",
+    "position": 3,
+    "filepath": "src/pages/slides/Slide8Market.tsx",
+    "title": "Market Opportunity",
+    "description": "27M developers, $22B dev tools market, $58B context-switching cost. Target personas.",
     "speakerNotes": ""
   },
   {
     "id": "dc-slide-03-solution",
-    "position": 3,
+    "position": 4,
     "filepath": "src/pages/slides/Slide3Solution.tsx",
     "title": "The Solution",
-    "description": "DevContext 3-step flow: Connect, Select, Resume.",
+    "description": "DevContext 3-step flow: Connect, Select, Resume — with all 5 feature pills.",
+    "speakerNotes": ""
+  },
+  {
+    "id": "dc-slide-09-features",
+    "position": 5,
+    "filepath": "src/pages/slides/Slide9Features.tsx",
+    "title": "Five Layers of Intelligence",
+    "description": "Feature grid: AI Briefings, Standup Generator, Dependency Health, Commit Signals, Workspaces.",
     "speakerNotes": ""
   },
   {
     "id": "dc-slide-04-how",
-    "position": 4,
+    "position": 6,
     "filepath": "src/pages/slides/Slide4HowItWorks.tsx",
     "title": "How It Works",
-    "description": "Technical architecture — GitHub API, AI synthesis, 4-step flow.",
+    "description": "Technical architecture — GitHub API, AI synthesis, 4-step flow to back-in-flow.",
     "speakerNotes": ""
   },
   {
     "id": "dc-slide-05-stat",
-    "position": 5,
+    "position": 7,
     "filepath": "src/pages/slides/Slide5Stat.tsx",
     "title": "23 Minutes",
-    "description": "Big stat slide — cost of context switching (UC Irvine research).",
+    "description": "Big stat slide — cost of context switching with supporting market numbers.",
+    "speakerNotes": ""
+  },
+  {
+    "id": "dc-slide-10-business",
+    "position": 8,
+    "filepath": "src/pages/slides/Slide10BusinessModel.tsx",
+    "title": "Business Model",
+    "description": "Freemium → Pro ($12/mo) → Enterprise. Three growth levers: viral, seat expansion, workspace upsell.",
     "speakerNotes": ""
   },
   {
     "id": "dc-slide-06-stack",
-    "position": 6,
+    "position": 9,
     "filepath": "src/pages/slides/Slide6TechStack.tsx",
     "title": "Stack + Architecture",
-    "description": "Tech stack: GitHub REST API, OpenAI via Replit, React + Express.",
+    "description": "GitHub API, OpenAI, React+Vite+Express, PostgreSQL. All 10 shipped features listed.",
     "speakerNotes": ""
   },
   {
     "id": "dc-slide-07-closing",
-    "position": 7,
+    "position": 10,
     "filepath": "src/pages/slides/Slide7Closing.tsx",
     "title": "Try It Now",
-    "description": "Closing slide with live demo URL and open source call to action.",
+    "description": "Closing slide with live URL, Free plan, Pro pricing, and all 5 feature pills.",
     "speakerNotes": ""
   }
 ]

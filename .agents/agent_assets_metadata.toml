@@ -30,6 +30,24 @@ uri = "file://artifacts/devcontext-video/public/images/neural-bg.png"
 type = "image"
 title = "Dark neural network background"
 
+[[generated]]
+id = "R-NnF6_Cblrpw7Y8FE1Bu"
+uri = "file://attached_assets/generated_images/devcontext-logo-v1.png"
+type = "image"
+title = "devcontext logo neural brain"
+
+[[generated]]
+id = "c1K3-qGpSuIT1cCphKDb_"
+uri = "file://attached_assets/generated_images/devcontext-logo-v2.png"
+type = "image"
+title = "devcontext logo brain circuit"
+
+[[generated]]
+id = "x9UqP_lFe608I0A3MVoot"
+uri = "file://attached_assets/generated_images/devcontext-logo-v3.png"
+type = "image"
+title = "devcontext logo radial star node"
+
 [[outputs]]
 id = "qRl6h6Br2MgBDvUIj_dYw"
 uri = "file://.local/outputs/Code-Brain-Resume.pdf"
@@ -47,3 +65,21 @@ id = "GbVdxSs_CCQUn6OmbKYQA"
 uri = "file://devcontext-voiceover-script.txt"
 type = "text"
 title = "DevContext Voiceover Script v2 — Fixed for 84s"
+
+[[outputs]]
+id = "T6OMZ3qN39b6wlBGNeRg9"
+uri = "file://attached_assets/generated_images/devcontext-logo-v1.png"
+type = "image"
+title = "V1 — Neural Brain (nodes + connections)"
+
+[[outputs]]
+id = "QPOoTBRL3fgK1QzfjwsH-"
+uri = "file://attached_assets/generated_images/devcontext-logo-v2.png"
+type = "image"
+title = "V2 — Brain + Circuit Traces"
+
+[[outputs]]
+id = "eDIFblBcEqBDN57YNdwdr"
+uri = "file://attached_assets/generated_images/devcontext-logo-v3.png"
+type = "image"
+title = "V3 — Radial Context Node (minimal)"

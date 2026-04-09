@@ -612,10 +612,7 @@ function MobileLanding({ onConnect }: { onConnect: (el: string) => void }) {
       <nav className="flex items-center justify-between px-5 h-14 shrink-0"
         style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg flex items-center justify-center"
-            style={{ background: "rgba(59,130,246,0.15)" }}>
-            <Monitor className="w-4 h-4" style={{ color: "#3b82f6" }} />
-          </div>
+          <img src="/images/logo.png" alt="DevContext" className="w-7 h-7 rounded-lg object-cover" />
           <span className="font-bold text-sm" style={{ color: "#3b82f6", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
             DevContext
           </span>
@@ -849,12 +846,15 @@ export default function Landing() {
           }}
         >
           <div className="flex items-center gap-8">
-            <span
-              className="font-extrabold tracking-tight text-white text-sm"
-              style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", letterSpacing: "0.08em" }}
-            >
-              DEVCONTEXT
-            </span>
+            <div className="flex items-center gap-2.5">
+              <img src="/images/logo.png" alt="DevContext" className="w-7 h-7 rounded-lg object-cover" />
+              <span
+                className="font-extrabold tracking-tight text-white text-sm"
+                style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", letterSpacing: "0.08em" }}
+              >
+                DEVCONTEXT
+              </span>
+            </div>
             <div className="hidden md:flex items-center gap-6">
               {["Product", "Features", "Security"].map((link) => (
                 <a

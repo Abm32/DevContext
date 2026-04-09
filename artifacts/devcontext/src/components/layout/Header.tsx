@@ -1,7 +1,7 @@
 import { useGetMe, useLogout } from "@workspace/api-client-react"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { BrainCircuit, LogOut, Github } from "lucide-react"
+import { LogOut, Github } from "lucide-react"
 
 export function Header() {
   const { data: user, isLoading } = useGetMe({ query: { retry: false } })
@@ -17,9 +17,11 @@ export function Header() {
     <header className="sticky top-0 z-50 w-full border-b border-white/10 bg-background/80 backdrop-blur-xl">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center border border-primary/30 box-glow">
-            <BrainCircuit className="w-5 h-5 text-primary" />
-          </div>
+          <img
+            src="/images/logo.png"
+            alt="DevContext logo"
+            className="w-8 h-8 rounded-lg object-cover"
+          />
           <span className="font-display font-bold text-lg text-white hidden sm:inline-block tracking-tight">
             DevContext
           </span>

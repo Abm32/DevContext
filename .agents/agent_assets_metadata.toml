@@ -48,6 +48,18 @@ uri = "file://attached_assets/generated_images/devcontext-logo-v3.png"
 type = "image"
 title = "devcontext logo radial star node"
 
+[[generated]]
+id = "kbMdmBi5-6IRWVQPCfhIb"
+uri = "file://artifacts/devcontext/public/images/banner.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "RNii-WeSnjEsj4WGDQBgz"
+uri = "file://artifacts/devcontext/public/images/cover.png"
+type = "image"
+title = "generated_image"
+
 [[outputs]]
 id = "qRl6h6Br2MgBDvUIj_dYw"
 uri = "file://.local/outputs/Code-Brain-Resume.pdf"
@@ -83,3 +95,15 @@ id = "eDIFblBcEqBDN57YNdwdr"
 uri = "file://attached_assets/generated_images/devcontext-logo-v3.png"
 type = "image"
 title = "V3 — Radial Context Node (minimal)"
+
+[[outputs]]
+id = "tMsKoKeJ5vcnoEqbe6PFf"
+uri = "file://artifacts/devcontext/public/images/banner.png"
+type = "image"
+title = "DevContext – Banner (16:9 widescreen)"
+
+[[outputs]]
+id = "aSYeLVaHaZ0c7eeveTSyF"
+uri = "file://artifacts/devcontext/public/images/cover.png"
+type = "image"
+title = "DevContext – Cover (1:1 square)"

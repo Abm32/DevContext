@@ -4,15 +4,15 @@ Total target duration: ~84 seconds
 Audio was 2m09s (129s) at speed 0.95 — fix: raise speed to 1.1 and cut all padding breaks.
 
 REQUIRED SETTINGS:
-  Speed:        1.1   ← this is the critical fix, do not use 0.95
+  Speed:        1.25  ← confirmed from 1.15→91s measurement; 1.25 targets ~84s
   Stability:    0.55
   Similarity:   0.80
   Style:        0.30
   Voice:        Adam or Daniel (calm, cinematic)
 
 HOW THE BREAKS WORK:
-  At speed 1.1, the 258 words of speech take ~82s.
-  Only ~2s of total break time is available across the whole script.
+  Breaks total ~3.9s fixed time (not affected by speed).
+  At speed 1.25 the speech takes ~80s → total ~84s.
   Every <break/> below is carefully budgeted — do not add more.
 
 =====================================================

@@ -820,7 +820,7 @@ function PricingCTAButton({
   return (
     <button
       onClick={() => {
-        void track("click:pricing_cta", { plan })
+        void track("click:pricing_cta", { metadata: { plan } })
         // Persist plan intent so Dashboard can auto-launch checkout after OAuth
         localStorage.setItem("devcontext_pending_plan", plan)
         window.location.href = "/api/auth/github"
@@ -1320,7 +1320,7 @@ export default function Landing() {
                     <PricingCTAButton plan={plan.cta} color={plan.color} popular={plan.popular} />
                   ) : (
                     <button
-                      onClick={() => onConnect("pricing_free")}
+                      onClick={() => handleConnect("pricing_free")}
                       className="w-full py-2.5 rounded-xl text-sm font-semibold transition-all"
                       style={{ background: "rgba(255,255,255,0.05)", color: "#64748b", border: "1px solid rgba(255,255,255,0.08)" }}
                     >

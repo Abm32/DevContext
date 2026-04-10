@@ -32,16 +32,15 @@ export type InsertAiUsage = typeof aiUsage.$inferInsert;
 // ─── Plan config ─────────────────────────────────────────────────────────────
 //
 // max_repos: Maximum repos active in compare mode simultaneously.
-//   The Dashboard renders a fixed-slot pipeline of 10 hook-pairs (entry0–9),
-//   matching REPO_COLORS length, so the hard architectural ceiling is 10.
+//   Dashboard uses useQueries (dynamic pipeline) — no fixed slot ceiling.
 //
-//   free  = 1  (single-repo mode only, compare disabled)
-//   plus  = 3  (3-repo compare)
-//   pro   = 10 (full 10-repo compare)
-//   team  = 10 (same UI cap; team differentiates on AI credits, seats, emails)
+//   free  = 1     (single-repo mode only, compare disabled)
+//   plus  = 3     (up to 3 repos in compare mode)
+//   pro   = 10    (up to 10 repos in compare mode)
+//   team  = 9999  (sentinel for "unlimited"; UI shows "Unlimited repos")
 //
-//   Note: a future dynamic pipeline can raise this ceiling uniformly — until
-//   then, all plans stay at or below 10 to keep schema and UI in sync.
+//   The Dashboard reads maxRepos = features.max_repos and enforces selection.
+//   REPO_COLORS cycles via i % REPO_COLORS.length for visual distinction.
 
 export const PLAN_LIMITS = {
   free: {
@@ -67,7 +66,7 @@ export const PLAN_LIMITS = {
   },
   team: {
     ai_analyses_per_month: 2000,
-    max_repos: 10,
+    max_repos: 9999,
     compare_mode: true,
     standup_emails: true,
     workspaces: true,

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueries } from "@tanstack/react-query"
 import { useLocation } from "wouter"
 import { motion, AnimatePresence } from "framer-motion"
 import { formatRelativeDate, getShortSha } from "@/lib/utils"
@@ -7,10 +7,14 @@ import { computeCommitStats } from "@/lib/commit-stats"
 import {
   useGetMe,
   useListRepos,
-  useListBranches,
-  useListCommits,
-  useGetCommitDetail,
-  useGetRepoDeps,
+  listBranches,
+  getListBranchesQueryKey,
+  listCommits,
+  getListCommitsQueryKey,
+  getCommitDetail,
+  getGetCommitDetailQueryKey,
+  getRepoDeps,
+  getGetRepoDepsQueryKey,
   Repository,
   Commit,
   DepContextItem,
@@ -242,10 +246,10 @@ export default function Dashboard() {
 
   // ─── Plan & feature gates ──────────────────────────────────────────────────
   const { plan, features, usage, isFreeTier, refetch: refetchPlan } = usePlan()
-  // max_repos: 1 (free) / 3 (plus) / 10 (pro) / 10 (team).
-  // Dashboard declares 10 hook slots (entry0-9) matching REPO_COLORS.length.
-  // Schema and UI cap are always in sync (see lib/db/src/schema/plans.ts).
-  const maxRepos = Math.min(features.max_repos, REPO_COLORS.length)
+  // max_repos: 1 (free) / 3 (plus) / 10 (pro) / 9999 sentinel (team = unlimited).
+  // useQueries pipeline supports dynamic repo counts; no fixed slot ceiling.
+  // REPO_COLORS cycles via i % REPO_COLORS.length for repos beyond index 10.
+  const maxRepos = features.max_repos
   const { openCheckout } = useRazorpay()
   const [showCompareUpgrade, setShowCompareUpgrade] = useState(false)
   const [showWorkspaceUpgrade, setShowWorkspaceUpgrade] = useState(false)
@@ -308,224 +312,106 @@ export default function Dashboard() {
 
   const reposRestored = useRef(false)
 
-  // ─── Slot accessors (10 slots — supports Free/Plus/Pro/Team limits) ──────
-  // React hooks must be declared unconditionally; enabled flag controls fetching
-  const entry0 = selectedRepos[0] ?? null
-  const entry1 = selectedRepos[1] ?? null
-  const entry2 = selectedRepos[2] ?? null
-  const entry3 = selectedRepos[3] ?? null
-  const entry4 = selectedRepos[4] ?? null
-  const entry5 = selectedRepos[5] ?? null
-  const entry6 = selectedRepos[6] ?? null
-  const entry7 = selectedRepos[7] ?? null
-  const entry8 = selectedRepos[8] ?? null
-  const entry9 = selectedRepos[9] ?? null
-
-  const owner0 = entry0?.repo.full_name.split("/")[0] ?? ""
-  const owner1 = entry1?.repo.full_name.split("/")[0] ?? ""
-  const owner2 = entry2?.repo.full_name.split("/")[0] ?? ""
-  const owner3 = entry3?.repo.full_name.split("/")[0] ?? ""
-  const owner4 = entry4?.repo.full_name.split("/")[0] ?? ""
-  const owner5 = entry5?.repo.full_name.split("/")[0] ?? ""
-  const owner6 = entry6?.repo.full_name.split("/")[0] ?? ""
-  const owner7 = entry7?.repo.full_name.split("/")[0] ?? ""
-  const owner8 = entry8?.repo.full_name.split("/")[0] ?? ""
-  const owner9 = entry9?.repo.full_name.split("/")[0] ?? ""
-
-  const name0 = entry0?.repo.name ?? ""
-  const name1 = entry1?.repo.name ?? ""
-  const name2 = entry2?.repo.name ?? ""
-  const name3 = entry3?.repo.name ?? ""
-  const name4 = entry4?.repo.name ?? ""
-  const name5 = entry5?.repo.name ?? ""
-  const name6 = entry6?.repo.name ?? ""
-  const name7 = entry7?.repo.name ?? ""
-  const name8 = entry8?.repo.name ?? ""
-  const name9 = entry9?.repo.name ?? ""
-
-  const branch0 = entry0?.branch ?? entry0?.repo.default_branch ?? undefined
-  const branch1 = entry1?.branch ?? entry1?.repo.default_branch ?? undefined
-  const branch2 = entry2?.branch ?? entry2?.repo.default_branch ?? undefined
-  const branch3 = entry3?.branch ?? entry3?.repo.default_branch ?? undefined
-  const branch4 = entry4?.branch ?? entry4?.repo.default_branch ?? undefined
-  const branch5 = entry5?.branch ?? entry5?.repo.default_branch ?? undefined
-  const branch6 = entry6?.branch ?? entry6?.repo.default_branch ?? undefined
-  const branch7 = entry7?.branch ?? entry7?.repo.default_branch ?? undefined
-  const branch8 = entry8?.branch ?? entry8?.repo.default_branch ?? undefined
-  const branch9 = entry9?.branch ?? entry9?.repo.default_branch ?? undefined
-
   // Primary accessor for backward-compat with right column logic
-  const selectedRepo = entry0?.repo ?? null
-  const activeBranch = branch0
+  const selectedRepo = selectedRepos[0]?.repo ?? null
+  const activeBranch = selectedRepos[0]?.branch ?? selectedRepos[0]?.repo.default_branch ?? undefined
 
   // ─── Repo list ───────────────────────────────────────────────────────────
   const { data: repos, isLoading: isReposLoading } = useListRepos({ query: { enabled: !!user } })
 
-  // ─── Branch queries (10 slots) ───────────────────────────────────────────
-  const { data: branches0, isLoading: isBranchesLoading0 } = useListBranches(owner0, name0, { query: { enabled: !!entry0 } })
-  const { data: branches1, isLoading: isBranchesLoading1 } = useListBranches(owner1, name1, { query: { enabled: !!entry1 } })
-  const { data: branches2, isLoading: isBranchesLoading2 } = useListBranches(owner2, name2, { query: { enabled: !!entry2 } })
-  const { data: branches3, isLoading: isBranchesLoading3 } = useListBranches(owner3, name3, { query: { enabled: !!entry3 } })
-  const { data: branches4, isLoading: isBranchesLoading4 } = useListBranches(owner4, name4, { query: { enabled: !!entry4 } })
-  const { data: branches5, isLoading: isBranchesLoading5 } = useListBranches(owner5, name5, { query: { enabled: !!entry5 } })
-  const { data: branches6, isLoading: isBranchesLoading6 } = useListBranches(owner6, name6, { query: { enabled: !!entry6 } })
-  const { data: branches7, isLoading: isBranchesLoading7 } = useListBranches(owner7, name7, { query: { enabled: !!entry7 } })
-  const { data: branches8, isLoading: isBranchesLoading8 } = useListBranches(owner8, name8, { query: { enabled: !!entry8 } })
-  const { data: branches9, isLoading: isBranchesLoading9 } = useListBranches(owner9, name9, { query: { enabled: !!entry9 } })
-  const branchesArr = [branches0, branches1, branches2, branches3, branches4, branches5, branches6, branches7, branches8, branches9]
-  const isBranchesLoadingArr = [isBranchesLoading0, isBranchesLoading1, isBranchesLoading2, isBranchesLoading3, isBranchesLoading4, isBranchesLoading5, isBranchesLoading6, isBranchesLoading7, isBranchesLoading8, isBranchesLoading9]
+  // ─── Dynamic query pipeline (useQueries — supports unlimited repos) ───────
+  // useQueries handles dynamic-length arrays between renders; no fixed slot cap.
 
-  // ─── Commit queries (10 slots) ───────────────────────────────────────────
-  const { data: commits0, isLoading: isCommitsLoading0, isError: isCommitsError0, error: commitsError0 } = useListCommits(
-    owner0, name0, { per_page: commitLimit, branch: branch0 }, { query: { enabled: !!entry0, retry: 1 } }
-  )
-  const { data: commits1 } = useListCommits(
-    owner1, name1, { per_page: commitLimit, branch: branch1 }, { query: { enabled: !!entry1, retry: 1 } }
-  )
-  const { data: commits2 } = useListCommits(
-    owner2, name2, { per_page: commitLimit, branch: branch2 }, { query: { enabled: !!entry2, retry: 1 } }
-  )
-  const { data: commits3 } = useListCommits(
-    owner3, name3, { per_page: commitLimit, branch: branch3 }, { query: { enabled: !!entry3, retry: 1 } }
-  )
-  const { data: commits4 } = useListCommits(
-    owner4, name4, { per_page: commitLimit, branch: branch4 }, { query: { enabled: !!entry4, retry: 1 } }
-  )
-  const { data: commits5 } = useListCommits(
-    owner5, name5, { per_page: commitLimit, branch: branch5 }, { query: { enabled: !!entry5, retry: 1 } }
-  )
-  const { data: commits6 } = useListCommits(
-    owner6, name6, { per_page: commitLimit, branch: branch6 }, { query: { enabled: !!entry6, retry: 1 } }
-  )
-  const { data: commits7 } = useListCommits(
-    owner7, name7, { per_page: commitLimit, branch: branch7 }, { query: { enabled: !!entry7, retry: 1 } }
-  )
-  const { data: commits8 } = useListCommits(
-    owner8, name8, { per_page: commitLimit, branch: branch8 }, { query: { enabled: !!entry8, retry: 1 } }
-  )
-  const { data: commits9 } = useListCommits(
-    owner9, name9, { per_page: commitLimit, branch: branch9 }, { query: { enabled: !!entry9, retry: 1 } }
-  )
-  const commitsArr = [commits0, commits1, commits2, commits3, commits4, commits5, commits6, commits7, commits8, commits9]
+  const branchQueriesResult = useQueries({
+    queries: selectedRepos.map(entry => ({
+      queryKey: getListBranchesQueryKey(entry.repo.full_name.split("/")[0], entry.repo.name),
+      queryFn: () => listBranches(entry.repo.full_name.split("/")[0], entry.repo.name),
+      enabled: true,
+    })),
+  })
+  const branchesArr = branchQueriesResult.map(q => q.data)
+  const isBranchesLoadingArr = branchQueriesResult.map(q => q.isLoading)
 
-  // ─── Commit count (slot 0 only, for stats strip) ─────────────────────────
+  const commitQueriesResult = useQueries({
+    queries: selectedRepos.map(entry => {
+      const owner = entry.repo.full_name.split("/")[0]
+      const branch = entry.branch ?? entry.repo.default_branch
+      return {
+        queryKey: getListCommitsQueryKey(owner, entry.repo.name, { per_page: commitLimit, branch }),
+        queryFn: () => listCommits(owner, entry.repo.name, { per_page: commitLimit, branch }),
+        enabled: true,
+        retry: 1 as const,
+      }
+    }),
+  })
+  const commitsArr = commitQueriesResult.map(q => q.data)
+
+  // Commit detail queries — 2 per repo, flat (index i*2 = sha0, i*2+1 = sha1)
+  const commitDetailQueriesResult = useQueries({
+    queries: selectedRepos.flatMap((entry, i) => {
+      const owner = entry.repo.full_name.split("/")[0]
+      const recentShas = (commitQueriesResult[i]?.data ?? []).slice(0, 2).map(c => c.sha)
+      return [recentShas[0] ?? "", recentShas[1] ?? ""].map(sha => ({
+        queryKey: getGetCommitDetailQueryKey(owner, entry.repo.name, sha),
+        queryFn: () => getCommitDetail(owner, entry.repo.name, sha),
+        enabled: !!sha,
+      }))
+    }),
+  })
+
+  // Dep health queries — one per repo, using changed files from commit details
+  const depsQueriesResult = useQueries({
+    queries: selectedRepos.map((entry, i) => {
+      const owner = entry.repo.full_name.split("/")[0]
+      const d1 = commitDetailQueriesResult[i * 2]?.data
+      const d2 = commitDetailQueriesResult[i * 2 + 1]?.data
+      const changedFiles = [...new Set([...(d1?.files ?? []), ...(d2?.files ?? [])].map(f => f.filename))]
+      const filesParam = changedFiles.join(",")
+      return {
+        queryKey: getGetRepoDepsQueryKey(owner, entry.repo.name, { files: filesParam }),
+        queryFn: () => getRepoDeps(owner, entry.repo.name, { files: filesParam }),
+        enabled: changedFiles.length > 0,
+      }
+    }),
+  })
+  const depsReportArr = depsQueriesResult.map(q => q.data)
+  const isDepsLoadingArr = depsQueriesResult.map(q => q.isLoading)
+  const isDepsErrorArr = depsQueriesResult.map(q => q.isError)
+  const refetchDepsArr = depsQueriesResult.map(q => q.refetch)
+
+  // ─── Commit count (primary repo, for stats strip) ─────────────────────────
+  const primaryOwner = selectedRepos[0]?.repo.full_name.split("/")[0] ?? ""
+  const primaryName = selectedRepos[0]?.repo.name ?? ""
+  const primaryBranch = selectedRepos[0]?.branch ?? selectedRepos[0]?.repo.default_branch
   const { data: commitCountData } = useQuery({
-    queryKey: ["commitCount", owner0, name0, branch0],
+    queryKey: ["commitCount", primaryOwner, primaryName, primaryBranch],
     queryFn: async () => {
       const params = new URLSearchParams()
-      if (branch0) params.set("branch", branch0)
+      if (primaryBranch) params.set("branch", primaryBranch)
       const res = await fetch(
-        `${import.meta.env.BASE_URL}api/github/repos/${owner0}/${name0}/commit-count?${params}`,
+        `${import.meta.env.BASE_URL}api/github/repos/${primaryOwner}/${primaryName}/commit-count?${params}`,
         { credentials: "include" }
       )
       if (!res.ok) return null
       const data = await res.json() as { total: number }
       return data.total
     },
-    enabled: !!entry0,
+    enabled: !!selectedRepos[0],
     staleTime: 5 * 60 * 1000,
   })
 
-  // ─── Merged commit list (all active slots) ───────────────────────────────
-  const namesArr = [name0, name1, name2, name3, name4, name5, name6, name7, name8, name9]
+  // ─── Merged commit list (all active repos) ────────────────────────────────
   const mergedCommits = useMemo((): TaggedCommit[] => {
     const all: TaggedCommit[] = commitsArr.flatMap((commits, i) =>
-      (commits ?? []).map(c => ({ ...c, _repoIdx: i, _repoName: namesArr[i]! }))
+      (commits ?? []).map(c => ({ ...c, _repoIdx: i, _repoName: selectedRepos[i]?.repo.name ?? "" }))
     )
     return all.sort((a, b) => new Date(b.author_date).getTime() - new Date(a.author_date).getTime())
-  }, [commits0, commits1, commits2, commits3, commits4, commits5, commits6, commits7, commits8, commits9,
-      name0, name1, name2, name3, name4, name5, name6, name7, name8, name9])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(commitsArr), JSON.stringify(selectedRepos.map(e => e.repo.name))])
 
   const isMultiRepo = selectedRepos.length > 1
-  const isCommitsLoading = isCommitsLoading0
-  const isCommitsError = isCommitsError0
-
-  // ─── Dep health queries (10 slots) ───────────────────────────────────────
-  // Gather changed filenames for dep detection (2 recent SHAs per slot)
-  const recentShas0 = useMemo(() => commits0?.slice(0, 2).map(c => c.sha) ?? [], [commits0])
-  const { data: d0a } = useGetCommitDetail(owner0, name0, recentShas0[0] ?? "", { query: { enabled: !!entry0 && !!recentShas0[0] } })
-  const { data: d0b } = useGetCommitDetail(owner0, name0, recentShas0[1] ?? "", { query: { enabled: !!entry0 && !!recentShas0[1] } })
-  const changedFiles0 = useMemo(() => [...new Set([...(d0a?.files ?? []), ...(d0b?.files ?? [])].map(f => f.filename))], [d0a, d0b])
-
-  const recentShas1 = useMemo(() => commits1?.slice(0, 2).map(c => c.sha) ?? [], [commits1])
-  const { data: d1a } = useGetCommitDetail(owner1, name1, recentShas1[0] ?? "", { query: { enabled: !!entry1 && !!recentShas1[0] } })
-  const { data: d1b } = useGetCommitDetail(owner1, name1, recentShas1[1] ?? "", { query: { enabled: !!entry1 && !!recentShas1[1] } })
-  const changedFiles1 = useMemo(() => [...new Set([...(d1a?.files ?? []), ...(d1b?.files ?? [])].map(f => f.filename))], [d1a, d1b])
-
-  const recentShas2 = useMemo(() => commits2?.slice(0, 2).map(c => c.sha) ?? [], [commits2])
-  const { data: d2a } = useGetCommitDetail(owner2, name2, recentShas2[0] ?? "", { query: { enabled: !!entry2 && !!recentShas2[0] } })
-  const { data: d2b } = useGetCommitDetail(owner2, name2, recentShas2[1] ?? "", { query: { enabled: !!entry2 && !!recentShas2[1] } })
-  const changedFiles2 = useMemo(() => [...new Set([...(d2a?.files ?? []), ...(d2b?.files ?? [])].map(f => f.filename))], [d2a, d2b])
-
-  const recentShas3 = useMemo(() => commits3?.slice(0, 2).map(c => c.sha) ?? [], [commits3])
-  const { data: d3a } = useGetCommitDetail(owner3, name3, recentShas3[0] ?? "", { query: { enabled: !!entry3 && !!recentShas3[0] } })
-  const { data: d3b } = useGetCommitDetail(owner3, name3, recentShas3[1] ?? "", { query: { enabled: !!entry3 && !!recentShas3[1] } })
-  const changedFiles3 = useMemo(() => [...new Set([...(d3a?.files ?? []), ...(d3b?.files ?? [])].map(f => f.filename))], [d3a, d3b])
-
-  const recentShas4 = useMemo(() => commits4?.slice(0, 2).map(c => c.sha) ?? [], [commits4])
-  const { data: d4a } = useGetCommitDetail(owner4, name4, recentShas4[0] ?? "", { query: { enabled: !!entry4 && !!recentShas4[0] } })
-  const { data: d4b } = useGetCommitDetail(owner4, name4, recentShas4[1] ?? "", { query: { enabled: !!entry4 && !!recentShas4[1] } })
-  const changedFiles4 = useMemo(() => [...new Set([...(d4a?.files ?? []), ...(d4b?.files ?? [])].map(f => f.filename))], [d4a, d4b])
-
-  const recentShas5 = useMemo(() => commits5?.slice(0, 2).map(c => c.sha) ?? [], [commits5])
-  const { data: d5a } = useGetCommitDetail(owner5, name5, recentShas5[0] ?? "", { query: { enabled: !!entry5 && !!recentShas5[0] } })
-  const { data: d5b } = useGetCommitDetail(owner5, name5, recentShas5[1] ?? "", { query: { enabled: !!entry5 && !!recentShas5[1] } })
-  const changedFiles5 = useMemo(() => [...new Set([...(d5a?.files ?? []), ...(d5b?.files ?? [])].map(f => f.filename))], [d5a, d5b])
-
-  const recentShas6 = useMemo(() => commits6?.slice(0, 2).map(c => c.sha) ?? [], [commits6])
-  const { data: d6a } = useGetCommitDetail(owner6, name6, recentShas6[0] ?? "", { query: { enabled: !!entry6 && !!recentShas6[0] } })
-  const { data: d6b } = useGetCommitDetail(owner6, name6, recentShas6[1] ?? "", { query: { enabled: !!entry6 && !!recentShas6[1] } })
-  const changedFiles6 = useMemo(() => [...new Set([...(d6a?.files ?? []), ...(d6b?.files ?? [])].map(f => f.filename))], [d6a, d6b])
-
-  const recentShas7 = useMemo(() => commits7?.slice(0, 2).map(c => c.sha) ?? [], [commits7])
-  const { data: d7a } = useGetCommitDetail(owner7, name7, recentShas7[0] ?? "", { query: { enabled: !!entry7 && !!recentShas7[0] } })
-  const { data: d7b } = useGetCommitDetail(owner7, name7, recentShas7[1] ?? "", { query: { enabled: !!entry7 && !!recentShas7[1] } })
-  const changedFiles7 = useMemo(() => [...new Set([...(d7a?.files ?? []), ...(d7b?.files ?? [])].map(f => f.filename))], [d7a, d7b])
-
-  const recentShas8 = useMemo(() => commits8?.slice(0, 2).map(c => c.sha) ?? [], [commits8])
-  const { data: d8a } = useGetCommitDetail(owner8, name8, recentShas8[0] ?? "", { query: { enabled: !!entry8 && !!recentShas8[0] } })
-  const { data: d8b } = useGetCommitDetail(owner8, name8, recentShas8[1] ?? "", { query: { enabled: !!entry8 && !!recentShas8[1] } })
-  const changedFiles8 = useMemo(() => [...new Set([...(d8a?.files ?? []), ...(d8b?.files ?? [])].map(f => f.filename))], [d8a, d8b])
-
-  const recentShas9 = useMemo(() => commits9?.slice(0, 2).map(c => c.sha) ?? [], [commits9])
-  const { data: d9a } = useGetCommitDetail(owner9, name9, recentShas9[0] ?? "", { query: { enabled: !!entry9 && !!recentShas9[0] } })
-  const { data: d9b } = useGetCommitDetail(owner9, name9, recentShas9[1] ?? "", { query: { enabled: !!entry9 && !!recentShas9[1] } })
-  const changedFiles9 = useMemo(() => [...new Set([...(d9a?.files ?? []), ...(d9b?.files ?? [])].map(f => f.filename))], [d9a, d9b])
-
-  const { data: depsReport0, isLoading: isDepsLoading0, isError: isDepsError0, refetch: refetchDeps0 } = useGetRepoDeps(
-    owner0, name0, { files: changedFiles0.join(",") }, { query: { enabled: !!entry0 && changedFiles0.length > 0 } }
-  )
-  const { data: depsReport1, isLoading: isDepsLoading1, isError: isDepsError1, refetch: refetchDeps1 } = useGetRepoDeps(
-    owner1, name1, { files: changedFiles1.join(",") }, { query: { enabled: !!entry1 && changedFiles1.length > 0 } }
-  )
-  const { data: depsReport2, isLoading: isDepsLoading2, isError: isDepsError2, refetch: refetchDeps2 } = useGetRepoDeps(
-    owner2, name2, { files: changedFiles2.join(",") }, { query: { enabled: !!entry2 && changedFiles2.length > 0 } }
-  )
-  const { data: depsReport3, isLoading: isDepsLoading3, isError: isDepsError3, refetch: refetchDeps3 } = useGetRepoDeps(
-    owner3, name3, { files: changedFiles3.join(",") }, { query: { enabled: !!entry3 && changedFiles3.length > 0 } }
-  )
-  const { data: depsReport4, isLoading: isDepsLoading4, isError: isDepsError4, refetch: refetchDeps4 } = useGetRepoDeps(
-    owner4, name4, { files: changedFiles4.join(",") }, { query: { enabled: !!entry4 && changedFiles4.length > 0 } }
-  )
-  const { data: depsReport5, isLoading: isDepsLoading5, isError: isDepsError5, refetch: refetchDeps5 } = useGetRepoDeps(
-    owner5, name5, { files: changedFiles5.join(",") }, { query: { enabled: !!entry5 && changedFiles5.length > 0 } }
-  )
-  const { data: depsReport6, isLoading: isDepsLoading6, isError: isDepsError6, refetch: refetchDeps6 } = useGetRepoDeps(
-    owner6, name6, { files: changedFiles6.join(",") }, { query: { enabled: !!entry6 && changedFiles6.length > 0 } }
-  )
-  const { data: depsReport7, isLoading: isDepsLoading7, isError: isDepsError7, refetch: refetchDeps7 } = useGetRepoDeps(
-    owner7, name7, { files: changedFiles7.join(",") }, { query: { enabled: !!entry7 && changedFiles7.length > 0 } }
-  )
-  const { data: depsReport8, isLoading: isDepsLoading8, isError: isDepsError8, refetch: refetchDeps8 } = useGetRepoDeps(
-    owner8, name8, { files: changedFiles8.join(",") }, { query: { enabled: !!entry8 && changedFiles8.length > 0 } }
-  )
-  const { data: depsReport9, isLoading: isDepsLoading9, isError: isDepsError9, refetch: refetchDeps9 } = useGetRepoDeps(
-    owner9, name9, { files: changedFiles9.join(",") }, { query: { enabled: !!entry9 && changedFiles9.length > 0 } }
-  )
-  const depsReportArr = [depsReport0, depsReport1, depsReport2, depsReport3, depsReport4, depsReport5, depsReport6, depsReport7, depsReport8, depsReport9]
-  const isDepsLoadingArr = [isDepsLoading0, isDepsLoading1, isDepsLoading2, isDepsLoading3, isDepsLoading4, isDepsLoading5, isDepsLoading6, isDepsLoading7, isDepsLoading8, isDepsLoading9]
-  const isDepsErrorArr = [isDepsError0, isDepsError1, isDepsError2, isDepsError3, isDepsError4, isDepsError5, isDepsError6, isDepsError7, isDepsError8, isDepsError9]
-  const refetchDepsArr = [refetchDeps0, refetchDeps1, refetchDeps2, refetchDeps3, refetchDeps4, refetchDeps5, refetchDeps6, refetchDeps7, refetchDeps8, refetchDeps9]
+  const isCommitsLoading = commitQueriesResult[0]?.isLoading ?? false
+  const isCommitsError = commitQueriesResult[0]?.isError ?? false
 
   // ─── Dep context (aggregate major deps from all repos for AI) ─────────────
   const depContext = useMemo((): DepContextItem[] => {
@@ -542,7 +428,8 @@ export default function Dashboard() {
         severity: "major" as const,
         ecosystem: d.ecosystem,
       }))
-  }, [depsReport0, depsReport1, depsReport2, depsReport3, depsReport4, depsReport5, depsReport6, depsReport7, depsReport8, depsReport9])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(depsReportArr)])
 
   const { generate, isGenerating, progress, result } = useGenerateSummary()
 
@@ -786,10 +673,8 @@ export default function Dashboard() {
       patch: acc.patch + (r?.summary.patch ?? 0),
     }), { major: 0, minor: 0, patch: 0 })
     return { ...total, loading, anyLoaded: reports.length > 0 }
-  }, [depsReport0, depsReport1, depsReport2, depsReport3, depsReport4, depsReport5,
-      depsReport6, depsReport7, depsReport8, depsReport9,
-      isDepsLoading0, isDepsLoading1, isDepsLoading2, isDepsLoading3, isDepsLoading4,
-      isDepsLoading5, isDepsLoading6, isDepsLoading7, isDepsLoading8, isDepsLoading9])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(depsReportArr), JSON.stringify(isDepsLoadingArr)])
 
   // ─── e2em — repos visible to the user that match the grant ───────────────
   const e2emMatchedRepos = e2emGrant?.granted
@@ -1030,7 +915,7 @@ export default function Dashboard() {
               >
                 <h2 className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.25)" }}>Active Repos</h2>
                 {selectedRepos.map((entry, i) => {
-                  const color = REPO_COLORS[i]!
+                  const color = REPO_COLORS[i % REPO_COLORS.length]!
                   const branches = branchesArr[i]
                   const isBranchLoading = isBranchesLoadingArr[i]
                   const activeBr = entry.branch ?? entry.repo.default_branch ?? ""
@@ -1288,7 +1173,7 @@ export default function Dashboard() {
                     <X className="w-5 h-5 text-red-400" />
                   </div>
                   {(() => {
-                    const status = (commitsError0 as { status?: number } | null)?.status
+                    const status = (commitQueriesResult[0]?.error as { status?: number } | null)?.status
                     const isRateLimit = status === 403
                     return (
                       <>
@@ -1325,9 +1210,9 @@ export default function Dashboard() {
               ) : (
                 <div className="space-y-3">
                   {mergedCommits.map((commit, idx) => {
-                    const owner = selectedRepos[commit._repoIdx]?.repo.full_name.split("/")[0] ?? owner0
+                    const owner = selectedRepos[commit._repoIdx]?.repo.full_name.split("/")[0] ?? primaryOwner
                     const repoName = commit._repoName
-                    const color = isMultiRepo ? REPO_COLORS[commit._repoIdx] : undefined
+                    const color = isMultiRepo ? REPO_COLORS[commit._repoIdx % REPO_COLORS.length] : undefined
                     return (
                       <CommitCard
                         key={`${commit._repoIdx}-${commit.sha}`}
@@ -1424,7 +1309,7 @@ export default function Dashboard() {
                           const loading = isDepsLoadingArr[i]
                           const error = isDepsErrorArr[i]
                           const refetch = refetchDepsArr[i]!
-                          const color = REPO_COLORS[i]!
+                          const color = REPO_COLORS[i % REPO_COLORS.length]!
                           return (
                             <div key={entry.id}>
                               {isMultiRepo && (

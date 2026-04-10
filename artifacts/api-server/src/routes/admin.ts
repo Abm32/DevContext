@@ -270,7 +270,7 @@ router.put("/plans/:username", async (req, res) => {
   if (!verifyAdminToken(req)) { res.status(401).json({ error: "Unauthorized" }); return; }
   const { username } = req.params;
   const { plan } = req.body as { plan: string };
-  if (!["free", "pro", "team"].includes(plan)) {
+  if (!["free", "plus", "pro", "team"].includes(plan)) {
     res.status(400).json({ error: "Invalid plan" });
     return;
   }
@@ -300,6 +300,66 @@ router.delete("/plans/:username/usage", async (req, res) => {
   } catch (err) {
     req.log.error({ err }, "admin usage reset error");
     res.status(500).json({ error: "Failed to reset usage" });
+  }
+});
+
+// ── Full user list (for Users management page) ────────────────────────────────
+
+router.get("/users", async (req, res) => {
+  if (!verifyAdminToken(req)) { res.status(401).json({ error: "Unauthorized" }); return; }
+  try {
+    const plans = await db.select().from(userPlans).orderBy(desc(userPlans.created_at));
+    const allUsage = await db.select().from(aiUsage).orderBy(desc(aiUsage.updated_at));
+
+    // Build usage lookup by user
+    const usageByUser: Record<string, { current_month: number; all_time: number; months: Array<{ month: string; count: number }> }> = {};
+    const now = new Date();
+    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+    for (const row of allUsage) {
+      if (!usageByUser[row.github_username]) {
+        usageByUser[row.github_username] = { current_month: 0, all_time: 0, months: [] };
+      }
+      const u = usageByUser[row.github_username]!;
+      u.all_time += row.count;
+      u.months.push({ month: row.month, count: row.count });
+      if (row.month === currentMonth) u.current_month = row.count;
+    }
+
+    res.json(plans.map(p => ({
+      ...p,
+      ai_usage_current_month: usageByUser[p.github_username]?.current_month ?? 0,
+      ai_usage_all_time: usageByUser[p.github_username]?.all_time ?? 0,
+      ai_usage_months: usageByUser[p.github_username]?.months ?? [],
+    })));
+  } catch (err) {
+    req.log.error({ err }, "admin users list error");
+    res.status(500).json({ error: "Failed to list users" });
+  }
+});
+
+// Set AI credit count for a user's current month (allows adding or subtracting credits)
+router.post("/users/:username/credits", async (req, res) => {
+  if (!verifyAdminToken(req)) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const { username } = req.params;
+  const { count } = req.body as { count?: number };
+  if (typeof count !== "number" || count < 0 || !Number.isInteger(count)) {
+    res.status(400).json({ error: "count must be a non-negative integer" });
+    return;
+  }
+  try {
+    const now = new Date();
+    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    await db.insert(aiUsage)
+      .values({ github_username: username, month: currentMonth, count, updated_at: now })
+      .onConflictDoUpdate({
+        target: [aiUsage.github_username, aiUsage.month],
+        set: { count, updated_at: now },
+      });
+    res.json({ ok: true, github_username: username, month: currentMonth, count });
+  } catch (err) {
+    req.log.error({ err }, "admin credits set error");
+    res.status(500).json({ error: "Failed to set credits" });
   }
 });
 

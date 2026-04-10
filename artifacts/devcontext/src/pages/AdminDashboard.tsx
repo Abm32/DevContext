@@ -6,7 +6,7 @@ import {
 } from "recharts"
 import {
   Users, Eye, MousePointerClick, Activity, LogOut, RefreshCw, BrainCircuit, Zap,
-  Mail, Plus, Trash2, ToggleLeft, ToggleRight, Check, X,
+  Mail, Plus, Trash2, ToggleLeft, ToggleRight, Check, X, BarChart2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -266,6 +266,28 @@ export default function AdminDashboard() {
               Admin
             </span>
           </div>
+
+          <nav className="flex items-center gap-1">
+            {[
+              { label: "Dashboard", path: "/admin/dashboard", icon: BarChart2 },
+              { label: "Users", path: "/admin/users", icon: Users },
+            ].map(({ label, path, icon: Icon }) => (
+              <button
+                key={path}
+                onClick={() => setLocation(path)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all"
+                style={{
+                  background: path === "/admin/dashboard" ? "rgba(99,102,241,0.12)" : "transparent",
+                  color: path === "/admin/dashboard" ? "#818cf8" : "rgba(255,255,255,0.4)",
+                  border: path === "/admin/dashboard" ? "1px solid rgba(99,102,241,0.25)" : "1px solid transparent",
+                }}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                {label}
+              </button>
+            ))}
+          </nav>
+
           <div className="flex items-center gap-2">
             {lastRefresh && (
               <span className="text-[11px] text-muted-foreground/50 hidden sm:block">

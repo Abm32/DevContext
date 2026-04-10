@@ -5,6 +5,14 @@ import { userPlans, PLAN_PRICES, type PlanTier } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { getTokenPayload } from "./auth";
 
+// ─── Plan rank hierarchy (downgrade prevention) ───────────────────────────────
+const PLAN_RANK: Record<PlanTier, number> = { free: 0, plus: 1, pro: 2, team: 3 };
+
+async function getCurrentPlan(username: string): Promise<PlanTier> {
+  const [row] = await db.select({ plan: userPlans.plan }).from(userPlans).where(eq(userPlans.github_username, username)).limit(1);
+  return (row?.plan as PlanTier | undefined) ?? "free";
+}
+
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const Razorpay = require("razorpay") as typeof import("razorpay").default;
 
@@ -34,6 +42,19 @@ router.post("/create-order", async (req, res) => {
 
   const paidPlan = plan as PaidPlan;
   const pricing = PLAN_PRICES[paidPlan];
+
+  // ── Downgrade guard: reject if requested plan is at or below current plan ──
+  try {
+    const currentPlan = await getCurrentPlan(payload.githubUser.login);
+    if (PLAN_RANK[paidPlan] <= PLAN_RANK[currentPlan]) {
+      res.status(400).json({
+        error: currentPlan === paidPlan
+          ? "You are already on this plan"
+          : "Downgrades are not supported. Please contact support."
+      });
+      return;
+    }
+  } catch (_e) { /* non-fatal — proceed if DB lookup fails */ }
 
   try {
     const rzp = getRazorpay();
@@ -129,7 +150,19 @@ router.post("/verify", async (req, res) => {
       return;
     }
 
-    // ── 5. Activate the plan ──────────────────────────────────────────────────
+    // ── 5. Guard against downgrade (e.g. concurrent session confusion) ───────
+    const currentPlan = await getCurrentPlan(payload.githubUser.login);
+    if (PLAN_RANK[activatedPlan] <= PLAN_RANK[currentPlan]) {
+      req.log.warn({ activatedPlan, currentPlan }, "Rejected plan activation: downgrade attempt");
+      res.status(400).json({
+        error: currentPlan === activatedPlan
+          ? "You are already on this plan"
+          : "Downgrades are not supported. Please contact support."
+      });
+      return;
+    }
+
+    // ── 6. Activate the plan ──────────────────────────────────────────────────
     const username = payload.githubUser.login;
     await db
       .insert(userPlans)

@@ -30,6 +30,14 @@ export type AiUsage = typeof aiUsage.$inferSelect;
 export type InsertAiUsage = typeof aiUsage.$inferInsert;
 
 // ─── Plan config ─────────────────────────────────────────────────────────────
+//
+// max_repos: How many repos can be active in compare mode simultaneously.
+//   The dashboard compare pipeline renders exactly 3 side-by-side columns
+//   (entry0/1/2 hooks, REPO_COLORS array). This is both a UI and a React
+//   hooks architectural limit (hooks cannot be called in loops).
+//   Free = 1 (single-repo mode only). Plus/Pro/Team = 3 (full compare mode).
+//   Pro and Team differentiate on AI credits, standup emails, workspaces,
+//   and team members — not on compare slot count.
 
 export const PLAN_LIMITS = {
   free: {
@@ -48,14 +56,14 @@ export const PLAN_LIMITS = {
   },
   pro: {
     ai_analyses_per_month: 500,
-    max_repos: 10,
+    max_repos: 3,
     compare_mode: true,
     standup_emails: true,
     workspaces: true,
   },
   team: {
     ai_analyses_per_month: 2000,
-    max_repos: 9999,
+    max_repos: 3,
     compare_mode: true,
     standup_emails: true,
     workspaces: true,

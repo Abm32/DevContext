@@ -147,9 +147,9 @@ export function Header() {
                 onClick={() => logoutMutation.mutate()}
                 isLoading={logoutMutation.isPending}
                 title="Log out"
-                className="text-muted-foreground hover:text-destructive w-7 h-7 md:w-8 md:h-8"
+                className="text-muted-foreground hover:text-destructive w-8 h-8"
               >
-                <LogOut className="w-3 h-3 md:w-3.5 md:h-3.5" />
+                <LogOut className="w-3.5 h-3.5" />
               </Button>
             </>
           ) : (

@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { useLocation } from "wouter"
 import { useGetMe, useLogout } from "@workspace/api-client-react"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -64,6 +65,7 @@ function UpgradeNavButton() {
 }
 
 export function Header() {
+  const [, setLocation] = useLocation()
   const { data: user, isLoading } = useGetMe({ query: { retry: false } })
   const { plan, isFreeTier } = usePlan()
   const logoutMutation = useLogout({
@@ -99,8 +101,12 @@ export function Header() {
               {/* Upgrade CTA — only on free tier */}
               {isFreeTier && <UpgradeNavButton />}
 
-              {/* User pill */}
-              <div className="flex items-center gap-2 bg-secondary/50 py-1 pl-2.5 pr-1 rounded-full border border-white/5">
+              {/* User pill → profile */}
+              <button
+                onClick={() => setLocation("/profile")}
+                title="View profile"
+                className="flex items-center gap-2 bg-secondary/50 py-1 pl-2.5 pr-1 rounded-full border border-white/5 hover:border-white/15 transition-colors"
+              >
                 <span className="text-xs font-medium text-muted-foreground hidden sm:block leading-none">
                   {user.login}
                 </span>
@@ -109,7 +115,7 @@ export function Header() {
                   alt={user.login}
                   className="w-6 h-6 rounded-full border border-white/10"
                 />
-              </div>
+              </button>
 
               {/* Logout */}
               <Button

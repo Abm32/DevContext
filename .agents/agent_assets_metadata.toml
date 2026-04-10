@@ -107,3 +107,21 @@ id = "aSYeLVaHaZ0c7eeveTSyF"
 uri = "file://artifacts/devcontext/public/images/cover.png"
 type = "image"
 title = "DevContext – Cover (1:1 square)"
+
+[[outputs]]
+id = "0a_uzx3l9RKTq_eM0KodG"
+uri = "file://artifacts/devcontext/public/images/ph-screenshot-1-hero.jpg"
+type = "image"
+title = "PH Screenshot 1 – Hero (1440px)"
+
+[[outputs]]
+id = "pHixaH-T4zHQF86tRfBHX"
+uri = "file://artifacts/devcontext/public/images/ph-screenshot-2-mobile.jpg"
+type = "image"
+title = "PH Screenshot 2 – Mobile (390px)"
+
+[[outputs]]
+id = "cbsW_i6RQ8mKKd489dPlD"
+uri = "file://artifacts/devcontext/public/images/ph-screenshot-3-demo.jpg"
+type = "image"
+title = "PH Screenshot 3 – Demo Section"

@@ -278,7 +278,13 @@ export default function Dashboard() {
   const [depHealthExpanded, setDepHealthExpanded] = useState(false)
   const [e2emExpanded, setE2emExpanded] = useState(false)
   const [cachedSummary, setCachedSummary] = useState<CachedSummary | null>(null)
+  const [showOnboarding, setShowOnboarding] = useState(() => localStorage.getItem("dc_onboarded") !== "true")
   const commitLimit = 30
+
+  const dismissOnboarding = () => {
+    localStorage.setItem("dc_onboarded", "true")
+    setShowOnboarding(false)
+  }
 
   const reposRestored = useRef(false)
 
@@ -312,7 +318,7 @@ export default function Dashboard() {
   const { data: branches2, isLoading: isBranchesLoading2 } = useListBranches(owner2, name2, { query: { enabled: !!entry2 } })
 
   // ─── Commit queries (3 fixed slots) ─────────────────────────────────────
-  const { data: commits0, isLoading: isCommitsLoading0, isError: isCommitsError0 } = useListCommits(
+  const { data: commits0, isLoading: isCommitsLoading0, isError: isCommitsError0, error: commitsError0 } = useListCommits(
     owner0, name0, { per_page: commitLimit, branch: branch0 }, { query: { enabled: !!entry0, retry: 1 } }
   )
   const { data: commits1 } = useListCommits(
@@ -710,6 +716,57 @@ export default function Dashboard() {
     <div className="h-screen bg-background flex flex-col overflow-hidden">
       <Header />
 
+      {/* ── Onboarding banner (first-time users only) ──────────────────────── */}
+      <AnimatePresence>
+        {showOnboarding && selectedRepos.length === 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="relative z-10 px-4 pt-3 pb-0 md:px-8"
+          >
+            <div
+              className="rounded-xl px-4 py-3.5 flex flex-col sm:flex-row sm:items-center gap-3"
+              style={{ background: "rgba(59,130,246,0.07)", border: "1px solid rgba(59,130,246,0.2)" }}
+            >
+              <div className="flex items-center gap-2 shrink-0">
+                <BrainCircuit className="w-4 h-4 shrink-0" style={{ color: "#3b82f6" }} />
+                <span className="text-xs font-bold uppercase tracking-widest" style={{ color: "#3b82f6" }}>
+                  Get started in 3 steps
+                </span>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                {[
+                  { n: "1", label: "Pick a repository" },
+                  { n: "2", label: "Select a branch" },
+                  { n: "3", label: 'Hit "What\'s next?"' },
+                ].map((step, i) => (
+                  <div key={step.n} className="flex items-center gap-1.5">
+                    {i > 0 && <ArrowRight className="w-3 h-3 shrink-0" style={{ color: "rgba(255,255,255,0.2)" }} />}
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg" style={{ background: "rgba(255,255,255,0.05)" }}>
+                      <span
+                        className="w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
+                        style={{ background: "rgba(59,130,246,0.3)", color: "#93c5fd" }}
+                      >
+                        {step.n}
+                      </span>
+                      <span className="text-xs font-medium" style={{ color: "#94a3b8" }}>{step.label}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={dismissOnboarding}
+                className="ml-auto shrink-0 text-muted-foreground/40 hover:text-muted-foreground transition-colors"
+                aria-label="Dismiss"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Mobile tab switcher */}
       <div className="md:hidden flex" style={{ background: "#0e0e10", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
         {([
@@ -1093,18 +1150,44 @@ export default function Dashboard() {
                   ))}
                 </div>
               ) : isCommitsError ? (
-                <div className="h-full flex items-center justify-center border border-dashed border-red-500/20 rounded-xl bg-red-500/5 p-6 text-center">
-                  <div className="space-y-3">
-                    <p className="text-sm font-medium text-red-400">Cannot access commits</p>
-                    <p className="text-xs text-muted-foreground leading-relaxed max-w-[220px]">
-                      This is likely a private org repo. Reconnect GitHub and approve access for your organization.
-                    </p>
+                <div className="h-full flex flex-col items-center justify-center border border-dashed border-red-500/20 rounded-xl bg-red-500/5 p-6 text-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+                    <X className="w-5 h-5 text-red-400" />
                   </div>
+                  {(() => {
+                    const status = (commitsError0 as { status?: number } | null)?.status
+                    const isRateLimit = status === 403
+                    return (
+                      <>
+                        <div className="space-y-1.5">
+                          <p className="text-sm font-semibold text-red-400">
+                            {isRateLimit ? "GitHub rate limit reached" : "Cannot access commits"}
+                          </p>
+                          <p className="text-xs text-muted-foreground leading-relaxed max-w-[230px]">
+                            {isRateLimit
+                              ? "GitHub's API limit has been hit. Wait a minute and try again."
+                              : "This may be a private org repo. Grant org access on GitHub or ask your org admin to approve this app."}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => window.location.reload()}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+                          style={{ background: "rgba(239,68,68,0.1)", color: "#f87171", border: "1px solid rgba(239,68,68,0.2)" }}
+                        >
+                          <ArrowRight className="w-3 h-3" />
+                          {isRateLimit ? "Retry" : "Grant access on GitHub"}
+                        </button>
+                      </>
+                    )
+                  })()}
                 </div>
               ) : mergedCommits.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center p-8 text-center">
-                  <GitCommitHorizontal className="w-8 h-8 text-muted-foreground/30 mb-3" />
-                  <p className="text-sm text-muted-foreground">No commits found on this branch.</p>
+                <div className="h-full flex flex-col items-center justify-center p-8 text-center gap-3">
+                  <GitCommitHorizontal className="w-8 h-8 text-muted-foreground/30" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">No commits found on this branch.</p>
+                    <p className="text-xs text-muted-foreground/50 mt-1">Try switching branches using the selector above.</p>
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -1126,6 +1209,21 @@ export default function Dashboard() {
                 </div>
               )}
             </div>
+
+            {/* Mobile: "Analyze commits" nudge */}
+            {mergedCommits.length > 0 && !displayResult && (
+              <button
+                onClick={() => setMobileTab("ai")}
+                className="md:hidden mt-2 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white transition-all"
+                style={{
+                  background: "linear-gradient(135deg, #3b82f6, #2563eb)",
+                  boxShadow: "0 4px 16px rgba(59,130,246,0.25)",
+                }}
+              >
+                <Sparkles className="w-4 h-4" />
+                Analyze {mergedCommits.length} commits →
+              </button>
+            )}
           </div>
         </div>
 

@@ -1263,7 +1263,7 @@ export default function Dashboard() {
         </div>
 
         {/* ── Right Column ───────────────────────────────────────────────── */}
-        <div className={`w-full md:w-2/3 flex flex-col gap-4 overflow-hidden ${mobileTab === "commits" ? "hidden md:flex" : "flex"}`}>
+        <div className={`w-full md:w-2/3 flex flex-col gap-4 overflow-hidden min-w-0 ${mobileTab === "commits" ? "hidden md:flex" : "flex"}`}>
 
           {/* Dependency Health — collapsible strip */}
           <AnimatePresence>
@@ -1348,7 +1348,7 @@ export default function Dashboard() {
           </AnimatePresence>
 
           {/* AI Summary Panel */}
-          <div className="flex-1 flex flex-col bg-card border border-white/5 rounded-2xl shadow-xl overflow-hidden relative min-h-0">
+          <div className="flex-1 flex flex-col bg-card border border-white/5 rounded-2xl shadow-xl overflow-hidden relative min-h-0 min-w-0">
             {/* Header row 1: title + usage chip + copy button */}
             <div className="px-3 md:px-5 pt-3 md:pt-4 pb-0 flex items-start justify-between gap-2 md:gap-3">
               <div className="flex items-center gap-2 md:gap-3 min-w-0">
@@ -1452,7 +1452,7 @@ export default function Dashboard() {
               )}
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 md:p-6 relative">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 md:p-6 relative min-w-0">
               {!selectedRepo ? (
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 md:p-8">
                   <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-secondary flex items-center justify-center mb-4 md:mb-6">
@@ -1508,10 +1508,10 @@ export default function Dashboard() {
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="max-w-3xl space-y-8"
+                  className="max-w-3xl space-y-6 md:space-y-8 min-w-0 break-words"
                 >
                   {/* Metadata row */}
-                  <div className="flex items-center gap-2 text-[11px]" style={{ color: "rgba(255,255,255,0.3)" }}>
+                  <div className="flex items-center gap-2 text-[11px] flex-wrap" style={{ color: "rgba(255,255,255,0.3)" }}>
                     <Clock className="w-3 h-3" />
                     {isFromCache ? (
                       <span>Cached · {formatRelativeDate(cachedSummary!.generatedAt)}</span>
@@ -1531,19 +1531,19 @@ export default function Dashboard() {
                   {/* Standup */}
                   {displayResult.standup_update ? (
                     <section>
-                      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-                        <h3 className="text-sm font-semibold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
-                          <ClipboardList className="w-4 h-4" />
+                      <div className="flex items-center justify-between mb-3 md:mb-4 flex-wrap gap-1.5 md:gap-2">
+                        <h3 className="text-xs md:text-sm font-semibold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5 md:gap-2">
+                          <ClipboardList className="w-3.5 h-3.5 md:w-4 md:h-4" />
                           Standup Update
                         </h3>
                         {mergedCommits.length > 0 && (
-                          <span className="text-[11px] text-muted-foreground/60 flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            {new Date(mergedCommits[mergedCommits.length - 1].author_date).toLocaleDateString()} – {new Date(mergedCommits[0].author_date).toLocaleDateString()}
+                          <span className="text-[10px] md:text-[11px] text-muted-foreground/60 flex items-center gap-1">
+                            <Clock className="w-3 h-3 shrink-0" />
+                            <span className="truncate">{new Date(mergedCommits[mergedCommits.length - 1].author_date).toLocaleDateString()} – {new Date(mergedCommits[0].author_date).toLocaleDateString()}</span>
                           </span>
                         )}
                       </div>
-                      <div className="p-3 md:p-5 rounded-xl bg-emerald-500/5 border border-emerald-500/15 text-white leading-relaxed whitespace-pre-wrap font-mono text-xs md:text-sm">
+                      <div className="p-3 md:p-5 rounded-xl bg-emerald-500/5 border border-emerald-500/15 text-white leading-relaxed whitespace-pre-wrap font-mono text-xs md:text-sm overflow-x-hidden break-words" style={{ overflowWrap: "break-word", wordBreak: "break-word" }}>
                         {displayResult.standup_update}
                       </div>
                       <p className="mt-3 text-xs text-muted-foreground">Paste this directly into Slack, Notion, or your standup tool.</p>
@@ -1552,26 +1552,26 @@ export default function Dashboard() {
 
                   {/* What you were doing */}
                   <section>
-                    <h3 className="text-sm font-semibold text-primary uppercase tracking-wider mb-4 flex items-center gap-2">
-                      <GitCommitHorizontal className="w-4 h-4" />
+                    <h3 className="text-xs md:text-sm font-semibold text-primary uppercase tracking-wider mb-3 md:mb-4 flex items-center gap-1.5 md:gap-2">
+                      <GitCommitHorizontal className="w-3.5 h-3.5 md:w-4 md:h-4 shrink-0" />
                       What you were doing
                     </h3>
-                    <div className="p-3 md:p-5 rounded-xl bg-secondary/30 border border-white/5 text-white text-sm md:text-base leading-relaxed">
+                    <div className="p-3 md:p-5 rounded-xl bg-secondary/30 border border-white/5 text-white text-sm md:text-base leading-relaxed break-words" style={{ overflowWrap: "break-word" }}>
                       {displayResult.what_you_were_doing}
                     </div>
                   </section>
 
                   {/* Key Changes */}
                   <section>
-                    <h3 className="text-sm font-semibold text-accent uppercase tracking-wider mb-4 flex items-center gap-2">
-                      <GitMerge className="w-4 h-4" />
+                    <h3 className="text-xs md:text-sm font-semibold text-accent uppercase tracking-wider mb-3 md:mb-4 flex items-center gap-1.5 md:gap-2">
+                      <GitMerge className="w-3.5 h-3.5 md:w-4 md:h-4 shrink-0" />
                       Key Changes
                     </h3>
                     <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {displayResult.key_changes.map((change, i) => (
                         <li key={i} className="flex items-start gap-2.5 md:gap-3 p-3 md:p-4 rounded-xl bg-white/[0.02] border border-white/5">
                           <div className="mt-0.5 w-1.5 h-1.5 rounded-full bg-accent shrink-0" />
-                          <span className="text-xs md:text-sm text-muted-foreground">{change}</span>
+                          <span className="text-xs md:text-sm text-muted-foreground min-w-0 break-words">{change}</span>
                         </li>
                       ))}
                     </ul>
@@ -1579,8 +1579,8 @@ export default function Dashboard() {
 
                   {/* Next Steps */}
                   <section>
-                    <h3 className="text-sm font-semibold text-emerald-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-                      <ArrowRight className="w-4 h-4" />
+                    <h3 className="text-xs md:text-sm font-semibold text-emerald-400 uppercase tracking-wider mb-3 md:mb-4 flex items-center gap-1.5 md:gap-2">
+                      <ArrowRight className="w-3.5 h-3.5 md:w-4 md:h-4 shrink-0" />
                       Suggested Next Steps
                     </h3>
                     <div className="space-y-3">
@@ -1589,7 +1589,7 @@ export default function Dashboard() {
                           <div className="flex-shrink-0 w-7 h-7 md:w-8 md:h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs md:text-sm">
                             {i + 1}
                           </div>
-                          <span className="text-sm md:text-base text-white font-medium">{step}</span>
+                          <span className="text-sm md:text-base text-white font-medium min-w-0 break-words">{step}</span>
                         </div>
                       ))}
                     </div>

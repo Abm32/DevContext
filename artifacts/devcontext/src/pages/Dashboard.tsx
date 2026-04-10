@@ -17,6 +17,7 @@ import {
 } from "@workspace/api-client-react"
 import { useGenerateSummary } from "@/hooks/use-devcontext"
 import { usePlan } from "@/hooks/use-plan"
+import { useRazorpay } from "@/hooks/use-razorpay"
 import { DepHealthPanel } from "@/components/dep-health-panel"
 import { UpgradePrompt, UsageChip, UpgradeButton } from "@/components/upgrade-prompt"
 import { track } from "@/hooks/use-track"
@@ -240,9 +241,21 @@ export default function Dashboard() {
   const { data: user, isLoading: isAuthLoading, isError } = useGetMe({ query: { retry: false } })
 
   // ─── Plan & feature gates ──────────────────────────────────────────────────
-  const { features, usage, isFreeTier, refetch: refetchPlan } = usePlan()
+  const { plan, features, usage, isFreeTier, refetch: refetchPlan } = usePlan()
+  const maxRepos = features.max_repos === 9999 ? Infinity : features.max_repos
+  const { openCheckout } = useRazorpay()
   const [showCompareUpgrade, setShowCompareUpgrade] = useState(false)
   const [showWorkspaceUpgrade, setShowWorkspaceUpgrade] = useState(false)
+
+  // ─── Pending plan from landing page CTA (auth-then-checkout flow) ─────────
+  useEffect(() => {
+    if (!user) return
+    const pending = localStorage.getItem("devcontext_pending_plan") as "plus" | "pro" | "team" | null
+    if (!pending) return
+    localStorage.removeItem("devcontext_pending_plan")
+    if (plan === pending || plan === "team") return // already on that plan or higher
+    void openCheckout({ plan: pending })
+  }, [user, plan, openCheckout])
 
   // ─── Repo selection state ─────────────────────────────────────────────────
   const [selectedRepos, setSelectedRepos] = useState<RepoEntry[]>([])
@@ -514,13 +527,13 @@ export default function Dashboard() {
         updated = [{ id: crypto.randomUUID(), repo, branch: null }]
       }
     } else {
-      // Multi-select: toggle in/out, max 3
+      // Multi-select: toggle in/out, capped at plan's max_repos
       if (idx >= 0) {
         updated = selectedRepos.filter((_, i) => i !== idx)
-      } else if (selectedRepos.length < 3) {
+      } else if (selectedRepos.length < maxRepos) {
         updated = [...selectedRepos, { id: crypto.randomUUID(), repo, branch: null }]
       } else {
-        return // max 3
+        return // at plan repo limit
       }
     }
 
@@ -818,7 +831,7 @@ export default function Dashboard() {
                 >
                   <BookmarkPlus className="w-3 h-3" />
                   Save
-                  {isFreeTier && <span style={{ fontSize: "8px", color: "#a78bfa", fontWeight: 800 }}>PRO</span>}
+                  {!features.workspaces && <span style={{ fontSize: "8px", color: "#a78bfa", fontWeight: 800 }}>PRO</span>}
                 </button>
               )}
             </div>
@@ -829,6 +842,7 @@ export default function Dashboard() {
                 <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
                   <UpgradePrompt
                     inline
+                    currentPlan={plan}
                     feature="Saved Workspaces"
                     description="Save and restore your repo + branch combinations instantly."
                     onDismiss={() => setShowWorkspaceUpgrade(false)}
@@ -957,7 +971,9 @@ export default function Dashboard() {
               <h2 className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.25)" }}>
                 {!multiRepoMode
                   ? "Repository"
-                  : selectedRepos.length < 3 ? "Compare Repos" : "Repositories (max 3)"}
+                  : selectedRepos.length < maxRepos
+                    ? "Compare Repos"
+                    : `Repositories (max ${maxRepos === Infinity ? "unlimited" : maxRepos})`}
               </h2>
               {/* Compare mode toggle — Pro feature */}
               <button
@@ -967,12 +983,14 @@ export default function Dashboard() {
                   ? { background: "rgba(139,92,246,0.15)", color: "#a78bfa", border: "1px solid rgba(139,92,246,0.25)" }
                   : { background: "rgba(255,255,255,0.04)", color: "#475569", border: "1px solid rgba(255,255,255,0.08)" }}
                 title={features.compare_mode
-                  ? (multiRepoMode ? "Exit compare mode (keeps first repo)" : "Compare up to 3 repos side by side")
-                  : "Upgrade to Pro to compare repos"}
+                  ? (multiRepoMode
+                    ? "Exit compare mode (keeps first repo)"
+                    : `Compare up to ${maxRepos === Infinity ? "unlimited" : maxRepos} repos side by side`)
+                  : "Upgrade to unlock compare mode"}
               >
                 <Layers className="w-3 h-3" />
                 {multiRepoMode ? "Exit Compare" : "Compare"}
-                {isFreeTier && <span style={{ fontSize: "8px", color: "#a78bfa", fontWeight: 800 }}>PRO</span>}
+                {!features.compare_mode && <span style={{ fontSize: "8px", color: "#a78bfa", fontWeight: 800 }}>PLUS+</span>}
               </button>
             </div>
             {/* Compare upgrade nudge */}
@@ -981,8 +999,9 @@ export default function Dashboard() {
                 <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
                   <UpgradePrompt
                     inline
+                    currentPlan={plan}
                     feature="Compare Mode"
-                    description="Select up to 3 repos and get cross-repo AI analysis."
+                    description="Unlock multi-repo AI analysis across your codebase."
                     onDismiss={() => setShowCompareUpgrade(false)}
                   />
                 </motion.div>
@@ -1013,7 +1032,7 @@ export default function Dashboard() {
                     const isSelected = slotIdx >= 0
                     const slotColor = isSelected ? REPO_COLORS[slotIdx] : null
                     // In single-select mode nothing is ever "full" — clicking always switches
-                    const isFull = multiRepoMode && selectedRepos.length >= 3 && !isSelected
+                    const isFull = multiRepoMode && selectedRepos.length >= maxRepos && !isSelected
                     return (
                       <button
                         key={repo.id}

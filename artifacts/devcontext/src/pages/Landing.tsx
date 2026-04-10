@@ -821,6 +821,8 @@ function PricingCTAButton({
     <button
       onClick={() => {
         void track("click:pricing_cta", { plan })
+        // Persist plan intent so Dashboard can auto-launch checkout after OAuth
+        localStorage.setItem("devcontext_pending_plan", plan)
         window.location.href = "/api/auth/github"
       }}
       className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-all"

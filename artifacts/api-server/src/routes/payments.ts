@@ -69,11 +69,10 @@ router.post("/verify", async (req, res) => {
   const payload = getTokenPayload(req);
   if (!payload) { res.status(401).json({ error: "Not authenticated" }); return; }
 
-  const { razorpay_order_id, razorpay_payment_id, razorpay_signature, plan = "pro" } = req.body as {
+  const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body as {
     razorpay_order_id?: string;
     razorpay_payment_id?: string;
     razorpay_signature?: string;
-    plan?: string;
   };
 
   if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
@@ -81,12 +80,7 @@ router.post("/verify", async (req, res) => {
     return;
   }
 
-  if (!VALID_PAID_PLANS.includes(plan as PaidPlan)) {
-    res.status(400).json({ error: "Invalid plan specified" });
-    return;
-  }
-
-  // Verify HMAC-SHA256 signature
+  // ── 1. Verify HMAC-SHA256 signature ────────────────────────────────────────
   const expectedSignature = crypto
     .createHmac("sha256", KEY_SECRET)
     .update(`${razorpay_order_id}|${razorpay_payment_id}`)
@@ -98,9 +92,45 @@ router.post("/verify", async (req, res) => {
   }
 
   try {
-    const username = payload.githubUser.login;
-    const activatedPlan = plan as PaidPlan;
+    // ── 2. Fetch the order from Razorpay server-side to read the plan ─────────
+    //     We NEVER trust the client for which plan to activate.
+    const rzp = getRazorpay();
+    const order = await rzp.orders.fetch(razorpay_order_id);
+    const notes = order.notes as Record<string, string> | undefined;
 
+    const planFromNotes = notes?.["plan"];
+    if (!planFromNotes || !VALID_PAID_PLANS.includes(planFromNotes as PaidPlan)) {
+      req.log.error({ planFromNotes, order_id: razorpay_order_id }, "Invalid plan in order notes");
+      res.status(400).json({ error: "Could not determine plan from order" });
+      return;
+    }
+
+    const activatedPlan = planFromNotes as PaidPlan;
+
+    // ── 3. Verify the order amount matches the plan's expected price ──────────
+    const expectedAmount = PLAN_PRICES[activatedPlan].amount_paise;
+    if (Number(order.amount) !== expectedAmount) {
+      req.log.error(
+        { activatedPlan, orderAmount: order.amount, expectedAmount },
+        "Order amount does not match plan price"
+      );
+      res.status(400).json({ error: "Payment amount does not match plan price" });
+      return;
+    }
+
+    // ── 4. Verify the order is for the authenticated user ─────────────────────
+    const usernameFromNotes = notes?.["github_username"];
+    if (usernameFromNotes && usernameFromNotes !== payload.githubUser.login) {
+      req.log.error(
+        { usernameFromNotes, authenticatedUser: payload.githubUser.login },
+        "Order user mismatch"
+      );
+      res.status(400).json({ error: "Order does not belong to current user" });
+      return;
+    }
+
+    // ── 5. Activate the plan ──────────────────────────────────────────────────
+    const username = payload.githubUser.login;
     await db
       .insert(userPlans)
       .values({

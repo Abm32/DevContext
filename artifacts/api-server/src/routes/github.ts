@@ -62,14 +62,18 @@ router.get("/repos", async (req, res) => {
   if (!token) return;
 
   try {
-    // Fetch personal repos and org list in parallel
-    const [personalRepos, orgs] = await Promise.all([
+    // Fetch personal repos, org list, and all-type repos in parallel
+    const [personalRepos, orgs, allUserRepos] = await Promise.all([
       ghFetch<GHRepo[]>(
         "https://api.github.com/user/repos?sort=updated&per_page=100&type=owner",
         token
       ),
       ghFetch<Array<{ login: string }>>(
         "https://api.github.com/user/orgs?per_page=100",
+        token
+      ),
+      ghFetch<GHRepo[]>(
+        "https://api.github.com/user/repos?sort=updated&per_page=100&type=all",
         token
       ),
     ]);
@@ -82,12 +86,6 @@ router.get("/repos", async (req, res) => {
           token
         )
       )
-    );
-
-    // Also fetch repos where the user is a collaborator (covers forks, team repos, etc.)
-    const allUserRepos = await ghFetch<GHRepo[]>(
-      "https://api.github.com/user/repos?sort=updated&per_page=100&type=all",
-      token
     );
 
     // Merge and deduplicate by id, sort by updated_at descending

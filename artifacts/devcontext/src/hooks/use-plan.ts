@@ -22,7 +22,7 @@ export interface PlanData {
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? ""
 
 async function fetchPlan(): Promise<PlanData> {
-  const res = await fetch(`${BASE}/api/v1/plan/me`, { credentials: "include" })
+  const res = await fetch(`${BASE}/api/plan/me`, { credentials: "include" })
   if (!res.ok) throw new Error("Failed to fetch plan")
   return res.json() as Promise<PlanData>
 }

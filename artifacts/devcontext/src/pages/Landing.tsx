@@ -1234,7 +1234,7 @@ export default function Landing() {
                   popular: true,
                   features: [
                     "500 AI analyses / month",
-                    "Compare up to 3 repos",
+                    "Compare up to 10 repos",
                     "Standup generator",
                     "Saved workspaces",
                     "Dependency health",
@@ -1254,7 +1254,7 @@ export default function Landing() {
                   popular: false,
                   features: [
                     "2,000 AI analyses / month",
-                    "Compare up to 3 repos",
+                    "Compare up to 10 repos",
                     "Up to 10 team members",
                     "Standup generator",
                     "Saved workspaces",

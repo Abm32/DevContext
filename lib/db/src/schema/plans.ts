@@ -48,14 +48,14 @@ export const PLAN_LIMITS = {
   },
   pro: {
     ai_analyses_per_month: 500,
-    max_repos: 10,
+    max_repos: 3,
     compare_mode: true,
     standup_emails: true,
     workspaces: true,
   },
   team: {
     ai_analyses_per_month: 2000,
-    max_repos: 9999,
+    max_repos: 3,
     compare_mode: true,
     standup_emails: true,
     workspaces: true,

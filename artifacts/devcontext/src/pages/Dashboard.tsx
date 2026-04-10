@@ -242,7 +242,8 @@ export default function Dashboard() {
 
   // ─── Plan & feature gates ──────────────────────────────────────────────────
   const { plan, features, usage, isFreeTier, refetch: refetchPlan } = usePlan()
-  const maxRepos = features.max_repos === 9999 ? Infinity : features.max_repos
+  // compare mode supports up to 3 slots; max_repos is always 1 (free) or 3 (paid compare tiers)
+  const maxRepos = features.max_repos
   const { openCheckout } = useRazorpay()
   const [showCompareUpgrade, setShowCompareUpgrade] = useState(false)
   const [showWorkspaceUpgrade, setShowWorkspaceUpgrade] = useState(false)
@@ -973,7 +974,7 @@ export default function Dashboard() {
                   ? "Repository"
                   : selectedRepos.length < maxRepos
                     ? "Compare Repos"
-                    : `Repositories (max ${maxRepos === Infinity ? "unlimited" : maxRepos})`}
+                    : `Repositories (max ${maxRepos})`}
               </h2>
               {/* Compare mode toggle — Pro feature */}
               <button
@@ -985,7 +986,7 @@ export default function Dashboard() {
                 title={features.compare_mode
                   ? (multiRepoMode
                     ? "Exit compare mode (keeps first repo)"
-                    : `Compare up to ${maxRepos === Infinity ? "unlimited" : maxRepos} repos side by side`)
+                    : `Compare up to ${maxRepos} repos side by side`)
                   : "Upgrade to unlock compare mode"}
               >
                 <Layers className="w-3 h-3" />

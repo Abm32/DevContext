@@ -335,7 +335,7 @@ export default function Profile() {
             >
               <FeatureRow label="AI Commit Briefings" enabled icon={<BrainCircuit className="w-4 h-4" />} />
               <FeatureRow
-                label={`Multi-repo Analysis (up to ${features.max_repos >= 9999 ? "10" : features.max_repos} repos)`}
+                label={`Multi-repo Analysis (up to ${features.max_repos} repos)`}
                 enabled={features.max_repos > 1}
                 icon={<GitBranch className="w-4 h-4" />}
               />

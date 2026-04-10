@@ -242,9 +242,9 @@ export default function Dashboard() {
 
   // ─── Plan & feature gates ──────────────────────────────────────────────────
   const { plan, features, usage, isFreeTier, refetch: refetchPlan } = usePlan()
-  // max_repos: 1 (free), 3 (plus), 10 (pro), 9999 sentinel (team = up to UI limit).
-  // Dashboard declares 10 hook slots (entry0-9) and REPO_COLORS has 10 entries.
-  // Cap at REPO_COLORS.length so team's sentinel doesn't exceed the pipeline.
+  // max_repos: 1 (free) / 3 (plus) / 10 (pro) / 10 (team).
+  // Dashboard declares 10 hook slots (entry0-9) matching REPO_COLORS.length.
+  // Schema and UI cap are always in sync (see lib/db/src/schema/plans.ts).
   const maxRepos = Math.min(features.max_repos, REPO_COLORS.length)
   const { openCheckout } = useRazorpay()
   const [showCompareUpgrade, setShowCompareUpgrade] = useState(false)

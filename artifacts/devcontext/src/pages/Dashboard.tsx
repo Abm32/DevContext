@@ -7,6 +7,7 @@ import { computeCommitStats } from "@/lib/commit-stats"
 import {
   useGetMe,
   useListRepos,
+  useGetCommitDetail,
   listBranches,
   getListBranchesQueryKey,
   listCommits,

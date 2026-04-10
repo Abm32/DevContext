@@ -2,49 +2,97 @@ import { useEffect } from "react"
 import { useLocation } from "wouter"
 import { motion } from "framer-motion"
 import { useGetMe } from "@workspace/api-client-react"
-import { usePlan } from "@/hooks/use-plan"
+import { usePlan, type PlanTier } from "@/hooks/use-plan"
 import { UpgradeButton } from "@/components/upgrade-prompt"
 import { Header } from "@/components/layout/Header"
 import {
-  Github, ExternalLink, Zap, CheckCircle2, XCircle,
+  Github, ExternalLink, CheckCircle2, XCircle,
   BrainCircuit, GitBranch, Layers, ClipboardList, Bookmark,
-  ArrowLeft, Sparkles, Crown,
+  ArrowLeft, Crown, Zap, Sparkles, Users,
 } from "lucide-react"
 
-// ─── Circular progress ring ───────────────────────────────────────────────────
-function RingProgress({ used, limit, exhausted }: { used: number; limit: number | null; exhausted: boolean }) {
-  const isUnlimited = limit === null
-  const pct = isUnlimited ? 0 : Math.min(100, (used / (limit ?? 1)) * 100)
+type PaidPlan = Exclude<PlanTier, "free">
+
+// ─── Tier display config ───────────────────────────────────────────────────────
+const TIER_CONFIG: Record<PlanTier, {
+  label: string
+  price: string
+  description: string
+  color: string
+  bg: string
+  border: string
+  icon: React.ReactNode
+}> = {
+  free: {
+    label: "Free Plan",
+    price: "₹0",
+    description: "10 AI analyses/month · 1 repo · Core features",
+    color: "#64748b",
+    bg: "rgba(255,255,255,0.03)",
+    border: "rgba(255,255,255,0.08)",
+    icon: <Sparkles className="w-5 h-5" style={{ color: "#475569" }} />,
+  },
+  plus: {
+    label: "Plus Plan",
+    price: "₹499",
+    description: "100 AI analyses/month · 3 repos · Compare mode",
+    color: "#60a5fa",
+    bg: "rgba(59,130,246,0.08)",
+    border: "rgba(59,130,246,0.22)",
+    icon: <Zap className="w-5 h-5" style={{ color: "#60a5fa" }} />,
+  },
+  pro: {
+    label: "Pro Plan",
+    price: "₹999",
+    description: "500 AI analyses/month · 10 repos · All features",
+    color: "#a78bfa",
+    bg: "rgba(139,92,246,0.08)",
+    border: "rgba(139,92,246,0.25)",
+    icon: <Crown className="w-5 h-5" style={{ color: "#a78bfa" }} />,
+  },
+  team: {
+    label: "Team Plan",
+    price: "₹2,499",
+    description: "2,000 AI analyses/month · Unlimited repos · Up to 10 members",
+    color: "#34d399",
+    bg: "rgba(16,185,129,0.06)",
+    border: "rgba(16,185,129,0.18)",
+    icon: <Users className="w-5 h-5" style={{ color: "#34d399" }} />,
+  },
+}
+
+const NEXT_TIER: Record<PlanTier, PaidPlan | null> = {
+  free: "plus",
+  plus: "pro",
+  pro: "team",
+  team: null,
+}
+
+// ─── Circular progress ring ────────────────────────────────────────────────────
+function RingProgress({ used, limit, exhausted }: { used: number; limit: number; exhausted: boolean }) {
+  const pct = Math.min(100, (used / limit) * 100)
   const r = 36
   const circ = 2 * Math.PI * r
-  const dash = isUnlimited ? 0 : circ * (1 - pct / 100)
+  const dash = circ * (1 - pct / 100)
   const color = exhausted ? "#ef4444" : pct > 70 ? "#f59e0b" : "#3b82f6"
 
   return (
     <div className="relative inline-flex items-center justify-center w-24 h-24">
       <svg width="96" height="96" className="-rotate-90">
         <circle cx="48" cy="48" r={r} fill="none" strokeWidth="7" stroke="rgba(255,255,255,0.06)" />
-        {!isUnlimited && (
-          <circle
-            cx="48" cy="48" r={r}
-            fill="none" strokeWidth="7"
-            stroke={color}
-            strokeLinecap="round"
-            strokeDasharray={circ}
-            strokeDashoffset={dash}
-            style={{ transition: "stroke-dashoffset 0.6s ease" }}
-          />
-        )}
+        <circle
+          cx="48" cy="48" r={r}
+          fill="none" strokeWidth="7"
+          stroke={color}
+          strokeLinecap="round"
+          strokeDasharray={circ}
+          strokeDashoffset={dash}
+          style={{ transition: "stroke-dashoffset 0.6s ease" }}
+        />
       </svg>
       <div className="absolute flex flex-col items-center">
-        {isUnlimited ? (
-          <span className="text-lg font-bold" style={{ color: "#10b981" }}>∞</span>
-        ) : (
-          <>
-            <span className="text-lg font-bold leading-none" style={{ color }}>{used}</span>
-            <span className="text-[10px] leading-none mt-0.5" style={{ color: "#475569" }}>/ {limit}</span>
-          </>
-        )}
+        <span className="text-lg font-bold leading-none" style={{ color }}>{used}</span>
+        <span className="text-[10px] leading-none mt-0.5" style={{ color: "#475569" }}>/ {limit}</span>
       </div>
     </div>
   )
@@ -64,48 +112,30 @@ function FeatureRow({ label, enabled, icon }: { label: string; enabled: boolean;
 }
 
 // ─── Plan card ────────────────────────────────────────────────────────────────
-function PlanCard({ tier }: { tier: string }) {
-  const isPro = tier === "pro" || tier === "team"
+function PlanCard({ tier }: { tier: PlanTier }) {
+  const cfg = TIER_CONFIG[tier]
   return (
     <div
       className="rounded-2xl p-5 flex items-center gap-4"
-      style={isPro
-        ? { background: "rgba(139,92,246,0.08)", border: "1px solid rgba(139,92,246,0.25)" }
-        : { background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}
+      style={{ background: cfg.bg, border: `1px solid ${cfg.border}` }}
     >
-      <div
-        className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
-        style={isPro
-          ? { background: "rgba(139,92,246,0.2)" }
-          : { background: "rgba(255,255,255,0.05)" }}
-      >
-        {isPro
-          ? <Crown className="w-6 h-6" style={{ color: "#a78bfa" }} />
-          : <Sparkles className="w-6 h-6" style={{ color: "#475569" }} />}
+      <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
+        style={{ background: `${cfg.bg}`, border: `1px solid ${cfg.border}` }}>
+        {cfg.icon}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-0.5">
-          <span className="text-base font-bold text-white">
-            {isPro ? "Pro Plan" : "Free Plan"}
-          </span>
-          <span
-            className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full"
-            style={isPro
-              ? { background: "rgba(139,92,246,0.2)", color: "#a78bfa" }
-              : { background: "rgba(255,255,255,0.05)", color: "#64748b" }}
-          >
+          <span className="text-base font-bold text-white">{cfg.label}</span>
+          <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full"
+            style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}` }}>
             {tier.toUpperCase()}
           </span>
         </div>
-        <p className="text-sm" style={{ color: "#64748b" }}>
-          {isPro
-            ? "Unlimited AI · 3 repos · All features unlocked"
-            : "10 AI analyses/month · 1 repo · Core features"}
-        </p>
+        <p className="text-sm" style={{ color: "#64748b" }}>{cfg.description}</p>
       </div>
-      {isPro && (
+      {tier !== "free" && (
         <div className="shrink-0 text-right">
-          <p className="text-lg font-bold text-white">₹999</p>
+          <p className="text-lg font-bold text-white">{cfg.price}</p>
           <p className="text-[11px]" style={{ color: "#475569" }}>/month</p>
         </div>
       )}
@@ -113,11 +143,42 @@ function PlanCard({ tier }: { tier: string }) {
   )
 }
 
+// ─── Upgrade section ──────────────────────────────────────────────────────────
+function UpgradeSection({ currentPlan }: { currentPlan: PlanTier }) {
+  const nextTier = NEXT_TIER[currentPlan]
+  if (!nextTier) return null
+  const cfg = TIER_CONFIG[nextTier]
+
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.2 }}
+    >
+      <h2 className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: "rgba(255,255,255,0.25)" }}>
+        Upgrade
+      </h2>
+      <div
+        className="rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4"
+        style={{ background: cfg.bg, border: `1px solid ${cfg.border}` }}
+      >
+        <div className="flex-1">
+          <h3 className="text-base font-bold text-white mb-1">
+            Upgrade to {cfg.label} — {cfg.price}/mo
+          </h3>
+          <p className="text-sm" style={{ color: "#64748b" }}>{cfg.description}</p>
+        </div>
+        <UpgradeButton plan={nextTier} />
+      </div>
+    </motion.section>
+  )
+}
+
 // ─── Profile page ─────────────────────────────────────────────────────────────
 export default function Profile() {
   const [, setLocation] = useLocation()
   const { data: user, isLoading: isUserLoading, isError } = useGetMe({ query: { retry: false } })
-  const { plan, features, usage, isFreeTier, isLoading: isPlanLoading } = usePlan()
+  const { plan, features, usage, isTeam, isLoading: isPlanLoading } = usePlan()
 
   useEffect(() => {
     if (isError) setLocation("/")
@@ -137,6 +198,7 @@ export default function Profile() {
   if (!user) return null
 
   const aiUsage = usage.ai_analyses
+  const cfg = TIER_CONFIG[plan]
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -198,11 +260,9 @@ export default function Profile() {
             <div className="shrink-0 hidden sm:block">
               <span
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest"
-                style={!isFreeTier
-                  ? { background: "rgba(139,92,246,0.15)", color: "#a78bfa", border: "1px solid rgba(139,92,246,0.25)" }
-                  : { background: "rgba(255,255,255,0.05)", color: "#64748b", border: "1px solid rgba(255,255,255,0.08)" }}
+                style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}` }}
               >
-                {!isFreeTier && <Zap className="w-3 h-3" />}
+                {cfg.icon}
                 {plan.toUpperCase()}
               </span>
             </div>
@@ -244,33 +304,22 @@ export default function Profile() {
                   )}
                 </div>
                 <p className="text-sm mb-4" style={{ color: "#475569" }}>
-                  {aiUsage.limit === null
-                    ? "Unlimited analyses — Pro plan"
-                    : `${aiUsage.used} of ${aiUsage.limit} used this month`}
+                  {aiUsage.used} of {aiUsage.limit} used this month
                 </p>
-                {/* Progress bar (only for limited plans) */}
-                {aiUsage.limit !== null && (
-                  <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${Math.min(100, (aiUsage.used / aiUsage.limit) * 100)}%` }}
-                      transition={{ duration: 0.7, ease: "easeOut" }}
-                      className="h-full rounded-full"
-                      style={{
-                        background: aiUsage.exhausted
-                          ? "#ef4444"
-                          : aiUsage.used / aiUsage.limit > 0.7
-                          ? "#f59e0b"
-                          : "#3b82f6",
-                      }}
-                    />
-                  </div>
-                )}
-                {aiUsage.limit !== null && (
-                  <p className="text-[11px] mt-2" style={{ color: "#334155" }}>
-                    Resets on the 1st of each month
-                  </p>
-                )}
+                <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.min(100, (aiUsage.used / aiUsage.limit) * 100)}%` }}
+                    transition={{ duration: 0.7, ease: "easeOut" }}
+                    className="h-full rounded-full"
+                    style={{
+                      background: aiUsage.exhausted ? "#ef4444" : aiUsage.used / aiUsage.limit > 0.7 ? "#f59e0b" : "#3b82f6",
+                    }}
+                  />
+                </div>
+                <p className="text-[11px] mt-2" style={{ color: "#334155" }}>
+                  Resets on the 1st of each month
+                </p>
               </div>
             </div>
           </section>
@@ -286,7 +335,7 @@ export default function Profile() {
             >
               <FeatureRow label="AI Commit Briefings" enabled icon={<BrainCircuit className="w-4 h-4" />} />
               <FeatureRow
-                label={`Multi-repo Analysis (up to ${features.max_repos} repos)`}
+                label={`Multi-repo Analysis (up to ${features.max_repos === 9999 ? "unlimited" : features.max_repos} repos)`}
                 enabled={features.max_repos > 1}
                 icon={<GitBranch className="w-4 h-4" />}
               />
@@ -308,47 +357,20 @@ export default function Profile() {
             </div>
           </section>
 
-          {/* ── Upgrade section (Free only) ── */}
-          {isFreeTier && (
-            <motion.section
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-            >
-              <h2 className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: "rgba(255,255,255,0.25)" }}>
-                Upgrade
-              </h2>
-              <div
-                className="rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4"
-                style={{
-                  background: "rgba(139,92,246,0.05)",
-                  border: "1px solid rgba(139,92,246,0.2)",
-                }}
-              >
-                <div className="flex-1">
-                  <h3 className="text-base font-bold text-white mb-1">
-                    Go Pro for ₹999/month
-                  </h3>
-                  <p className="text-sm" style={{ color: "#64748b" }}>
-                    Unlimited AI analyses · 3 repos · Compare mode · Workspaces · Standups
-                  </p>
-                </div>
-                <UpgradeButton />
-              </div>
-            </motion.section>
-          )}
+          {/* ── Upgrade section (non-Team only) ── */}
+          {!isTeam && <UpgradeSection currentPlan={plan} />}
 
-          {/* ── Pro badge section (Pro only) ── */}
-          {!isFreeTier && (
+          {/* ── Team confirmation ── */}
+          {isTeam && (
             <div
               className="rounded-2xl p-5 flex items-center gap-3"
               style={{ background: "rgba(16,185,129,0.05)", border: "1px solid rgba(16,185,129,0.15)" }}
             >
               <CheckCircle2 className="w-5 h-5 shrink-0" style={{ color: "#10b981" }} />
               <div>
-                <p className="text-sm font-semibold text-white">All Pro features active</p>
+                <p className="text-sm font-semibold text-white">Team plan active — all features unlocked</p>
                 <p className="text-xs mt-0.5" style={{ color: "#475569" }}>
-                  You have unlimited access to all DevContext features.
+                  You have maximum access with 2,000 AI analyses/month and unlimited repositories.
                 </p>
               </div>
             </div>

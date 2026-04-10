@@ -65,8 +65,8 @@ router.get("/me", async (req, res) => {
       usage: {
         ai_analyses: {
           used: usageCount,
-          limit: limitValue === Infinity ? null : limitValue,
-          exhausted: limitValue !== Infinity && usageCount >= limitValue,
+          limit: limitValue,
+          exhausted: usageCount >= limitValue,
         },
       },
     });
@@ -80,10 +80,12 @@ router.get("/me", async (req, res) => {
 export async function checkAiAllowed(github_username: string): Promise<{ allowed: boolean; reason?: string }> {
   const plan = await getUserPlan(github_username);
   const limits = PLAN_LIMITS[plan];
-  if (limits.ai_analyses_per_month === Infinity) return { allowed: true };
   const used = await getMonthlyUsage(github_username);
   if (used >= limits.ai_analyses_per_month) {
-    return { allowed: false, reason: `Free plan allows ${limits.ai_analyses_per_month} AI analyses per month. Upgrade to Pro for unlimited access.` };
+    return {
+      allowed: false,
+      reason: `Your ${plan} plan allows ${limits.ai_analyses_per_month} AI analyses per month. Upgrade to continue.`,
+    };
   }
   return { allowed: true };
 }

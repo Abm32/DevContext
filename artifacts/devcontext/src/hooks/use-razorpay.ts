@@ -1,5 +1,6 @@
 import { useCallback, useRef } from "react"
 import { useQueryClient } from "@tanstack/react-query"
+import type { PlanTier } from "@/hooks/use-plan"
 
 declare global {
   interface Window {
@@ -36,7 +37,15 @@ interface CreateOrderResponse {
   amount: number
   currency: string
   key_id: string
+  plan: string
+  plan_label: string
   prefill: { name?: string }
+}
+
+const PLAN_DESCRIPTIONS: Record<Exclude<PlanTier, "free">, string> = {
+  plus: "Plus Plan — 100 AI analyses · 3 repos · Compare Mode",
+  pro: "Pro Plan — 500 AI analyses · 10 repos · All features",
+  team: "Team Plan — 2,000 AI analyses · Unlimited repos · Team sharing",
 }
 
 function loadScript(): Promise<void> {
@@ -50,11 +59,14 @@ function loadScript(): Promise<void> {
   })
 }
 
+const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? ""
+
 export function useRazorpay() {
   const qc = useQueryClient()
   const openingRef = useRef(false)
 
   const openCheckout = useCallback(async (opts: {
+    plan?: Exclude<PlanTier, "free">
     onSuccess?: () => void
     onError?: (msg: string) => void
     onDismiss?: () => void
@@ -62,10 +74,17 @@ export function useRazorpay() {
     if (openingRef.current) return
     openingRef.current = true
 
+    const targetPlan = opts.plan ?? "pro"
+
     try {
       await loadScript()
 
-      const res = await fetch("/api/payments/create-order", { method: "POST", credentials: "include" })
+      const res = await fetch(`${BASE}/api/payments/create-order`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ plan: targetPlan }),
+      })
       if (!res.ok) {
         const err = await res.json() as { error?: string }
         opts.onError?.(err.error ?? "Failed to initiate payment")
@@ -78,26 +97,25 @@ export function useRazorpay() {
         amount: order.amount,
         currency: order.currency,
         name: "DevContext",
-        description: "Pro Plan — Unlimited AI · Workspaces · Compare Repos",
+        description: PLAN_DESCRIPTIONS[targetPlan],
         order_id: order.order_id,
-        image: "/images/logo.png",
+        image: `${BASE}/images/logo.png`,
         prefill: { name: order.prefill.name },
         theme: { color: "#3b82f6" },
         handler: async (response: RazorpayPaymentResponse) => {
           try {
-            const verifyRes = await fetch("/api/payments/verify", {
+            const verifyRes = await fetch(`${BASE}/api/payments/verify`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               credentials: "include",
-              body: JSON.stringify(response),
+              body: JSON.stringify({ ...response, plan: targetPlan }),
             })
             if (!verifyRes.ok) {
               const err = await verifyRes.json() as { error?: string }
               opts.onError?.(err.error ?? "Payment verification failed")
               return
             }
-            // Invalidate plan cache so UI updates instantly
-            await qc.invalidateQueries({ queryKey: ["/api/plan/me"] })
+            await qc.invalidateQueries({ queryKey: ["plan", "me"] })
             opts.onSuccess?.()
           } catch {
             opts.onError?.("Payment verification failed. Contact support if amount was deducted.")

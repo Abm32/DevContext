@@ -37,6 +37,17 @@ artifacts-monorepo/
 └── package.json
 ```
 
+## Pricing Tiers
+
+| Tier | Price | AI/mo | Repos | Compare | Standups | Workspaces |
+|------|-------|-------|-------|---------|----------|------------|
+| Free | ₹0 | 10 | 1 | ✗ | ✗ | ✗ |
+| Plus | ₹499/mo | 100 | 3 | ✓ | ✗ | ✗ |
+| Pro | ₹999/mo | 500 | 10 | ✓ | ✓ | ✓ |
+| Team | ₹2,499/mo | 2,000 | ∞ | ✓ | ✓ | ✓ |
+
+Payments via Razorpay. Team tier supports up to 10 members sharing the subscription.
+
 ## Features
 
 1. **GitHub Login** — OAuth flow via `/api/auth/github` → GitHub → `/api/auth/github/callback`

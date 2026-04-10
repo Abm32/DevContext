@@ -1330,7 +1330,7 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                {isFreeTier && usage.ai_analyses.limit !== null && (
+                {usage.ai_analyses.limit < 9999 && (
                   <UsageChip
                     used={usage.ai_analyses.used}
                     limit={usage.ai_analyses.limit}

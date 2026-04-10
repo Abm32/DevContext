@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 
-export type PlanTier = "free" | "pro" | "team"
+export type PlanTier = "free" | "plus" | "pro" | "team"
 
 export interface PlanData {
   plan: PlanTier
@@ -13,7 +13,7 @@ export interface PlanData {
   usage: {
     ai_analyses: {
       used: number
-      limit: number | null   // null = unlimited
+      limit: number
       exhausted: boolean
     }
   }
@@ -31,13 +31,15 @@ export function usePlan() {
   const { data, isLoading, refetch } = useQuery<PlanData>({
     queryKey: ["plan", "me"],
     queryFn: fetchPlan,
-    staleTime: 60_000,        // refresh every minute
+    staleTime: 60_000,
     retry: false,
   })
 
   const plan = data?.plan ?? "free"
   const isFreeTier = plan === "free"
-  const isPro = plan === "pro" || plan === "team"
+  const isPlusTier = plan === "plus"
+  const isPro = plan === "pro"
+  const isTeam = plan === "team"
 
   return {
     plan,
@@ -52,7 +54,11 @@ export function usePlan() {
     },
     isLoading,
     isFreeTier,
+    isPlusTier,
     isPro,
+    isTeam,
+    /** true for any paid tier */
+    isPaid: !isFreeTier,
     refetch,
   }
 }

@@ -1,6 +1,6 @@
 import { pgTable, serial, varchar, integer, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
-export type PlanTier = "free" | "pro" | "team";
+export type PlanTier = "free" | "plus" | "pro" | "team";
 
 export const userPlans = pgTable("user_plans", {
   id: serial("id").primaryKey(),
@@ -39,16 +39,23 @@ export const PLAN_LIMITS = {
     standup_emails: false,
     workspaces: false,
   },
-  pro: {
-    ai_analyses_per_month: Infinity,
+  plus: {
+    ai_analyses_per_month: 100,
     max_repos: 3,
+    compare_mode: true,
+    standup_emails: false,
+    workspaces: false,
+  },
+  pro: {
+    ai_analyses_per_month: 500,
+    max_repos: 10,
     compare_mode: true,
     standup_emails: true,
     workspaces: true,
   },
   team: {
-    ai_analyses_per_month: Infinity,
-    max_repos: 3,
+    ai_analyses_per_month: 2000,
+    max_repos: 9999,
     compare_mode: true,
     standup_emails: true,
     workspaces: true,
@@ -60,3 +67,11 @@ export const PLAN_LIMITS = {
   standup_emails: boolean;
   workspaces: boolean;
 }>;
+
+// ─── Razorpay amounts in paise (1 INR = 100 paise) ───────────────────────────
+
+export const PLAN_PRICES: Record<Exclude<PlanTier, "free">, { amount_paise: number; label: string }> = {
+  plus: { amount_paise: 49900, label: "₹499/month" },
+  pro: { amount_paise: 99900, label: "₹999/month" },
+  team: { amount_paise: 249900, label: "₹2,499/month" },
+};

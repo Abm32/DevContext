@@ -802,6 +802,35 @@ function MobileLanding({ onConnect }: { onConnect: (el: string) => void }) {
   )
 }
 
+// ─── Pricing CTA button (landing page — users always unauthenticated here) ────
+function PricingCTAButton({
+  plan,
+  color,
+  popular,
+}: {
+  plan: "plus" | "pro" | "team"
+  color: string
+  popular: boolean
+}) {
+  const LABELS = { plus: "Start with Plus", pro: "Get Pro", team: "Start with Team" }
+  const bg = popular
+    ? "linear-gradient(135deg, #8b5cf6, #7c3aed)"
+    : `linear-gradient(135deg, ${color}bb, ${color}66)`
+
+  return (
+    <button
+      onClick={() => {
+        void track("click:pricing_cta", { plan })
+        window.location.href = "/api/auth/github"
+      }}
+      className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-all"
+      style={{ background: bg, boxShadow: popular ? "0 4px 16px rgba(139,92,246,0.3)" : "none" }}
+    >
+      {LABELS[plan]}
+    </button>
+  )
+}
+
 // ─── Landing (root) ───────────────────────────────────────────────────────────
 export default function Landing() {
   const [, setLocation] = useLocation()
@@ -1120,6 +1149,184 @@ export default function Landing() {
                   <span className="font-mono text-xl font-bold" style={{ color: "#10b981" }}>&gt;_</span>
                 </div>
               </motion.div>
+            </div>
+          </div>
+        </section>
+
+        {/* ── Pricing ── */}
+        <section id="pricing" className="px-6 md:px-12 pb-24 pt-8">
+          <div className="max-w-7xl mx-auto">
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-center mb-12"
+            >
+              <h2
+                className="font-bold mb-3"
+                style={{
+                  fontFamily: "'Plus Jakarta Sans', sans-serif",
+                  fontSize: "clamp(1.6rem, 3vw, 2.25rem)",
+                  letterSpacing: "-0.02em",
+                  color: "#f1f5f9",
+                }}
+              >
+                Simple, Transparent Pricing
+              </h2>
+              <p className="text-sm leading-relaxed max-w-md mx-auto" style={{ color: "#64748b" }}>
+                Start free. Upgrade as your team grows.
+              </p>
+            </motion.div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* ── Free ── */}
+              {[
+                {
+                  tier: "free",
+                  label: "Free",
+                  price: "₹0",
+                  period: "forever",
+                  tagline: "For solo exploration",
+                  color: "#64748b",
+                  bg: "rgba(255,255,255,0.03)",
+                  border: "rgba(255,255,255,0.07)",
+                  cta: null,
+                  popular: false,
+                  features: [
+                    "10 AI analyses / month",
+                    "1 repository",
+                    "Commit briefings",
+                    "7-day sessions",
+                  ],
+                  missing: ["Compare mode", "Standups", "Workspaces"],
+                },
+                {
+                  tier: "plus",
+                  label: "Plus",
+                  price: "₹499",
+                  period: "/ month",
+                  tagline: "For active developers",
+                  color: "#60a5fa",
+                  bg: "rgba(59,130,246,0.06)",
+                  border: "rgba(59,130,246,0.2)",
+                  cta: "plus" as const,
+                  popular: false,
+                  features: [
+                    "100 AI analyses / month",
+                    "3 repositories",
+                    "Commit briefings",
+                    "Compare mode",
+                  ],
+                  missing: ["Standups", "Workspaces"],
+                },
+                {
+                  tier: "pro",
+                  label: "Pro",
+                  price: "₹999",
+                  period: "/ month",
+                  tagline: "For power users",
+                  color: "#a78bfa",
+                  bg: "rgba(139,92,246,0.08)",
+                  border: "rgba(139,92,246,0.3)",
+                  cta: "pro" as const,
+                  popular: true,
+                  features: [
+                    "500 AI analyses / month",
+                    "10 repositories",
+                    "Compare mode",
+                    "Standup generator",
+                    "Saved workspaces",
+                  ],
+                  missing: [],
+                },
+                {
+                  tier: "team",
+                  label: "Team",
+                  price: "₹2,499",
+                  period: "/ month",
+                  tagline: "For engineering teams",
+                  color: "#34d399",
+                  bg: "rgba(16,185,129,0.05)",
+                  border: "rgba(16,185,129,0.18)",
+                  cta: "team" as const,
+                  popular: false,
+                  features: [
+                    "2,000 AI analyses / month",
+                    "Unlimited repositories",
+                    "Up to 10 team members",
+                    "Compare mode",
+                    "Standup generator",
+                    "Saved workspaces",
+                  ],
+                  missing: [],
+                },
+              ].map((plan, i) => (
+                <motion.div
+                  key={plan.tier}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.4, delay: i * 0.07 }}
+                  className="relative flex flex-col rounded-2xl p-6"
+                  style={{
+                    background: plan.popular ? "rgba(139,92,246,0.1)" : plan.bg,
+                    border: `1px solid ${plan.popular ? "rgba(139,92,246,0.4)" : plan.border}`,
+                    boxShadow: plan.popular ? "0 0 40px rgba(139,92,246,0.12)" : "none",
+                  }}
+                >
+                  {plan.popular && (
+                    <div
+                      className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest"
+                      style={{ background: "#8b5cf6", color: "#fff" }}
+                    >
+                      Most Popular
+                    </div>
+                  )}
+
+                  {/* Header */}
+                  <div className="mb-5">
+                    <p className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: plan.color }}>{plan.label}</p>
+                    <div className="flex items-end gap-1.5">
+                      <span className="text-3xl font-bold text-white" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                        {plan.price}
+                      </span>
+                      <span className="text-sm mb-1" style={{ color: "#475569" }}>{plan.period}</span>
+                    </div>
+                    <p className="text-xs mt-1" style={{ color: "#475569" }}>{plan.tagline}</p>
+                  </div>
+
+                  {/* Features */}
+                  <div className="flex-1 flex flex-col gap-2 mb-6">
+                    {plan.features.map(f => (
+                      <div key={f} className="flex items-center gap-2">
+                        <CheckCircle2 className="w-3.5 h-3.5 shrink-0" style={{ color: "#10b981" }} />
+                        <span className="text-xs" style={{ color: "#cbd5e1" }}>{f}</span>
+                      </div>
+                    ))}
+                    {plan.missing.map(f => (
+                      <div key={f} className="flex items-center gap-2 opacity-30">
+                        <div className="w-3.5 h-3.5 shrink-0 flex items-center justify-center">
+                          <div className="w-2.5 h-px rounded" style={{ background: "#475569" }} />
+                        </div>
+                        <span className="text-xs" style={{ color: "#475569" }}>{f}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* CTA */}
+                  {plan.cta ? (
+                    <PricingCTAButton plan={plan.cta} color={plan.color} popular={plan.popular} />
+                  ) : (
+                    <button
+                      onClick={() => onConnect("pricing_free")}
+                      className="w-full py-2.5 rounded-xl text-sm font-semibold transition-all"
+                      style={{ background: "rgba(255,255,255,0.05)", color: "#64748b", border: "1px solid rgba(255,255,255,0.08)" }}
+                    >
+                      Get Started Free
+                    </button>
+                  )}
+                </motion.div>
+              ))}
             </div>
           </div>
         </section>

@@ -3,32 +3,59 @@ import { useLocation } from "wouter"
 import { useGetMe, useLogout } from "@workspace/api-client-react"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { LogOut, Github, Zap, Loader2, CheckCircle2 } from "lucide-react"
-import { usePlan } from "@/hooks/use-plan"
+import { LogOut, Github, Zap, Loader2, CheckCircle2, Sparkles, Users } from "lucide-react"
+import { usePlan, type PlanTier } from "@/hooks/use-plan"
 import { useRazorpay } from "@/hooks/use-razorpay"
 
-function PlanBadge({ plan }: { plan: string }) {
-  const isPro = plan === "pro" || plan === "team"
+type PaidPlan = Exclude<PlanTier, "free">
+
+// Next tier to upgrade to from the current plan
+const NEXT_TIER: Record<PlanTier, PaidPlan | null> = {
+  free: "plus",
+  plus: "pro",
+  pro: "team",
+  team: null,
+}
+
+const TIER_STYLE: Record<PlanTier, { color: string; bg: string; border: string; label: string; icon: React.ReactNode }> = {
+  free: { color: "#64748b", bg: "rgba(255,255,255,0.05)", border: "rgba(255,255,255,0.08)", label: "Free", icon: null },
+  plus: { color: "#60a5fa", bg: "rgba(59,130,246,0.12)", border: "rgba(59,130,246,0.25)", label: "Plus", icon: <Sparkles className="w-2.5 h-2.5" /> },
+  pro: { color: "#a78bfa", bg: "rgba(139,92,246,0.15)", border: "rgba(139,92,246,0.25)", label: "Pro", icon: <Zap className="w-2.5 h-2.5" /> },
+  team: { color: "#34d399", bg: "rgba(16,185,129,0.12)", border: "rgba(16,185,129,0.22)", label: "Team", icon: <Users className="w-2.5 h-2.5" /> },
+}
+
+const UPGRADE_BTN: Record<PaidPlan, { bg: string; label: string }> = {
+  plus: { bg: "linear-gradient(135deg, #3b82f6, #2563eb)", label: "→ Plus" },
+  pro: { bg: "linear-gradient(135deg, #8b5cf6, #7c3aed)", label: "→ Pro" },
+  team: { bg: "linear-gradient(135deg, #10b981, #059669)", label: "→ Team" },
+}
+
+function PlanBadge({ plan }: { plan: PlanTier }) {
+  const s = TIER_STYLE[plan]
   return (
     <span
       className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest"
-      style={isPro
-        ? { background: "rgba(139,92,246,0.15)", color: "#a78bfa", border: "1px solid rgba(139,92,246,0.25)" }
-        : { background: "rgba(255,255,255,0.05)", color: "#64748b", border: "1px solid rgba(255,255,255,0.08)" }}
+      style={{ background: s.bg, color: s.color, border: `1px solid ${s.border}` }}
     >
-      {isPro && <Zap className="w-2.5 h-2.5" />}
-      {isPro ? "Pro" : "Free"}
+      {s.icon}
+      {s.label}
     </span>
   )
 }
 
-function UpgradeNavButton() {
+function UpgradeNavButton({ currentPlan }: { currentPlan: PlanTier }) {
   const [status, setStatus] = useState<"idle" | "loading" | "success">("idle")
   const { openCheckout } = useRazorpay()
+  const nextTier = NEXT_TIER[currentPlan]
+
+  if (!nextTier) return null
+
+  const btn = UPGRADE_BTN[nextTier]
 
   const handle = () => {
     setStatus("loading")
     openCheckout({
+      plan: nextTier,
       onSuccess: () => { setStatus("success"); setTimeout(() => window.location.reload(), 1200) },
       onError: () => setStatus("idle"),
       onDismiss: () => setStatus("idle"),
@@ -52,14 +79,11 @@ function UpgradeNavButton() {
       onClick={handle}
       disabled={status === "loading"}
       className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-all disabled:opacity-70"
-      style={{
-        background: "linear-gradient(135deg, #8b5cf6, #7c3aed)",
-        boxShadow: "0 2px 10px rgba(139,92,246,0.3)",
-      }}
+      style={{ background: btn.bg, boxShadow: "0 2px 10px rgba(0,0,0,0.2)" }}
     >
       {status === "loading"
         ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Processing…</>
-        : <><Zap className="w-3.5 h-3.5" />Upgrade</>}
+        : <>Upgrade {btn.label}</>}
     </button>
   )
 }
@@ -67,7 +91,7 @@ function UpgradeNavButton() {
 export function Header() {
   const [, setLocation] = useLocation()
   const { data: user, isLoading } = useGetMe({ query: { retry: false } })
-  const { plan, isFreeTier } = usePlan()
+  const { plan, isTeam } = usePlan()
   const logoutMutation = useLogout({
     mutation: {
       onSuccess: () => { window.location.href = "/" },
@@ -98,8 +122,8 @@ export function Header() {
               {/* Plan badge */}
               <PlanBadge plan={plan} />
 
-              {/* Upgrade CTA — only on free tier */}
-              {isFreeTier && <UpgradeNavButton />}
+              {/* Upgrade CTA — hidden for Team (highest tier) */}
+              {!isTeam && <UpgradeNavButton currentPlan={plan} />}
 
               {/* User pill → profile */}
               <button

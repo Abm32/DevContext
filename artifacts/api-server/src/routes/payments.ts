@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import crypto from "crypto";
 import { db } from "@workspace/db";
-import { userPlans } from "@workspace/db";
+import { userPlans, PLAN_PRICES, type PlanTier } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { getTokenPayload } from "./auth";
 
@@ -12,29 +12,38 @@ const router: IRouter = Router();
 
 const KEY_ID = process.env["RAZORPAY_KEY_ID"] ?? "";
 const KEY_SECRET = process.env["RAZORPAY_KEY_SECRET"] ?? "";
-
-// ₹999/month for Pro plan
-const PRO_AMOUNT_PAISE = 99900; // Razorpay uses paise (1 INR = 100 paise)
 const CURRENCY = "INR";
 
 function getRazorpay() {
   return new Razorpay({ key_id: KEY_ID, key_secret: KEY_SECRET });
 }
 
+type PaidPlan = Exclude<PlanTier, "free">;
+const VALID_PAID_PLANS: PaidPlan[] = ["plus", "pro", "team"];
+
 // ─── POST /api/payments/create-order ─────────────────────────────────────────
 router.post("/create-order", async (req, res) => {
   const payload = getTokenPayload(req);
   if (!payload) { res.status(401).json({ error: "Not authenticated" }); return; }
 
+  const { plan = "pro" } = req.body as { plan?: string };
+  if (!VALID_PAID_PLANS.includes(plan as PaidPlan)) {
+    res.status(400).json({ error: `Invalid plan. Choose from: ${VALID_PAID_PLANS.join(", ")}` });
+    return;
+  }
+
+  const paidPlan = plan as PaidPlan;
+  const pricing = PLAN_PRICES[paidPlan];
+
   try {
     const rzp = getRazorpay();
     const order = await rzp.orders.create({
-      amount: PRO_AMOUNT_PAISE,
+      amount: pricing.amount_paise,
       currency: CURRENCY,
-      receipt: `devctx_${payload.githubUser.login}_${Date.now()}`,
+      receipt: `devctx_${payload.githubUser.login}_${paidPlan}_${Date.now()}`,
       notes: {
         github_username: payload.githubUser.login,
-        plan: "pro",
+        plan: paidPlan,
       },
     });
 
@@ -43,6 +52,8 @@ router.post("/create-order", async (req, res) => {
       amount: order.amount,
       currency: order.currency,
       key_id: KEY_ID,
+      plan: paidPlan,
+      plan_label: pricing.label,
       prefill: {
         name: payload.githubUser.name ?? payload.githubUser.login,
       },
@@ -58,14 +69,20 @@ router.post("/verify", async (req, res) => {
   const payload = getTokenPayload(req);
   if (!payload) { res.status(401).json({ error: "Not authenticated" }); return; }
 
-  const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body as {
+  const { razorpay_order_id, razorpay_payment_id, razorpay_signature, plan = "pro" } = req.body as {
     razorpay_order_id?: string;
     razorpay_payment_id?: string;
     razorpay_signature?: string;
+    plan?: string;
   };
 
   if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
     res.status(400).json({ error: "Missing payment verification fields" });
+    return;
+  }
+
+  if (!VALID_PAID_PLANS.includes(plan as PaidPlan)) {
+    res.status(400).json({ error: "Invalid plan specified" });
     return;
   }
 
@@ -82,27 +99,27 @@ router.post("/verify", async (req, res) => {
 
   try {
     const username = payload.githubUser.login;
+    const activatedPlan = plan as PaidPlan;
 
-    // Upsert plan to pro
     await db
       .insert(userPlans)
       .values({
         github_username: username,
-        plan: "pro",
+        plan: activatedPlan,
         razorpay_payment_id,
         razorpay_order_id,
       })
       .onConflictDoUpdate({
         target: [userPlans.github_username],
         set: {
-          plan: "pro",
+          plan: activatedPlan,
           razorpay_payment_id,
           razorpay_order_id,
           updated_at: new Date(),
         },
       });
 
-    res.json({ success: true, plan: "pro" });
+    res.json({ success: true, plan: activatedPlan });
   } catch (err) {
     req.log.error({ err }, "payments/verify error");
     res.status(500).json({ error: "Failed to upgrade plan" });

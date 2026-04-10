@@ -1395,7 +1395,13 @@ export default function Dashboard() {
 
               {usage.ai_analyses.exhausted ? (
                 <div className="ml-auto">
-                  <UpgradeButton />
+                  {plan === "team" ? (
+                    <span className="text-xs px-3 py-1.5 rounded-xl" style={{ color: "#64748b", background: "rgba(255,255,255,0.04)" }}>
+                      AI limit reached — contact support
+                    </span>
+                  ) : (
+                    <UpgradeButton plan={plan === "free" ? "plus" : plan === "plus" ? "pro" : "team"} />
+                  )}
                 </div>
               ) : (
                 <button

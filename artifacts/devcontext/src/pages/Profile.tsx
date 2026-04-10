@@ -44,7 +44,7 @@ const TIER_CONFIG: Record<PlanTier, {
   pro: {
     label: "Pro Plan",
     price: "₹999",
-    description: "500 AI analyses/month · Compare up to 3 repos · All features",
+    description: "500 AI analyses/month · Up to 10 repos · All features",
     color: "#a78bfa",
     bg: "rgba(139,92,246,0.08)",
     border: "rgba(139,92,246,0.25)",
@@ -53,7 +53,7 @@ const TIER_CONFIG: Record<PlanTier, {
   team: {
     label: "Team Plan",
     price: "₹2,499",
-    description: "2,000 AI analyses/month · Compare up to 3 repos · Up to 10 members",
+    description: "2,000 AI analyses/month · Unlimited repos · Up to 10 members",
     color: "#34d399",
     bg: "rgba(16,185,129,0.06)",
     border: "rgba(16,185,129,0.18)",
@@ -335,7 +335,7 @@ export default function Profile() {
             >
               <FeatureRow label="AI Commit Briefings" enabled icon={<BrainCircuit className="w-4 h-4" />} />
               <FeatureRow
-                label={`Multi-repo Analysis (up to ${features.max_repos} repos)`}
+                label={`Multi-repo Analysis (up to ${features.max_repos >= 9999 ? "unlimited" : features.max_repos} repos)`}
                 enabled={features.max_repos > 1}
                 icon={<GitBranch className="w-4 h-4" />}
               />
@@ -370,7 +370,7 @@ export default function Profile() {
               <div>
                 <p className="text-sm font-semibold text-white">Team plan active — all features unlocked</p>
                 <p className="text-xs mt-0.5" style={{ color: "#475569" }}>
-                  You have maximum access with 2,000 AI analyses/month and compare mode for up to 3 repos.
+                  You have maximum access with 2,000 AI analyses/month and unlimited repositories.
                 </p>
               </div>
             </div>

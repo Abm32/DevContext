@@ -242,8 +242,13 @@ export default function Dashboard() {
 
   // ─── Plan & feature gates ──────────────────────────────────────────────────
   const { plan, features, usage, isFreeTier, refetch: refetchPlan } = usePlan()
-  // compare mode supports up to 3 slots; max_repos is always 1 (free) or 3 (paid compare tiers)
-  const maxRepos = features.max_repos
+  // Compare view pipeline supports exactly REPO_COLORS.length (3) side-by-side slots.
+  // max_repos from the plan (1 / 3 / 10 / 9999) expresses repo accessibility;
+  // the compare UI caps at the pipeline slot count regardless of tier.
+  const MAX_COMPARE_SLOTS = REPO_COLORS.length  // 3
+  const maxRepos = features.compare_mode
+    ? MAX_COMPARE_SLOTS
+    : Math.min(features.max_repos, MAX_COMPARE_SLOTS)
   const { openCheckout } = useRazorpay()
   const [showCompareUpgrade, setShowCompareUpgrade] = useState(false)
   const [showWorkspaceUpgrade, setShowWorkspaceUpgrade] = useState(false)

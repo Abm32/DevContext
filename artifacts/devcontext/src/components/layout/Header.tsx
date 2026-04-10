@@ -100,21 +100,20 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-white/10 bg-background/80 backdrop-blur-xl">
-      <div className="container mx-auto px-4 h-14 flex items-center justify-between">
+      <div className="container mx-auto px-3 md:px-4 h-12 md:h-14 flex items-center justify-between">
         {/* Logo */}
-        <div className="flex items-center gap-3">
-          <img src="/images/logo.png" alt="DevContext logo" className="w-7 h-7 rounded-lg object-cover" />
-          <span className="font-display font-bold text-base text-white hidden sm:inline-block tracking-tight">
+        <div className="flex items-center gap-2 md:gap-3">
+          <img src="/images/logo.png" alt="DevContext logo" className="w-6 h-6 md:w-7 md:h-7 rounded-lg object-cover" />
+          <span className="font-display font-bold text-sm md:text-base text-white hidden sm:inline-block tracking-tight">
             DevContext
           </span>
         </div>
 
         {/* Right side */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-1.5 md:gap-2.5">
           {isLoading ? (
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2">
               <Skeleton className="w-16 h-5 rounded-full" />
-              <Skeleton className="w-20 h-7 rounded-lg" />
               <Skeleton className="w-7 h-7 rounded-full" />
             </div>
           ) : user ? (
@@ -129,7 +128,7 @@ export function Header() {
               <button
                 onClick={() => setLocation("/profile")}
                 title="View profile"
-                className="flex items-center gap-2 bg-secondary/50 py-1 pl-2.5 pr-1 rounded-full border border-white/5 hover:border-white/15 transition-colors"
+                className="flex items-center gap-1.5 md:gap-2 bg-secondary/50 py-1 pl-1.5 md:pl-2.5 pr-1 rounded-full border border-white/5 hover:border-white/15 transition-colors"
               >
                 <span className="text-xs font-medium text-muted-foreground hidden sm:block leading-none">
                   {user.login}
@@ -148,9 +147,9 @@ export function Header() {
                 onClick={() => logoutMutation.mutate()}
                 isLoading={logoutMutation.isPending}
                 title="Log out"
-                className="text-muted-foreground hover:text-destructive w-8 h-8"
+                className="text-muted-foreground hover:text-destructive w-7 h-7 md:w-8 md:h-8"
               >
-                <LogOut className="w-3.5 h-3.5" />
+                <LogOut className="w-3 h-3 md:w-3.5 md:h-3.5" />
               </Button>
             </>
           ) : (

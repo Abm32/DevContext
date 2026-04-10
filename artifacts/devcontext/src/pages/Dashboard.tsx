@@ -142,12 +142,12 @@ function CommitCard({
       className="group rounded-xl border border-white/5 bg-secondary/10 hover:bg-secondary/20 transition-all overflow-hidden"
     >
       <div
-        className="p-4 cursor-pointer"
+        className="p-3 md:p-4 cursor-pointer"
         onClick={() => { setExpanded(e => !e); setExpandedFile(null) }}
       >
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-start gap-2.5 min-w-0">
-            <GitCommitHorizontal className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
+        <div className="flex items-start justify-between gap-2 md:gap-3">
+          <div className="flex items-start gap-2 md:gap-2.5 min-w-0">
+            <GitCommitHorizontal className="w-3.5 h-3.5 md:w-4 md:h-4 text-muted-foreground shrink-0 mt-0.5" />
             <div className="min-w-0">
               <p className="text-sm text-white font-medium leading-snug line-clamp-2">{commit.message}</p>
               <div className="flex items-center gap-2 mt-1.5 flex-wrap">
@@ -177,7 +177,7 @@ function CommitCard({
             transition={{ duration: 0.2 }}
             className="border-t border-white/5 overflow-hidden"
           >
-            <div className="p-4 pt-3 space-y-2">
+            <div className="p-3 md:p-4 pt-2.5 md:pt-3 space-y-2">
               {isDetailLoading ? (
                 <div className="space-y-2">
                   {[1, 2, 3].map(i => <Skeleton key={i} className="h-5 w-full" />)}
@@ -805,7 +805,7 @@ export default function Dashboard() {
           <button
             key={tab.id}
             onClick={() => setMobileTab(tab.id)}
-            className="flex-1 flex flex-col items-center gap-1 py-3 transition-colors"
+            className="flex-1 flex flex-col items-center gap-0.5 py-2 transition-colors"
           >
             <div
               className="flex items-center justify-center w-10 h-7 rounded-full transition-all"
@@ -826,10 +826,10 @@ export default function Dashboard() {
         ))}
       </div>
 
-      <main className="flex-1 container mx-auto px-4 py-4 md:py-8 flex flex-col md:flex-row gap-8 overflow-hidden h-[calc(100vh-4rem)]">
+      <main className="flex-1 container mx-auto px-3 md:px-4 py-3 md:py-8 flex flex-col md:flex-row gap-4 md:gap-8 overflow-hidden h-[calc(100dvh-6.5rem)] md:h-[calc(100vh-3.5rem)]">
 
         {/* ── Left Column ────────────────────────────────────────────────── */}
-        <div className={`w-full md:w-1/3 flex flex-col gap-4 overflow-hidden border-r border-white/5 pr-0 md:pr-4 ${mobileTab === "ai" ? "hidden md:flex" : "flex"}`}>
+        <div className={`w-full md:w-1/3 flex flex-col gap-3 md:gap-4 overflow-hidden md:border-r border-white/5 pr-0 md:pr-4 ${mobileTab === "ai" ? "hidden md:flex" : "flex"}`}>
 
           {/* Workspaces strip */}
           <div className="flex flex-col gap-2">
@@ -1350,21 +1350,21 @@ export default function Dashboard() {
           {/* AI Summary Panel */}
           <div className="flex-1 flex flex-col bg-card border border-white/5 rounded-2xl shadow-xl overflow-hidden relative min-h-0">
             {/* Header row 1: title + usage chip + copy button */}
-            <div className="px-5 pt-4 pb-0 flex items-start justify-between gap-3">
-              <div className="flex items-center gap-3">
+            <div className="px-3 md:px-5 pt-3 md:pt-4 pb-0 flex items-start justify-between gap-2 md:gap-3">
+              <div className="flex items-center gap-2 md:gap-3 min-w-0">
                 <div className="p-1.5 rounded-lg shrink-0" style={{ background: "rgba(59,130,246,0.15)" }}>
                   <Sparkles className="w-4 h-4" style={{ color: "#3b82f6" }} />
                 </div>
-                <div>
-                  <h2 className="text-base font-bold text-white" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Code Brain Analysis</h2>
-                  <p className="text-xs" style={{ color: "#64748b" }}>
+                <div className="min-w-0">
+                  <h2 className="text-sm md:text-base font-bold text-white truncate" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Code Brain Analysis</h2>
+                  <p className="text-[11px] md:text-xs truncate" style={{ color: "#64748b" }}>
                     {isMultiRepo
                       ? `${selectedRepos.length} repos · AI-powered context recovery`
                       : "AI-powered context recovery"}
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
                 {usage.ai_analyses.limit < 9999 && (
                   <UsageChip
                     used={usage.ai_analyses.used}
@@ -1375,42 +1375,48 @@ export default function Dashboard() {
                 {displayResult && (
                   <button
                     onClick={handleCopy}
-                    className="flex items-center gap-1.5 text-xs border rounded-lg px-3 py-1.5 transition-all"
+                    className="flex items-center gap-1 md:gap-1.5 text-[11px] md:text-xs border rounded-lg px-2 md:px-3 py-1 md:py-1.5 transition-all"
                     style={{ color: copied ? "#10b981" : "#64748b", borderColor: "rgba(255,255,255,0.08)", background: "transparent" }}
                   >
-                    {copied ? <><Check className="w-3 h-3" /> Copied</> : <><Copy className="w-3 h-3" /> Copy MD</>}
+                    {copied ? <><Check className="w-3 h-3" /> Copied</> : <><Copy className="w-3 h-3" /> Copy</>}
                   </button>
                 )}
               </div>
             </div>
 
             {/* Header row 2: mode toggle + generate */}
-            <div className="px-5 pt-3 pb-4 flex items-center gap-3 border-b border-white/5">
-              <div className="flex items-center rounded-xl p-1 gap-1" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                <button
-                  onClick={() => setSummaryMode("next_steps")}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
-                  style={summaryMode === "next_steps"
-                    ? { background: "rgba(59,130,246,0.2)", color: "#3b82f6" }
-                    : { color: "#64748b" }}
-                >
-                  <BrainCircuit className="w-3.5 h-3.5" />
-                  Next Steps
-                </button>
-                <button
-                  onClick={() => setSummaryMode("standup")}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
-                  style={summaryMode === "standup"
-                    ? { background: "rgba(16,185,129,0.15)", color: "#10b981" }
-                    : { color: "#64748b" }}
-                >
-                  <ClipboardList className="w-3.5 h-3.5" />
-                  Standup
-                </button>
+            <div className="px-3 md:px-5 pt-2 md:pt-3 pb-3 md:pb-4 flex flex-col md:flex-row md:items-center gap-2 md:gap-3 border-b border-white/5">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center rounded-xl p-1 gap-1" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                  <button
+                    onClick={() => setSummaryMode("next_steps")}
+                    className="flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 rounded-lg text-[11px] md:text-xs font-medium transition-all"
+                    style={summaryMode === "next_steps"
+                      ? { background: "rgba(59,130,246,0.2)", color: "#3b82f6" }
+                      : { color: "#64748b" }}
+                  >
+                    <BrainCircuit className="w-3.5 h-3.5" />
+                    Next Steps
+                  </button>
+                  <button
+                    onClick={() => setSummaryMode("standup")}
+                    className="flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 rounded-lg text-[11px] md:text-xs font-medium transition-all"
+                    style={summaryMode === "standup"
+                      ? { background: "rgba(16,185,129,0.15)", color: "#10b981" }
+                      : { color: "#64748b" }}
+                  >
+                    <ClipboardList className="w-3.5 h-3.5" />
+                    Standup
+                  </button>
+                </div>
+
+                {!selectedRepo && !usage.ai_analyses.exhausted && (
+                  <span className="text-[10px] md:hidden shrink-0" style={{ color: "rgba(255,255,255,0.2)" }}>Select a repo first</span>
+                )}
               </div>
 
               {usage.ai_analyses.exhausted ? (
-                <div className="ml-auto">
+                <div className="md:ml-auto">
                   {plan === "team" ? (
                     <span className="text-xs px-3 py-1.5 rounded-xl" style={{ color: "#64748b", background: "rgba(255,255,255,0.04)" }}>
                       AI limit reached — contact support
@@ -1423,7 +1429,7 @@ export default function Dashboard() {
                 <button
                   onClick={handleGenerateSummary}
                   disabled={!selectedRepo || !mergedCommits.length || isGenerating || isCommitsLoading}
-                  className="ml-auto flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="md:ml-auto w-full md:w-auto flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                   style={{
                     background: isGenerating ? "rgba(59,130,246,0.3)" : "linear-gradient(135deg, #3b82f6, #2563eb)",
                     boxShadow: isGenerating ? "none" : "0 4px 16px rgba(59,130,246,0.25)",
@@ -1442,19 +1448,19 @@ export default function Dashboard() {
                 </button>
               )}
               {!selectedRepo && !usage.ai_analyses.exhausted && (
-                <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.2)" }}>← select a repo first</span>
+                <span className="text-[10px] hidden md:inline" style={{ color: "rgba(255,255,255,0.2)" }}>← select a repo first</span>
               )}
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 relative">
+            <div className="flex-1 overflow-y-auto p-4 md:p-6 relative">
               {!selectedRepo ? (
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8">
-                  <div className="w-16 h-16 rounded-2xl bg-secondary flex items-center justify-center mb-6">
-                    <FolderGit2 className="w-8 h-8 text-muted-foreground" />
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 md:p-8">
+                  <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-secondary flex items-center justify-center mb-4 md:mb-6">
+                    <FolderGit2 className="w-6 h-6 md:w-8 md:h-8 text-muted-foreground" />
                   </div>
-                  <h3 className="text-xl font-semibold text-white mb-2">Select a repository</h3>
-                  <p className="text-muted-foreground max-w-md">
-                    Choose a project from the left panel to analyze your recent work and rebuild your context.
+                  <h3 className="text-lg md:text-xl font-semibold text-white mb-1.5 md:mb-2">Select a repository</h3>
+                  <p className="text-sm md:text-base text-muted-foreground max-w-md">
+                    Choose a project from the Commits tab to analyze your recent work and rebuild your context.
                   </p>
                 </div>
               ) : isGenerating ? (
@@ -1537,7 +1543,7 @@ export default function Dashboard() {
                           </span>
                         )}
                       </div>
-                      <div className="p-5 rounded-xl bg-emerald-500/5 border border-emerald-500/15 text-white leading-relaxed whitespace-pre-wrap font-mono text-sm">
+                      <div className="p-3 md:p-5 rounded-xl bg-emerald-500/5 border border-emerald-500/15 text-white leading-relaxed whitespace-pre-wrap font-mono text-xs md:text-sm">
                         {displayResult.standup_update}
                       </div>
                       <p className="mt-3 text-xs text-muted-foreground">Paste this directly into Slack, Notion, or your standup tool.</p>
@@ -1550,7 +1556,7 @@ export default function Dashboard() {
                       <GitCommitHorizontal className="w-4 h-4" />
                       What you were doing
                     </h3>
-                    <div className="p-5 rounded-xl bg-secondary/30 border border-white/5 text-white leading-relaxed">
+                    <div className="p-3 md:p-5 rounded-xl bg-secondary/30 border border-white/5 text-white text-sm md:text-base leading-relaxed">
                       {displayResult.what_you_were_doing}
                     </div>
                   </section>
@@ -1563,9 +1569,9 @@ export default function Dashboard() {
                     </h3>
                     <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {displayResult.key_changes.map((change, i) => (
-                        <li key={i} className="flex items-start gap-3 p-4 rounded-xl bg-white/[0.02] border border-white/5">
+                        <li key={i} className="flex items-start gap-2.5 md:gap-3 p-3 md:p-4 rounded-xl bg-white/[0.02] border border-white/5">
                           <div className="mt-0.5 w-1.5 h-1.5 rounded-full bg-accent shrink-0" />
-                          <span className="text-sm text-muted-foreground">{change}</span>
+                          <span className="text-xs md:text-sm text-muted-foreground">{change}</span>
                         </li>
                       ))}
                     </ul>
@@ -1579,23 +1585,23 @@ export default function Dashboard() {
                     </h3>
                     <div className="space-y-3">
                       {displayResult.suggested_next_steps.map((step, i) => (
-                        <div key={i} className="group flex items-center gap-4 p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/10 hover:border-emerald-500/30 transition-colors cursor-default">
-                          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm">
+                        <div key={i} className="group flex items-center gap-3 md:gap-4 p-3 md:p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/10 hover:border-emerald-500/30 transition-colors cursor-default">
+                          <div className="flex-shrink-0 w-7 h-7 md:w-8 md:h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs md:text-sm">
                             {i + 1}
                           </div>
-                          <span className="text-white font-medium">{step}</span>
+                          <span className="text-sm md:text-base text-white font-medium">{step}</span>
                         </div>
                       ))}
                     </div>
                   </section>
                 </motion.div>
               ) : (
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8">
-                  <div className="w-16 h-16 rounded-2xl bg-secondary flex items-center justify-center mb-6">
-                    <BrainCircuit className="w-8 h-8 text-primary opacity-50" />
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-5 md:p-8">
+                  <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-secondary flex items-center justify-center mb-4 md:mb-6">
+                    <BrainCircuit className="w-6 h-6 md:w-8 md:h-8 text-primary opacity-50" />
                   </div>
-                  <h3 className="text-xl font-semibold text-white mb-2">Ready to Resume</h3>
-                  <p className="text-muted-foreground max-w-md mb-6">
+                  <h3 className="text-lg md:text-xl font-semibold text-white mb-1.5 md:mb-2">Ready to Resume</h3>
+                  <p className="text-sm md:text-base text-muted-foreground max-w-md mb-4 md:mb-6">
                     Click <span className="text-primary font-medium">{summaryMode === "standup" ? "Generate Standup" : "What's next?"}</span> above to analyze your recent work{isMultiRepo ? ` across ${selectedRepos.length} repos` : ` in ${selectedRepo.name}`}.
                   </p>
                   <div className="flex flex-col items-center gap-2 text-[11px] text-muted-foreground/50">
@@ -1622,7 +1628,7 @@ export default function Dashboard() {
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0 }}
-                  className="border-t border-white/5 px-5 py-4 bg-white/[0.015] flex flex-col gap-3"
+                  className="border-t border-white/5 px-3 md:px-5 py-3 md:py-4 bg-white/[0.015] flex flex-col gap-2.5 md:gap-3"
                 >
                   <div className="flex items-center gap-2">
                     <Heart className="w-3.5 h-3.5 text-rose-400" />

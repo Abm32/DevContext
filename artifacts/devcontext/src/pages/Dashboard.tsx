@@ -243,7 +243,17 @@ function CommitCard({
 // ─── Dashboard ───────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const [, setLocation] = useLocation()
-  const { data: user, isLoading: isAuthLoading, isError } = useGetMe({ query: { retry: false } })
+  // retry: smart — don't retry a 401 (truly unauthenticated), but allow 1 retry
+  // for transient network errors that can occur right after an OAuth redirect.
+  const { data: user, isLoading: isAuthLoading, isPending: isAuthPending, isError } = useGetMe({
+    query: {
+      retry: (failureCount, error) => {
+        // Never retry a clear 401 — user is not authenticated
+        if (error && typeof error === "object" && "status" in error && (error as { status: number }).status === 401) return false
+        return failureCount < 1
+      },
+    },
+  })
 
   // ─── Plan & feature gates ──────────────────────────────────────────────────
   const { plan, features, usage, isFreeTier, refetch: refetchPlan } = usePlan()
@@ -496,7 +506,11 @@ export default function Dashboard() {
     saveCachedSummary(key, data)
   }, [result])
 
-  if (isAuthLoading) {
+  // Show skeleton for ANY state where user data isn't available yet — including
+  // when React Query has paused the request (e.g. brief offline signal after
+  // an OAuth redirect). isPending covers "paused" while isAuthLoading only
+  // covers "actively fetching", so using isPending here avoids the blank screen.
+  if (isAuthPending || (isAuthLoading && !user)) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <Header />
@@ -507,6 +521,8 @@ export default function Dashboard() {
     )
   }
 
+  // User is definitely not authenticated (isError) — redirect handled by the
+  // useEffect above. Guard here prevents flashing null before it fires.
   if (!user) return null
 
   const filteredRepos = repos?.filter(r =>

@@ -15,6 +15,9 @@ const queryClient = new QueryClient({
     queries: {
       refetchOnWindowFocus: false,
       staleTime: 1000 * 60 * 5,
+      // Always fetch regardless of navigator.onLine — prevents OAuth-redirect
+      // blank screens where the browser briefly signals the network as paused.
+      networkMode: "always",
     },
   },
 });

@@ -7,6 +7,8 @@ export const userPlans = pgTable("user_plans", {
   github_username: varchar("github_username", { length: 100 }).notNull().unique(),
   plan: varchar("plan", { length: 20 }).notNull().default("free"),
   stripe_customer_id: varchar("stripe_customer_id", { length: 200 }),
+  razorpay_payment_id: varchar("razorpay_payment_id", { length: 200 }),
+  razorpay_order_id: varchar("razorpay_order_id", { length: 200 }),
   created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });

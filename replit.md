@@ -96,9 +96,30 @@ Admin credentials (set as shared env vars):
 - `ADMIN_PASSWORD_HASH` — HMAC-SHA256 hash of password with salt (hex)
 - `ADMIN_JWT_SECRET` — Random 32-byte secret for admin JWT signing
 
+Razorpay (payments):
+- `RAZORPAY_KEY_ID` — Razorpay live key ID (rzp_live_*)
+- `RAZORPAY_KEY_SECRET` — Razorpay secret key
+
 Auto-configured by Replit:
 - `AI_INTEGRATIONS_OPENAI_BASE_URL` — OpenAI proxy base URL
 - `AI_INTEGRATIONS_OPENAI_API_KEY` — OpenAI proxy API key
+
+## Payments (Razorpay)
+
+Pro tier: ₹999/month via Razorpay Checkout.
+
+### Flow
+1. User clicks "Upgrade to Pro" → frontend calls `POST /api/payments/create-order`
+2. Backend creates Razorpay order, returns order_id + key_id
+3. Frontend opens Razorpay modal (checkout.js loaded dynamically)
+4. On payment success, Razorpay calls handler with `{razorpay_payment_id, razorpay_order_id, razorpay_signature}`
+5. Frontend posts to `POST /api/payments/verify` → backend verifies HMAC-SHA256 signature
+6. On valid signature, user plan is upgraded to "pro" in `user_plans` table
+7. Plan query is invalidated, UI updates instantly
+
+### API Endpoints
+- `POST /api/payments/create-order` — Creates Razorpay order (auth required)
+- `POST /api/payments/verify` — Verifies payment signature and upgrades plan (auth required)
 
 ## GitHub OAuth Setup
 

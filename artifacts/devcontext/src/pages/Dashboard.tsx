@@ -18,7 +18,7 @@ import {
 import { useGenerateSummary } from "@/hooks/use-devcontext"
 import { usePlan } from "@/hooks/use-plan"
 import { DepHealthPanel } from "@/components/dep-health-panel"
-import { UpgradePrompt, UsageChip } from "@/components/upgrade-prompt"
+import { UpgradePrompt, UsageChip, UpgradeButton } from "@/components/upgrade-prompt"
 import { track } from "@/hooks/use-track"
 import { Header } from "@/components/layout/Header"
 import { Button } from "@/components/ui/button"
@@ -1375,14 +1375,9 @@ export default function Dashboard() {
               </div>
 
               {usage.ai_analyses.exhausted ? (
-                <a
-                  href="mailto:abhimanyurbsa@gmail.com?subject=DevContext Pro Upgrade"
-                  className="ml-auto flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all"
-                  style={{ background: "linear-gradient(135deg, #8b5cf6, #7c3aed)", boxShadow: "0 4px 16px rgba(139,92,246,0.3)" }}
-                >
-                  <Zap className="w-3.5 h-3.5" />
-                  Upgrade for Unlimited AI
-                </a>
+                <div className="ml-auto">
+                  <UpgradeButton />
+                </div>
               ) : (
                 <button
                   onClick={handleGenerateSummary}

@@ -8,6 +8,7 @@ import trackRouter from "./track";
 import adminRouter from "./admin";
 import e2emRouter from "./e2em";
 import planRouter from "./plan";
+import paymentsRouter from "./payments";
 
 const router: IRouter = Router();
 
@@ -20,5 +21,6 @@ router.use("/track", trackRouter);
 router.use("/admin", adminRouter);
 router.use("/e2em", e2emRouter);
 router.use("/plan", planRouter);
+router.use("/payments", paymentsRouter);
 
 export default router;

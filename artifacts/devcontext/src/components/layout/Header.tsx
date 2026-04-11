@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { LogOut, Github, Zap, Sparkles, Users } from "lucide-react"
 import { usePlan, type PlanTier } from "@/hooks/use-plan"
+import { LogoIcon } from "@/components/Logo"
 
 type PaidPlan = Exclude<PlanTier, "free">
 

@@ -75,12 +75,18 @@ export function Header() {
     <header className="sticky top-0 z-50 w-full border-b border-white/10 bg-background/80 backdrop-blur-xl">
       <div className="container mx-auto px-3 md:px-4 h-12 md:h-14 flex items-center justify-between">
         {/* Logo */}
-        <div className="flex items-center gap-2 md:gap-3">
-          <img src="/images/logo.png" alt="DevContext logo" className="w-6 h-6 md:w-7 md:h-7 rounded-lg object-cover" />
-          <span className="font-display font-bold text-sm md:text-base text-white tracking-tight">
+        <button
+          onClick={() => setLocation(user ? "/dashboard" : "/")}
+          className="flex items-center gap-2.5 hover:opacity-90 transition-opacity"
+        >
+          <LogoIcon size={28} />
+          <span
+            className="font-bold text-sm md:text-base text-white tracking-tight"
+            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+          >
             DevContext
           </span>
-        </div>
+        </button>
 
         {/* Right side */}
         <div className="flex items-center gap-1.5 md:gap-2.5">

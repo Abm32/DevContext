@@ -9,6 +9,7 @@ import {
 } from "lucide-react"
 import { useGetMe } from "@workspace/api-client-react"
 import { track } from "@/hooks/use-track"
+import { LogoIcon } from "@/components/Logo"
 
 // ─── Commit Mock-up (desktop) ─────────────────────────────────────────────────
 function CommitMockup() {
@@ -611,9 +612,9 @@ function MobileLanding({ onConnect }: { onConnect: (el: string) => void }) {
       {/* Mobile Nav */}
       <nav className="flex items-center justify-between px-5 h-14 shrink-0"
         style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-        <div className="flex items-center gap-2">
-          <img src="/images/logo.png" alt="DevContext" className="w-7 h-7 rounded-lg object-cover" />
-          <span className="font-bold text-sm" style={{ color: "#3b82f6", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+        <div className="flex items-center gap-2.5">
+          <LogoIcon size={28} />
+          <span className="font-bold text-sm" style={{ color: "#fff", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
             DevContext
           </span>
         </div>
@@ -1069,7 +1070,7 @@ export default function Landing() {
         >
           <div className="flex items-center gap-8">
             <div className="flex items-center gap-2.5">
-              <img src="/images/logo.png" alt="DevContext" className="w-7 h-7 rounded-lg object-cover" />
+              <LogoIcon size={30} />
               <span
                 className="font-extrabold tracking-tight text-white text-sm"
                 style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", letterSpacing: "0.08em" }}

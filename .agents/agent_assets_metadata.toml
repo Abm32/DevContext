@@ -125,3 +125,21 @@ id = "cbsW_i6RQ8mKKd489dPlD"
 uri = "file://artifacts/devcontext/public/images/ph-screenshot-3-demo.jpg"
 type = "image"
 title = "PH Screenshot 3 – Demo Section"
+
+[[outputs]]
+id = "DAowInTPnu20cG2WuHRbj"
+uri = "file://artifacts/devcontext/public/images/devcontext-logo-1024.png"
+type = "image"
+title = "DevContext Logo — 1024x1024 (for social profiles, app stores)"
+
+[[outputs]]
+id = "pXSaDGOCIJJ-GoUQmkv-D"
+uri = "file://artifacts/devcontext/public/images/devcontext-logo-512.png"
+type = "image"
+title = "DevContext Logo — 512x512 (for avatars, smaller use)"
+
+[[outputs]]
+id = "Sdm5u7O4_FAUfvlD3kbsp"
+uri = "file://artifacts/devcontext/public/images/logo.svg"
+type = "image"
+title = "DevContext Logo — SVG (vector, infinitely scalable)"

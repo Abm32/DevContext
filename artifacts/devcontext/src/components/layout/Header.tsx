@@ -34,7 +34,7 @@ function PlanBadge({ plan }: { plan: PlanTier }) {
   const s = TIER_STYLE[plan]
   return (
     <span
-      className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest"
+      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest"
       style={{ background: s.bg, color: s.color, border: `1px solid ${s.border}` }}
     >
       {s.icon}
@@ -104,7 +104,7 @@ export function Header() {
         {/* Logo */}
         <div className="flex items-center gap-2 md:gap-3">
           <img src="/images/logo.png" alt="DevContext logo" className="w-6 h-6 md:w-7 md:h-7 rounded-lg object-cover" />
-          <span className="font-display font-bold text-sm md:text-base text-white hidden sm:inline-block tracking-tight">
+          <span className="font-display font-bold text-sm md:text-base text-white tracking-tight">
             DevContext
           </span>
         </div>

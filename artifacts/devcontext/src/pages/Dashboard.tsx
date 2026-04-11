@@ -748,41 +748,36 @@ export default function Dashboard() {
             className="relative z-10 px-4 pt-3 pb-0 md:px-8"
           >
             <div
-              className="rounded-xl px-4 py-3.5 flex flex-col sm:flex-row sm:items-center gap-3"
+              className="rounded-xl px-3 py-2.5 md:px-4 md:py-3.5 flex items-center gap-2 md:gap-3"
               style={{ background: "rgba(59,130,246,0.07)", border: "1px solid rgba(59,130,246,0.2)" }}
             >
-              <div className="flex items-center gap-2 shrink-0">
-                <BrainCircuit className="w-4 h-4 shrink-0" style={{ color: "#3b82f6" }} />
-                <span className="text-xs font-bold uppercase tracking-widest" style={{ color: "#3b82f6" }}>
-                  Get started in 3 steps
-                </span>
-              </div>
-              <div className="flex items-center gap-2 flex-wrap">
+              <BrainCircuit className="w-4 h-4 shrink-0 hidden md:block" style={{ color: "#3b82f6" }} />
+              <div className="flex items-center gap-1.5 md:gap-2 flex-1 overflow-x-auto scrollbar-hide">
                 {[
-                  { n: "1", label: "Pick a repository" },
-                  { n: "2", label: "Select a branch" },
-                  { n: "3", label: 'Hit "What\'s next?"' },
+                  { n: "1", label: "Pick repo" },
+                  { n: "2", label: "Branch" },
+                  { n: "3", label: '"What\'s next?"' },
                 ].map((step, i) => (
-                  <div key={step.n} className="flex items-center gap-1.5">
-                    {i > 0 && <ArrowRight className="w-3 h-3 shrink-0" style={{ color: "rgba(255,255,255,0.2)" }} />}
-                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg" style={{ background: "rgba(255,255,255,0.05)" }}>
+                  <div key={step.n} className="flex items-center gap-1 md:gap-1.5 shrink-0">
+                    {i > 0 && <ArrowRight className="w-2.5 h-2.5 md:w-3 md:h-3 shrink-0" style={{ color: "rgba(255,255,255,0.2)" }} />}
+                    <div className="flex items-center gap-1 md:gap-1.5 px-2 py-0.5 md:px-2.5 md:py-1 rounded-lg" style={{ background: "rgba(255,255,255,0.05)" }}>
                       <span
-                        className="w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
+                        className="w-3.5 h-3.5 md:w-4 md:h-4 rounded-full flex items-center justify-center text-[9px] md:text-[10px] font-bold shrink-0"
                         style={{ background: "rgba(59,130,246,0.3)", color: "#93c5fd" }}
                       >
                         {step.n}
                       </span>
-                      <span className="text-xs font-medium" style={{ color: "#94a3b8" }}>{step.label}</span>
+                      <span className="text-[10px] md:text-xs font-medium whitespace-nowrap" style={{ color: "#94a3b8" }}>{step.label}</span>
                     </div>
                   </div>
                 ))}
               </div>
               <button
                 onClick={dismissOnboarding}
-                className="ml-auto shrink-0 text-muted-foreground/40 hover:text-muted-foreground transition-colors"
+                className="shrink-0 text-muted-foreground/40 hover:text-muted-foreground transition-colors"
                 aria-label="Dismiss"
               >
-                <X className="w-4 h-4" />
+                <X className="w-3.5 h-3.5 md:w-4 md:h-4" />
               </button>
             </div>
           </motion.div>
@@ -790,7 +785,7 @@ export default function Dashboard() {
       </AnimatePresence>
 
       {/* Mobile tab switcher */}
-      <div className="md:hidden flex" style={{ background: "#0e0e10", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+      <div className="md:hidden flex relative" style={{ background: "#0e0e10", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
         {([
           { id: "commits", label: "Commits", icon: <GitCommitHorizontal className="w-4 h-4" /> },
           { id: "ai",      label: "AI Analysis", icon: <Sparkles className="w-4 h-4" />, dot: !!displayResult },
@@ -798,34 +793,37 @@ export default function Dashboard() {
           <button
             key={tab.id}
             onClick={() => setMobileTab(tab.id)}
-            className="flex-1 flex flex-col items-center gap-0.5 py-2 transition-colors"
+            className="relative flex-1 flex items-center justify-center gap-2 py-3 transition-colors"
           >
-            <div
-              className="flex items-center justify-center w-10 h-7 rounded-full transition-all"
-              style={mobileTab === tab.id ? { background: "rgba(59,130,246,0.15)" } : {}}
-            >
-              <span style={{ color: mobileTab === tab.id ? "#3b82f6" : "#475569" }}>{tab.icon}</span>
-            </div>
+            <span style={{ color: mobileTab === tab.id ? "#3b82f6" : "#475569" }}>{tab.icon}</span>
             <span
-              className="text-[10px] font-semibold uppercase tracking-wider"
+              className="text-xs font-semibold"
               style={{ color: mobileTab === tab.id ? "#3b82f6" : "#475569" }}
             >
               {tab.label}
             </span>
             {"dot" in tab && tab.dot && (
-              <span className="absolute top-2.5 right-[calc(50%-12px)] w-1.5 h-1.5 rounded-full" style={{ background: "#10b981" }} />
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#10b981" }} />
+            )}
+            {mobileTab === tab.id && (
+              <motion.div
+                layoutId="mobile-tab-indicator"
+                className="absolute bottom-0 left-4 right-4 h-0.5 rounded-full"
+                style={{ background: "#3b82f6" }}
+                transition={{ type: "spring", stiffness: 500, damping: 35 }}
+              />
             )}
           </button>
         ))}
       </div>
 
-      <main className="flex-1 container mx-auto px-3 md:px-4 py-3 md:py-8 flex flex-col md:flex-row gap-4 md:gap-8 overflow-hidden h-[calc(100dvh-6.5rem)] md:h-[calc(100vh-3.5rem)]">
+      <main className="flex-1 container mx-auto px-3 md:px-4 py-2 md:py-8 flex flex-col md:flex-row gap-3 md:gap-8 overflow-hidden h-[calc(100dvh-7rem)] md:h-[calc(100vh-3.5rem)]">
 
         {/* ── Left Column ────────────────────────────────────────────────── */}
         <div className={`w-full md:w-1/3 flex flex-col gap-3 md:gap-4 overflow-hidden md:border-r border-white/5 pr-0 md:pr-4 ${mobileTab === "ai" ? "hidden md:flex" : "flex"}`}>
 
-          {/* Workspaces strip */}
-          <div className="flex flex-col gap-2">
+          {/* Workspaces strip — hidden on mobile when empty */}
+          <div className={`flex flex-col gap-2 ${workspaces.length === 0 && selectedRepos.length === 0 ? "hidden md:flex" : "flex"}`}>
             <div className="flex items-center justify-between">
               <h2 className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5" style={{ color: "rgba(255,255,255,0.25)" }}>
                 <Bookmark className="w-3 h-3" />
@@ -1027,7 +1025,7 @@ export default function Dashboard() {
                 className="w-full bg-secondary/30 border border-white/10 rounded-xl py-2.5 pl-9 pr-4 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
               />
             </div>
-            <div className="bg-card border border-white/5 rounded-xl overflow-y-auto max-h-[22vh] scrollbar-hide">
+            <div className="bg-card border border-white/5 rounded-xl overflow-y-auto max-h-[35vh] md:max-h-[22vh] scrollbar-hide">
               {isReposLoading ? (
                 <div className="p-4 space-y-3">
                   {[1, 2, 3].map(i => <Skeleton key={i} className="h-10 w-full" />)}
@@ -1404,7 +1402,14 @@ export default function Dashboard() {
                 </div>
 
                 {!selectedRepo && !usage.ai_analyses.exhausted && (
-                  <span className="text-[10px] md:hidden shrink-0" style={{ color: "rgba(255,255,255,0.2)" }}>Select a repo first</span>
+                  <button
+                    onClick={() => setMobileTab("commits")}
+                    className="text-[10px] md:hidden shrink-0 flex items-center gap-1 px-2 py-1 rounded-lg transition-colors"
+                    style={{ color: "#3b82f6", background: "rgba(59,130,246,0.08)" }}
+                  >
+                    <GitCommitHorizontal className="w-3 h-3" />
+                    Pick repo
+                  </button>
                 )}
               </div>
 
@@ -1452,9 +1457,20 @@ export default function Dashboard() {
                     <FolderGit2 className="w-6 h-6 md:w-8 md:h-8 text-muted-foreground" />
                   </div>
                   <h3 className="text-lg md:text-xl font-semibold text-white mb-1.5 md:mb-2">Select a repository</h3>
-                  <p className="text-sm md:text-base text-muted-foreground max-w-md">
-                    Choose a project from the Commits tab to analyze your recent work and rebuild your context.
+                  <p className="text-sm md:text-base text-muted-foreground max-w-md mb-4 md:mb-0">
+                    Pick a repo to analyze your recent work and rebuild your context.
                   </p>
+                  <button
+                    onClick={() => setMobileTab("commits")}
+                    className="md:hidden mt-2 flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all"
+                    style={{
+                      background: "linear-gradient(135deg, #3b82f6, #2563eb)",
+                      boxShadow: "0 4px 16px rgba(59,130,246,0.25)",
+                    }}
+                  >
+                    <GitCommitHorizontal className="w-4 h-4" />
+                    Go to Commits
+                  </button>
                 </div>
               ) : isGenerating ? (
                 <div className="h-full flex flex-col items-center justify-center max-w-md mx-auto text-center space-y-6">
@@ -1590,25 +1606,23 @@ export default function Dashboard() {
                 </motion.div>
               ) : (
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-5 md:p-8">
-                  <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-secondary flex items-center justify-center mb-4 md:mb-6">
-                    <BrainCircuit className="w-6 h-6 md:w-8 md:h-8 text-primary opacity-50" />
+                  <div className="w-10 h-10 md:w-16 md:h-16 rounded-2xl bg-secondary flex items-center justify-center mb-3 md:mb-6">
+                    <BrainCircuit className="w-5 h-5 md:w-8 md:h-8 text-primary opacity-50" />
                   </div>
-                  <h3 className="text-lg md:text-xl font-semibold text-white mb-1.5 md:mb-2">Ready to Resume</h3>
-                  <p className="text-sm md:text-base text-muted-foreground max-w-md mb-4 md:mb-6">
-                    Click <span className="text-primary font-medium">{summaryMode === "standup" ? "Generate Standup" : "What's next?"}</span> above to analyze your recent work{isMultiRepo ? ` across ${selectedRepos.length} repos` : ` in ${selectedRepo.name}`}.
+                  <h3 className="text-base md:text-xl font-semibold text-white mb-1 md:mb-2">Ready to Resume</h3>
+                  <p className="text-xs md:text-base text-muted-foreground max-w-md mb-3 md:mb-6">
+                    Tap <span className="text-primary font-medium">{summaryMode === "standup" ? "Generate Standup" : "What's next?"}</span> above to analyze your work{isMultiRepo ? ` across ${selectedRepos.length} repos` : ""}.
                   </p>
-                  <div className="flex flex-col items-center gap-2 text-[11px] text-muted-foreground/50">
-                    <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3 md:gap-4 text-[11px] text-muted-foreground/50">
+                    <span className="flex items-center gap-1.5">
+                      <GitCommitHorizontal className="w-3.5 h-3.5" />
+                      {mergedCommits.length} commits
+                    </span>
+                    {!isMultiRepo && activeBranch && (
                       <span className="flex items-center gap-1.5">
-                        <GitCommitHorizontal className="w-3.5 h-3.5" />
-                        {mergedCommits.length} commits ready to analyze
+                        <GitBranch className="w-3.5 h-3.5" />{activeBranch}
                       </span>
-                      {!isMultiRepo && activeBranch && (
-                        <span className="flex items-center gap-1.5">
-                          <GitBranch className="w-3.5 h-3.5" />{activeBranch}
-                        </span>
-                      )}
-                    </div>
+                    )}
                   </div>
                 </div>
               )}

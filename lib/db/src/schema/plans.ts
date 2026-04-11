@@ -1,4 +1,4 @@
-import { pgTable, serial, varchar, integer, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, serial, varchar, integer, timestamp, uniqueIndex, boolean } from "drizzle-orm/pg-core";
 
 export type PlanTier = "free" | "plus" | "pro" | "team";
 
@@ -22,6 +22,28 @@ export const aiUsage = pgTable("ai_usage", {
   updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, table => [
   uniqueIndex("ai_usage_user_month_idx").on(table.github_username, table.month),
+]);
+
+export const promoCodes = pgTable("promo_codes", {
+  id: serial("id").primaryKey(),
+  code: varchar("code", { length: 50 }).notNull().unique(),
+  description: varchar("description", { length: 255 }),
+  max_claims: integer("max_claims").notNull().default(100),
+  claims_count: integer("claims_count").notNull().default(0),
+  bonus_credits: integer("bonus_credits").notNull().default(0),
+  plan_override: varchar("plan_override", { length: 20 }),
+  expires_at: timestamp("expires_at", { withTimezone: true }),
+  is_active: boolean("is_active").notNull().default(true),
+  created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const promoRedemptions = pgTable("promo_redemptions", {
+  id: serial("id").primaryKey(),
+  code: varchar("code", { length: 50 }).notNull(),
+  github_username: varchar("github_username", { length: 100 }).notNull(),
+  redeemed_at: timestamp("redeemed_at", { withTimezone: true }).defaultNow().notNull(),
+}, table => [
+  uniqueIndex("promo_redemptions_code_user_idx").on(table.code, table.github_username),
 ]);
 
 export type UserPlan = typeof userPlans.$inferSelect;

@@ -9,6 +9,7 @@ import adminRouter from "./admin";
 import e2emRouter from "./e2em";
 import planRouter from "./plan";
 import paymentsRouter from "./payments";
+import promoRouter from "./promo";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use("/admin", adminRouter);
 router.use("/e2em", e2emRouter);
 router.use("/plan", planRouter);
 router.use("/payments", paymentsRouter);
+router.use("/promo", promoRouter);
 
 export default router;

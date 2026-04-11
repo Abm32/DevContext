@@ -6,7 +6,7 @@ import {
 } from "recharts"
 import {
   Users, Eye, MousePointerClick, Activity, LogOut, RefreshCw, BrainCircuit, Zap,
-  Mail, Plus, Trash2, ToggleLeft, ToggleRight, Check, X, BarChart2,
+  Mail, Plus, Trash2, ToggleLeft, ToggleRight, Check, X, BarChart2, Tag,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -146,6 +146,77 @@ export default function AdminDashboard() {
     if (!confirm(`Reset AI usage for ${username}?`)) return
     await fetch(`/api/admin/plans/${username}/usage`, { method: "DELETE" })
     void fetchPlans()
+  }
+
+  // ─── promo codes state ─────────────────────────────────────────────────
+  interface PromoCode {
+    id: number
+    code: string
+    description: string | null
+    max_claims: number
+    claims_count: number
+    bonus_credits: number
+    plan_override: string | null
+    expires_at: string | null
+    is_active: boolean
+    created_at: string
+  }
+  const [promoCodes, setPromoCodes] = useState<PromoCode[]>([])
+  const [promoLoading, setPromoLoading] = useState(false)
+  const [showAddPromo, setShowAddPromo] = useState(false)
+  const [newPromo, setNewPromo] = useState({
+    code: "", description: "", max_claims: 100, bonus_credits: 0, plan_override: "", expires_at: "",
+  })
+  const [promoError, setPromoError] = useState("")
+  const [addingPromo, setAddingPromo] = useState(false)
+
+  const fetchPromoCodes = useCallback(async () => {
+    setPromoLoading(true)
+    try {
+      const res = await fetch("/api/admin/promo-codes")
+      if (res.ok) setPromoCodes((await res.json()) as PromoCode[])
+    } catch { /* silent */ } finally {
+      setPromoLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { void fetchPromoCodes() }, [fetchPromoCodes])
+
+  const handleAddPromo = async () => {
+    if (!newPromo.code.trim()) { setPromoError("Code is required"); return }
+    if (!newPromo.max_claims || newPromo.max_claims < 1) { setPromoError("Max claims must be at least 1"); return }
+    setAddingPromo(true)
+    setPromoError("")
+    try {
+      const res = await fetch("/api/admin/promo-codes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: newPromo.code,
+          description: newPromo.description || undefined,
+          max_claims: Number(newPromo.max_claims),
+          bonus_credits: Number(newPromo.bonus_credits),
+          plan_override: newPromo.plan_override || undefined,
+          expires_at: newPromo.expires_at || undefined,
+        }),
+      })
+      const data = await res.json() as { error?: string }
+      if (!res.ok) { setPromoError(data.error ?? "Failed"); return }
+      setShowAddPromo(false)
+      setNewPromo({ code: "", description: "", max_claims: 100, bonus_credits: 0, plan_override: "", expires_at: "" })
+      void fetchPromoCodes()
+    } catch { setPromoError("Network error") } finally { setAddingPromo(false) }
+  }
+
+  const handleTogglePromo = async (id: number) => {
+    await fetch(`/api/admin/promo-codes/${id}/toggle`, { method: "PATCH" })
+    void fetchPromoCodes()
+  }
+
+  const handleDeletePromo = async (id: number, code: string) => {
+    if (!confirm(`Delete promo code "${code}"? This cannot be undone.`)) return
+    await fetch(`/api/admin/promo-codes/${id}`, { method: "DELETE" })
+    void fetchPromoCodes()
   }
 
   // ─── e2em state ────────────────────────────────────────────────────────
@@ -796,6 +867,175 @@ export default function AdminDashboard() {
             </table>
           </div>
         </div>
+        {/* ── Promo Codes ── */}
+        <div className="bg-card border border-white/5 rounded-2xl overflow-hidden">
+          <div className="p-5 border-b border-white/5 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+              <Tag className="w-4 h-4 text-emerald-400" />
+              Promo Codes
+            </h2>
+            <button
+              onClick={() => { setShowAddPromo(s => !s); setPromoError("") }}
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 transition-colors"
+            >
+              {showAddPromo ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+              {showAddPromo ? "Cancel" : "New Code"}
+            </button>
+          </div>
+
+          {showAddPromo && (
+            <div className="p-5 border-b border-white/5 bg-emerald-500/[0.04] space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Code * (auto-uppercased)</label>
+                  <input
+                    type="text"
+                    value={newPromo.code}
+                    onChange={e => setNewPromo(p => ({ ...p, code: e.target.value.toUpperCase() }))}
+                    placeholder="PRODUCTHUNT"
+                    className="bg-secondary/40 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Description</label>
+                  <input
+                    type="text"
+                    value={newPromo.description}
+                    onChange={e => setNewPromo(p => ({ ...p, description: e.target.value }))}
+                    placeholder="Product Hunt launch promo"
+                    className="bg-secondary/40 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Max Claims *</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={newPromo.max_claims}
+                    onChange={e => setNewPromo(p => ({ ...p, max_claims: Number(e.target.value) }))}
+                    className="bg-secondary/40 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Bonus AI Credits (added to account)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={newPromo.bonus_credits}
+                    onChange={e => setNewPromo(p => ({ ...p, bonus_credits: Number(e.target.value) }))}
+                    placeholder="0"
+                    className="bg-secondary/40 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Plan Override (optional)</label>
+                  <select
+                    value={newPromo.plan_override}
+                    onChange={e => setNewPromo(p => ({ ...p, plan_override: e.target.value }))}
+                    className="bg-secondary/40 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
+                  >
+                    <option value="">None (credits only)</option>
+                    <option value="plus">Plus</option>
+                    <option value="pro">Pro</option>
+                    <option value="team">Team</option>
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Expires At (optional)</label>
+                  <input
+                    type="date"
+                    value={newPromo.expires_at}
+                    onChange={e => setNewPromo(p => ({ ...p, expires_at: e.target.value }))}
+                    className="bg-secondary/40 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
+                  />
+                </div>
+              </div>
+              {promoError && <p className="text-xs text-red-400">{promoError}</p>}
+              <button
+                onClick={() => void handleAddPromo()}
+                disabled={addingPromo}
+                className="flex items-center gap-1.5 text-xs px-4 py-2 rounded-lg bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-300 transition-colors disabled:opacity-50"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                {addingPromo ? "Creating..." : "Create Code"}
+              </button>
+            </div>
+          )}
+
+          {promoLoading ? (
+            <div className="p-8 flex justify-center"><div className="w-5 h-5 rounded-full border-2 border-emerald-500/30 border-t-emerald-500 animate-spin" /></div>
+          ) : promoCodes.length === 0 ? (
+            <div className="p-8 text-center text-muted-foreground text-sm">No promo codes yet</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-white/5">
+                    <th className="text-left px-5 py-3 text-muted-foreground font-medium">Code</th>
+                    <th className="text-left px-3 py-3 text-muted-foreground font-medium">Description</th>
+                    <th className="text-left px-3 py-3 text-muted-foreground font-medium">Claims</th>
+                    <th className="text-left px-3 py-3 text-muted-foreground font-medium">Credits</th>
+                    <th className="text-left px-3 py-3 text-muted-foreground font-medium">Plan</th>
+                    <th className="text-left px-3 py-3 text-muted-foreground font-medium">Expires</th>
+                    <th className="text-left px-3 py-3 text-muted-foreground font-medium">Status</th>
+                    <th className="px-3 py-3" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {promoCodes.map(c => (
+                    <tr key={c.id} className="border-b border-white/[0.03] hover:bg-white/[0.015]">
+                      <td className="px-5 py-3">
+                        <span className="font-mono font-bold text-white tracking-wider">{c.code}</span>
+                      </td>
+                      <td className="px-3 py-3 text-muted-foreground max-w-[160px] truncate">{c.description ?? "—"}</td>
+                      <td className="px-3 py-3">
+                        <span className={c.claims_count >= c.max_claims ? "text-red-400" : "text-white"}>
+                          {c.claims_count}
+                        </span>
+                        <span className="text-muted-foreground/50"> / {c.max_claims}</span>
+                      </td>
+                      <td className="px-3 py-3 text-emerald-400 font-medium">{c.bonus_credits > 0 ? `+${c.bonus_credits}` : "—"}</td>
+                      <td className="px-3 py-3">
+                        {c.plan_override ? (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-violet-500/15 text-violet-400 border border-violet-500/20 capitalize">
+                            {c.plan_override}
+                          </span>
+                        ) : "—"}
+                      </td>
+                      <td className="px-3 py-3 text-muted-foreground">
+                        {c.expires_at ? new Date(c.expires_at).toLocaleDateString() : "Never"}
+                      </td>
+                      <td className="px-3 py-3">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${c.is_active ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-white/5 text-muted-foreground border-white/10"}`}>
+                          {c.is_active ? "Active" : "Paused"}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3">
+                        <div className="flex items-center gap-2 justify-end">
+                          <button
+                            onClick={() => void handleTogglePromo(c.id)}
+                            title={c.is_active ? "Pause code" : "Activate code"}
+                            className="text-muted-foreground hover:text-white transition-colors"
+                          >
+                            {c.is_active ? <ToggleRight className="w-4 h-4 text-emerald-400" /> : <ToggleLeft className="w-4 h-4" />}
+                          </button>
+                          <button
+                            onClick={() => void handleDeletePromo(c.id, c.code)}
+                            title="Delete code"
+                            className="text-muted-foreground hover:text-red-400 transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
       </main>
     </div>
   )

@@ -1,4 +1,4 @@
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useLocation } from "wouter"
 import { motion } from "framer-motion"
 import { useGetMe } from "@workspace/api-client-react"
@@ -7,7 +7,7 @@ import { Header } from "@/components/layout/Header"
 import {
   Github, ExternalLink, CheckCircle2, XCircle,
   BrainCircuit, GitBranch, Layers, ClipboardList, Bookmark,
-  ArrowLeft, Crown, Zap, Sparkles, Users, ArrowRight,
+  ArrowLeft, Crown, Zap, Sparkles, Users, ArrowRight, Tag,
 } from "lucide-react"
 
 // ─── Tier display config ───────────────────────────────────────────────────────
@@ -192,6 +192,36 @@ export default function Profile() {
     )
   }
 
+  const [promoCode, setPromoCode] = useState("")
+  const [promoStatus, setPromoStatus] = useState<"idle" | "loading" | "success" | "error">("idle")
+  const [promoMessage, setPromoMessage] = useState("")
+
+  const handleRedeemCode = async () => {
+    if (!promoCode.trim()) return
+    setPromoStatus("loading")
+    setPromoMessage("")
+    try {
+      const res = await fetch("/api/promo/redeem", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: promoCode.trim() }),
+      })
+      const data = await res.json() as { message?: string; error?: string }
+      if (res.ok) {
+        setPromoStatus("success")
+        setPromoMessage(data.message ?? "Code redeemed successfully!")
+        setPromoCode("")
+        setTimeout(() => window.location.reload(), 2000)
+      } else {
+        setPromoStatus("error")
+        setPromoMessage(data.error ?? "Failed to redeem code")
+      }
+    } catch {
+      setPromoStatus("error")
+      setPromoMessage("Network error — please try again")
+    }
+  }
+
   if (!user) return null
 
   const aiUsage = usage.ai_analyses
@@ -353,6 +383,59 @@ export default function Profile() {
               />
             </div>
           </section>
+
+          {/* ── Redeem promo code ── */}
+          <motion.section
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25 }}
+          >
+            <h2 className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: "rgba(255,255,255,0.25)" }}>
+              Promo Code
+            </h2>
+            <div
+              className="rounded-2xl p-5"
+              style={{ background: "#131314", border: "1px solid rgba(255,255,255,0.06)" }}
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <Tag className="w-4 h-4" style={{ color: "#10b981" }} />
+                <span className="text-sm font-semibold text-white">Have a code?</span>
+              </div>
+              <p className="text-xs mb-4" style={{ color: "#475569" }}>
+                Enter a promo code to get bonus AI analyses or a plan upgrade.
+              </p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={promoCode}
+                  onChange={e => { setPromoCode(e.target.value.toUpperCase()); setPromoStatus("idle"); setPromoMessage("") }}
+                  onKeyDown={e => e.key === "Enter" && void handleRedeemCode()}
+                  placeholder="PRODUCTHUNT"
+                  disabled={promoStatus === "loading" || promoStatus === "success"}
+                  className="flex-1 rounded-xl px-4 py-2.5 text-sm font-mono text-white placeholder:text-white/20 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 transition-all disabled:opacity-50"
+                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)" }}
+                />
+                <button
+                  onClick={() => void handleRedeemCode()}
+                  disabled={!promoCode.trim() || promoStatus === "loading" || promoStatus === "success"}
+                  className="px-5 py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-40"
+                  style={{ background: "rgba(16,185,129,0.15)", color: "#10b981", border: "1px solid rgba(16,185,129,0.25)" }}
+                >
+                  {promoStatus === "loading" ? "..." : "Redeem"}
+                </button>
+              </div>
+              {promoMessage && (
+                <motion.p
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-sm mt-3"
+                  style={{ color: promoStatus === "success" ? "#10b981" : "#f87171" }}
+                >
+                  {promoMessage}
+                </motion.p>
+              )}
+            </div>
+          </motion.section>
 
           {/* ── Upgrade section (non-Team only) ── */}
           {!isTeam && <UpgradeSection currentPlan={plan} />}

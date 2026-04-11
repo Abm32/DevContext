@@ -2,7 +2,7 @@ import { Router, type IRouter, type Request } from "express";
 import { createHmac, timingSafeEqual } from "crypto";
 import jwt from "jsonwebtoken";
 import { db } from "@workspace/db";
-import { e2emGrants, userPlans, aiUsage } from "@workspace/db";
+import { e2emGrants, userPlans, aiUsage, promoCodes, promoRedemptions } from "@workspace/db";
 import { sql, eq, desc } from "drizzle-orm";
 
 const router: IRouter = Router();
@@ -360,6 +360,115 @@ router.post("/users/:username/credits", async (req, res) => {
   } catch (err) {
     req.log.error({ err }, "admin credits set error");
     res.status(500).json({ error: "Failed to set credits" });
+  }
+});
+
+// ── Promo Codes ───────────────────────────────────────────────────────────────
+
+router.get("/promo-codes", async (req, res) => {
+  if (!verifyAdminToken(req)) { res.status(401).json({ error: "Unauthorized" }); return; }
+  try {
+    const codes = await db.select().from(promoCodes).orderBy(desc(promoCodes.created_at));
+    res.json(codes);
+  } catch (err) {
+    req.log.error({ err }, "admin promo codes list error");
+    res.status(500).json({ error: "Failed to list promo codes" });
+  }
+});
+
+router.post("/promo-codes", async (req, res) => {
+  if (!verifyAdminToken(req)) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const { code, description, max_claims, bonus_credits, plan_override, expires_at } =
+    req.body as {
+      code?: string;
+      description?: string;
+      max_claims?: number;
+      bonus_credits?: number;
+      plan_override?: string;
+      expires_at?: string;
+    };
+
+  if (!code || typeof code !== "string" || !code.trim()) {
+    res.status(400).json({ error: "code is required" });
+    return;
+  }
+  if (typeof max_claims !== "number" || max_claims < 1) {
+    res.status(400).json({ error: "max_claims must be at least 1" });
+    return;
+  }
+
+  try {
+    const [created] = await db.insert(promoCodes).values({
+      code: code.trim().toUpperCase(),
+      description: description?.trim() ?? null,
+      max_claims,
+      bonus_credits: bonus_credits ?? 0,
+      plan_override: plan_override ?? null,
+      expires_at: expires_at ? new Date(expires_at) : null,
+      is_active: true,
+    }).returning();
+    res.json(created);
+  } catch (err: unknown) {
+    const msg = (err as Error)?.message ?? "";
+    if (msg.includes("unique") || msg.includes("duplicate")) {
+      res.status(409).json({ error: "A promo code with that name already exists" });
+    } else {
+      req.log.error({ err }, "admin promo code create error");
+      res.status(500).json({ error: "Failed to create promo code" });
+    }
+  }
+});
+
+router.patch("/promo-codes/:id/toggle", async (req, res) => {
+  if (!verifyAdminToken(req)) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const id = parseInt(req.params.id ?? "", 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  try {
+    const [updated] = await db
+      .update(promoCodes)
+      .set({ is_active: sql`NOT ${promoCodes.is_active}` })
+      .where(eq(promoCodes.id, id))
+      .returning();
+    if (!updated) { res.status(404).json({ error: "Not found" }); return; }
+    res.json(updated);
+  } catch (err) {
+    req.log.error({ err }, "admin promo code toggle error");
+    res.status(500).json({ error: "Failed to toggle promo code" });
+  }
+});
+
+router.delete("/promo-codes/:id", async (req, res) => {
+  if (!verifyAdminToken(req)) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const id = parseInt(req.params.id ?? "", 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  try {
+    const [deleted] = await db.select().from(promoCodes).where(eq(promoCodes.id, id));
+    if (!deleted) { res.status(404).json({ error: "Not found" }); return; }
+    await db.delete(promoRedemptions).where(eq(promoRedemptions.code, deleted.code));
+    await db.delete(promoCodes).where(eq(promoCodes.id, id));
+    res.json({ ok: true });
+  } catch (err) {
+    req.log.error({ err }, "admin promo code delete error");
+    res.status(500).json({ error: "Failed to delete promo code" });
+  }
+});
+
+router.get("/promo-codes/:id/redemptions", async (req, res) => {
+  if (!verifyAdminToken(req)) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const id = parseInt(req.params.id ?? "", 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  try {
+    const [promo] = await db.select().from(promoCodes).where(eq(promoCodes.id, id));
+    if (!promo) { res.status(404).json({ error: "Not found" }); return; }
+    const redemptions = await db
+      .select()
+      .from(promoRedemptions)
+      .where(eq(promoRedemptions.code, promo.code))
+      .orderBy(desc(promoRedemptions.redeemed_at));
+    res.json(redemptions);
+  } catch (err) {
+    req.log.error({ err }, "admin promo redemptions error");
+    res.status(500).json({ error: "Failed to list redemptions" });
   }
 });
 

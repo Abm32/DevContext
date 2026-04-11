@@ -36,7 +36,7 @@ RAZORPAY_KEY_ID = "rzp_live_SQhFizpZgMss7x"
 RAZORPAY_KEY_SECRET = "1U1qPppT4WSveXHiGPIP32Tn"
 
 [userenv.production]
-APP_BASE_URL = "https://devcontext.abhimanyurb.com"
+APP_BASE_URL = "https://devcontext.online"
 
 [nix]
 channel = "stable-25_05"

@@ -6,6 +6,14 @@ import {
   GetCommitDetailResponse,
 } from "@workspace/api-zod";
 import { getTokenPayload } from "./auth";
+import {
+  isMockToken,
+  MOCK_REPOS,
+  MOCK_BRANCHES,
+  MOCK_COMMITS,
+  MOCK_COMMIT_DETAILS,
+  getMockCommitCount,
+} from "./mock-data";
 
 const router: IRouter = Router();
 
@@ -60,6 +68,12 @@ async function ghFetch<T>(url: string, token: string): Promise<T | null> {
 router.get("/repos", async (req, res) => {
   const token = requireAuth(req, res as unknown as Response);
   if (!token) return;
+
+  if (isMockToken(token)) {
+    const data = ListReposResponse.parse(MOCK_REPOS);
+    res.json(data);
+    return;
+  }
 
   try {
     // Fetch personal repos, org list, and all-type repos in parallel
@@ -133,6 +147,14 @@ router.get("/repos/:owner/:repo/branches", async (req, res) => {
 
   const { owner, repo } = req.params;
 
+  if (isMockToken(token)) {
+    const fullName = `${owner}/${repo}`;
+    const branches = MOCK_BRANCHES[fullName] ?? [{ name: "main", is_default: true }];
+    const data = ListBranchesResponse.parse(branches);
+    res.json(data);
+    return;
+  }
+
   try {
     const response = await fetch(
       `https://api.github.com/repos/${owner}/${repo}/branches?per_page=100`,
@@ -197,6 +219,14 @@ router.get("/repos/:owner/:repo/commits", async (req, res) => {
   const { owner, repo } = req.params;
   const perPage = Number(req.query["per_page"] ?? 15);
   const branch = req.query["branch"] as string | undefined;
+
+  if (isMockToken(token)) {
+    const fullName = `${owner}/${repo}`;
+    const commits = (MOCK_COMMITS[fullName] ?? []).slice(0, perPage);
+    const data = ListCommitsResponse.parse(commits);
+    res.json(data);
+    return;
+  }
 
   try {
     const url = branch
@@ -276,6 +306,12 @@ router.get("/repos/:owner/:repo/commit-count", async (req, res) => {
   const { owner, repo } = req.params;
   const branch = req.query["branch"] as string | undefined;
 
+  if (isMockToken(token)) {
+    const fullName = `${owner}/${repo}`;
+    res.json({ total: getMockCommitCount(fullName) });
+    return;
+  }
+
   try {
     const url = branch
       ? `https://api.github.com/repos/${owner}/${repo}/commits?per_page=1&sha=${encodeURIComponent(branch)}`
@@ -315,6 +351,17 @@ router.get("/repos/:owner/:repo/commits/:sha", async (req, res) => {
   if (!token) return;
 
   const { owner, repo, sha } = req.params;
+
+  if (isMockToken(token)) {
+    const detail = MOCK_COMMIT_DETAILS[sha];
+    if (!detail) {
+      res.status(404).json({ error: "Commit not found" });
+      return;
+    }
+    const data = GetCommitDetailResponse.parse(detail);
+    res.json(data);
+    return;
+  }
 
   try {
     const response = await fetch(

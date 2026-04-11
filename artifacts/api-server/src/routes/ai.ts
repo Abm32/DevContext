@@ -3,6 +3,7 @@ import { SummarizeCommitsBody, SummarizeCommitsResponse } from "@workspace/api-z
 import OpenAI from "openai";
 import { getTokenPayload } from "./auth";
 import { checkAiAllowed, incrementAiUsage } from "./plan";
+import { isMockToken, MOCK_SUMMARIES } from "./mock-data";
 
 const router: IRouter = Router();
 
@@ -131,6 +132,19 @@ router.post("/summarize", async (req, res) => {
   }
 
   const { repo_name, commits, mode = "next_steps", dep_context } = parsed.data;
+
+  if (isMockToken(payload.githubToken) && MOCK_SUMMARIES[repo_name]) {
+    await incrementAiUsage(payload.githubUser.login);
+    const mockSummary = mode === "standup"
+      ? MOCK_SUMMARIES[repo_name].standup
+      : MOCK_SUMMARIES[repo_name].next_steps;
+    const data = SummarizeCommitsResponse.parse({
+      ...mockSummary,
+      generated_at: new Date().toISOString(),
+    });
+    res.json(data);
+    return;
+  }
   const depContext: DepContextItem[] = (dep_context ?? []).filter(
     (item): item is DepContextItem =>
       typeof item.latest_version === "string" && item.latest_version.length > 0

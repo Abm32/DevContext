@@ -3,15 +3,12 @@ import { useLocation } from "wouter"
 import { motion } from "framer-motion"
 import { useGetMe } from "@workspace/api-client-react"
 import { usePlan, type PlanTier } from "@/hooks/use-plan"
-import { UpgradeButton } from "@/components/upgrade-prompt"
 import { Header } from "@/components/layout/Header"
 import {
   Github, ExternalLink, CheckCircle2, XCircle,
   BrainCircuit, GitBranch, Layers, ClipboardList, Bookmark,
-  ArrowLeft, Crown, Zap, Sparkles, Users,
+  ArrowLeft, Crown, Zap, Sparkles, Users, ArrowRight,
 } from "lucide-react"
-
-type PaidPlan = Exclude<PlanTier, "free">
 
 // ─── Tier display config ───────────────────────────────────────────────────────
 const TIER_CONFIG: Record<PlanTier, {
@@ -136,14 +133,10 @@ function PlanCard({ tier }: { tier: PlanTier }) {
   )
 }
 
-const ALL_PAID_TIERS: PaidPlan[] = ["plus", "pro", "team"]
-
 function UpgradeSection({ currentPlan }: { currentPlan: PlanTier }) {
-  const availableTiers = ALL_PAID_TIERS.filter(t => {
-    const order: Record<PlanTier, number> = { free: 0, plus: 1, pro: 2, team: 3 }
-    return order[t] > order[currentPlan]
-  })
-  if (availableTiers.length === 0) return null
+  const [, setLocation] = useLocation()
+  const tierOrder: Record<PlanTier, number> = { free: 0, plus: 1, pro: 2, team: 3 }
+  if (tierOrder[currentPlan] >= 3) return null
 
   return (
     <motion.section
@@ -152,35 +145,28 @@ function UpgradeSection({ currentPlan }: { currentPlan: PlanTier }) {
       transition={{ delay: 0.2 }}
     >
       <h2 className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: "rgba(255,255,255,0.25)" }}>
-        Upgrade Your Plan
+        Upgrade
       </h2>
-      <div className="flex flex-col gap-3">
-        {availableTiers.map(tier => {
-          const cfg = TIER_CONFIG[tier]
-          return (
-            <div
-              key={tier}
-              className="rounded-2xl p-4 md:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4"
-              style={{ background: cfg.bg, border: `1px solid ${cfg.border}` }}
-            >
-              <div className="flex items-center gap-3 flex-1 min-w-0">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                  style={{ background: cfg.bg, border: `1px solid ${cfg.border}` }}>
-                  {cfg.icon}
-                </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-sm font-bold text-white">{cfg.label}</span>
-                    <span className="text-lg font-bold" style={{ color: cfg.color }}>{cfg.price}<span className="text-xs font-normal" style={{ color: "#475569" }}>/mo</span></span>
-                  </div>
-                  <p className="text-xs" style={{ color: "#64748b" }}>{cfg.description}</p>
-                </div>
-              </div>
-              <UpgradeButton plan={tier} />
-            </div>
-          )
-        })}
-      </div>
+      <button
+        onClick={() => setLocation("/pricing")}
+        className="w-full rounded-2xl p-5 md:p-6 flex items-center gap-4 text-left transition-all hover:brightness-105 group"
+        style={{
+          background: "linear-gradient(135deg, rgba(59,130,246,0.08), rgba(139,92,246,0.08))",
+          border: "1px solid rgba(139,92,246,0.2)",
+        }}
+      >
+        <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
+          style={{ background: "rgba(139,92,246,0.15)", border: "1px solid rgba(139,92,246,0.25)" }}>
+          <Zap className="w-5 h-5" style={{ color: "#a78bfa" }} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="text-base font-bold text-white mb-0.5">Unlock more power</h3>
+          <p className="text-sm" style={{ color: "#64748b" }}>
+            Compare plans and get more AI analyses, repos, and team features.
+          </p>
+        </div>
+        <ArrowRight className="w-5 h-5 shrink-0 transition-transform group-hover:translate-x-1" style={{ color: "#a78bfa" }} />
+      </button>
     </motion.section>
   )
 }

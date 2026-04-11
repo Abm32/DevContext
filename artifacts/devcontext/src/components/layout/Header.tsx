@@ -1,11 +1,9 @@
-import { useState } from "react"
 import { useLocation } from "wouter"
 import { useGetMe, useLogout } from "@workspace/api-client-react"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { LogOut, Github, Zap, Loader2, CheckCircle2, Sparkles, Users } from "lucide-react"
+import { LogOut, Github, Zap, Sparkles, Users } from "lucide-react"
 import { usePlan, type PlanTier } from "@/hooks/use-plan"
-import { useRazorpay } from "@/hooks/use-razorpay"
 
 type PaidPlan = Exclude<PlanTier, "free">
 
@@ -44,46 +42,20 @@ function PlanBadge({ plan }: { plan: PlanTier }) {
 }
 
 function UpgradeNavButton({ currentPlan }: { currentPlan: PlanTier }) {
-  const [status, setStatus] = useState<"idle" | "loading" | "success">("idle")
-  const { openCheckout } = useRazorpay()
+  const [, setLocation] = useLocation()
   const nextTier = NEXT_TIER[currentPlan]
 
   if (!nextTier) return null
 
   const btn = UPGRADE_BTN[nextTier]
 
-  const handle = () => {
-    setStatus("loading")
-    openCheckout({
-      plan: nextTier,
-      onSuccess: () => { setStatus("success"); setTimeout(() => window.location.reload(), 1200) },
-      onError: () => setStatus("idle"),
-      onDismiss: () => setStatus("idle"),
-    })
-  }
-
-  if (status === "success") {
-    return (
-      <span
-        className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
-        style={{ background: "rgba(16,185,129,0.12)", color: "#10b981" }}
-      >
-        <CheckCircle2 className="w-3.5 h-3.5" />
-        Upgraded!
-      </span>
-    )
-  }
-
   return (
     <button
-      onClick={handle}
-      disabled={status === "loading"}
-      className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-all disabled:opacity-70"
+      onClick={() => setLocation("/pricing")}
+      className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-all hover:brightness-110"
       style={{ background: btn.bg, boxShadow: "0 2px 10px rgba(0,0,0,0.2)" }}
     >
-      {status === "loading"
-        ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Processing…</>
-        : <>Upgrade {btn.label}</>}
+      Upgrade {btn.label}
     </button>
   )
 }

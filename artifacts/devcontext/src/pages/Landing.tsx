@@ -894,7 +894,7 @@ function MobileLanding({ onConnect }: { onConnect: (el: string) => void }) {
                 border: "rgba(16,185,129,0.18)",
                 cta: "team" as const,
                 popular: false,
-                features: ["2,000 AI analyses / month", "Unlimited repos in compare", "Up to 10 team members", "Standup generator", "Saved workspaces", "Dependency health"],
+                features: ["2,000 AI analyses / month", "Unlimited repos in compare", "Up to 10 team members (Coming Soon)", "Standup generator", "Saved workspaces", "Dependency health"],
                 missing: [],
               },
             ].map((plan, i) => (
@@ -1447,7 +1447,7 @@ export default function Landing() {
                   features: [
                     "2,000 AI analyses / month",
                     "Unlimited repos in compare",
-                    "Up to 10 team members",
+                    "Up to 10 team members (Coming Soon)",
                     "Standup generator",
                     "Saved workspaces",
                     "Dependency health",

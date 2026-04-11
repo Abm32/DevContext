@@ -40,7 +40,7 @@ const TIER_META: Record<PaidPlan, {
     color: "#34d399",
     bg: "rgba(16,185,129,0.08)",
     border: "rgba(16,185,129,0.22)",
-    perks: ["2,000 AI analyses/mo", "Unlimited repos", "Up to 10 members"],
+    perks: ["2,000 AI analyses/mo", "Unlimited repos", "Up to 10 members (Coming Soon)"],
   },
 }
 

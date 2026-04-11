@@ -117,7 +117,7 @@ const FEATURES: FeatureRow[] = [
   {
     label: "Team Members",
     icon: <Users className="w-4 h-4" />,
-    values: { free: "1", plus: "1", pro: "1", team: "Up to 10" },
+    values: { free: "1", plus: "1", pro: "1", team: "Up to 10 (Coming Soon)" },
   },
 ]
 

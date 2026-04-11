@@ -50,7 +50,7 @@ const TIER_CONFIG: Record<PlanTier, {
   team: {
     label: "Team Plan",
     price: "₹2,499",
-    description: "2,000 AI analyses/month · Unlimited repos · Up to 10 members",
+    description: "2,000 AI analyses/month · Unlimited repos · Up to 10 members (Coming Soon)",
     color: "#34d399",
     bg: "rgba(16,185,129,0.06)",
     border: "rgba(16,185,129,0.18)",
@@ -367,7 +367,7 @@ export default function Profile() {
               <div>
                 <p className="text-sm font-semibold text-white">Team plan active — all features unlocked</p>
                 <p className="text-xs mt-0.5" style={{ color: "#475569" }}>
-                  You have maximum access with 2,000 AI analyses/month, unlimited repos in compare, and up to 10 team members.
+                  You have maximum access with 2,000 AI analyses/month, unlimited repos in compare, and up to 10 team members (coming soon).
                 </p>
               </div>
             </div>

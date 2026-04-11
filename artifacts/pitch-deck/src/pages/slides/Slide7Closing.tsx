@@ -38,7 +38,7 @@ export default function Slide7Closing() {
         {/* CTA grid */}
         <div className="flex items-center gap-[3vw] mb-[6vh]">
           <div className="text-center">
-            <p className="font-mono text-[1.6vw] font-semibold text-[#10b981] tracking-wider mb-[0.5vh]">devcontext.abhimanyurb.com</p>
+            <p className="font-mono text-[1.6vw] font-semibold text-[#10b981] tracking-wider mb-[0.5vh]">devcontext.online</p>
             <p className="font-body text-[1vw] text-white/30">Live — free to try</p>
           </div>
           <div className="w-[1px] h-[5vh] bg-white/10" />

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useVideoPlayer } from '@/lib/video';
-import { startAmbientMusic, speak, stopSpeech, cleanupAudio } from '@/lib/video/audio';
+import { startAmbientMusic, speak, stopSpeech, cleanupAudio, playSceneMelody, stopSceneMelody } from '@/lib/video/audio';
 import { Scene1 } from './video_scenes/Scene1';
 import { Scene2 } from './video_scenes/Scene2';
 import { Scene3 } from './video_scenes/Scene3';
@@ -169,13 +169,17 @@ export default function VideoTemplate() {
   useEffect(() => {
     if (!audioUnlocked) return;
     stopSpeech();
-    const ttsEntries = SCENE_TTS[currentScene];
-    if (!ttsEntries) return;
+    stopSceneMelody();
 
-    const timers = ttsEntries.map(({ text, delay, rate }) =>
-      setTimeout(() => speak(text, rate), delay)
-    );
-    return () => timers.forEach(t => clearTimeout(t));
+    const ttsEntries = SCENE_TTS[currentScene];
+    if (ttsEntries) {
+      const timers = ttsEntries.map(({ text, delay, rate }) =>
+        setTimeout(() => speak(text, rate), delay)
+      );
+      return () => timers.forEach(t => clearTimeout(t));
+    } else {
+      playSceneMelody(currentScene);
+    }
   }, [currentScene, audioUnlocked]);
 
   return (
@@ -237,16 +241,19 @@ export default function VideoTemplate() {
           transition={{ duration: 4, ease: 'easeInOut' }} />
       </div>
 
-      <motion.div
-        className="absolute h-[2px] bg-gradient-to-r from-[var(--color-accent)] to-[var(--color-accent-violet)] z-50 shadow-[0_0_10px_var(--color-accent)]"
-        animate={{
-          left:    ['0%', '10%', '50%', '20%', '40%', '15%', '60%', '30%', '5%',  '45%', '20%'][currentScene % 11],
-          width:   ['100%','80%', '50%', '60%', '20%', '70%', '40%', '50%', '90%', '30%', '60%'][currentScene % 11],
-          top:     ['10%', '90%', '5%',  '50%', '80%', '15%', '85%', '50%', '25%', '75%', '10%'][currentScene % 11],
-          opacity: [0.8,   0.5,   0.9,   0.6,   1,     0.7,   0.8,   1,     0.6,   0.9,   0.8  ][currentScene % 11],
-        }}
-        transition={{ duration: 1.5, ease: [0.22, 1, 0.36, 1] }}
-      />
+      {[2, 3, 4, 5, 6, 7, 8].includes(currentScene) && (
+        <motion.div
+          className="absolute h-[2px] bg-gradient-to-r from-[var(--color-accent)] to-[var(--color-accent-violet)] z-50 shadow-[0_0_10px_var(--color-accent)]"
+          initial={{ opacity: 0 }}
+          animate={{
+            left:    { 2: '50%', 3: '20%', 4: '40%', 5: '15%', 6: '60%', 7: '30%', 8: '5%' }[currentScene] ?? '0%',
+            width:   { 2: '50%', 3: '60%', 4: '20%', 5: '70%', 6: '40%', 7: '50%', 8: '90%' }[currentScene] ?? '50%',
+            top:     { 2: '5%',  3: '50%', 4: '80%', 5: '15%', 6: '85%', 7: '50%', 8: '25%' }[currentScene] ?? '50%',
+            opacity: { 2: 0.7,   3: 0.5,   4: 0.9,   5: 0.6,   6: 0.7,   7: 0.8,   8: 0.5 }[currentScene] ?? 0.6,
+          }}
+          transition={{ duration: 1.5, ease: [0.22, 1, 0.36, 1] }}
+        />
+      )}
 
       <AnimatePresence mode="popLayout">
         {currentScene === 0 && <Scene1 key="s1" />}

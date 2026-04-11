@@ -756,7 +756,7 @@ function MobileLanding({ onConnect }: { onConnect: (el: string) => void }) {
           initial={{ opacity: 0, y: 12 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="rounded-2xl p-5 flex flex-col gap-3 mb-4"
+          className="rounded-2xl p-5 flex flex-col gap-3 mb-8"
           style={{ background: "#131314" }}
         >
           <div className="flex items-center gap-2.5">
@@ -773,6 +773,157 @@ function MobileLanding({ onConnect }: { onConnect: (el: string) => void }) {
             We never store your source code. Our engine processes all metadata via a secure tunnel, ensuring your IP stays where it belongs.
           </p>
         </motion.div>
+
+        {/* ── Mobile Pricing ── */}
+        <div className="mb-8">
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-6"
+          >
+            <h2
+              className="font-bold mb-2"
+              style={{
+                fontFamily: "'Plus Jakarta Sans', sans-serif",
+                fontSize: "1.5rem",
+                letterSpacing: "-0.02em",
+                color: "#f1f5f9",
+              }}
+            >
+              Simple, Transparent Pricing
+            </h2>
+            <p className="text-sm" style={{ color: "#64748b" }}>
+              Start free. Upgrade as your team grows.
+            </p>
+          </motion.div>
+
+          <div className="flex flex-col gap-3">
+            {[
+              {
+                tier: "free",
+                label: "Free",
+                price: "₹0",
+                period: "forever",
+                tagline: "For solo exploration",
+                color: "#64748b",
+                bg: "rgba(255,255,255,0.03)",
+                border: "rgba(255,255,255,0.07)",
+                cta: null as "plus" | "pro" | "team" | null,
+                popular: false,
+                features: ["10 AI analyses / month", "1 repository", "Commit briefings", "7-day sessions"],
+                missing: ["Compare mode", "Standups", "Workspaces"],
+              },
+              {
+                tier: "plus",
+                label: "Plus",
+                price: "₹499",
+                period: "/ month",
+                tagline: "For active developers",
+                color: "#60a5fa",
+                bg: "rgba(59,130,246,0.06)",
+                border: "rgba(59,130,246,0.2)",
+                cta: "plus" as const,
+                popular: false,
+                features: ["100 AI analyses / month", "3 repositories", "Commit briefings", "Compare mode"],
+                missing: ["Standups", "Workspaces"],
+              },
+              {
+                tier: "pro",
+                label: "Pro",
+                price: "₹999",
+                period: "/ month",
+                tagline: "For power users",
+                color: "#a78bfa",
+                bg: "rgba(139,92,246,0.08)",
+                border: "rgba(139,92,246,0.3)",
+                cta: "pro" as const,
+                popular: true,
+                features: ["500 AI analyses / month", "Compare up to 10 repos", "Standup generator", "Saved workspaces", "Dependency health"],
+                missing: [],
+              },
+              {
+                tier: "team",
+                label: "Team",
+                price: "₹2,499",
+                period: "/ month",
+                tagline: "For engineering teams",
+                color: "#34d399",
+                bg: "rgba(16,185,129,0.05)",
+                border: "rgba(16,185,129,0.18)",
+                cta: "team" as const,
+                popular: false,
+                features: ["2,000 AI analyses / month", "Unlimited repos in compare", "Up to 10 team members", "Standup generator", "Saved workspaces", "Dependency health"],
+                missing: [],
+              },
+            ].map((plan, i) => (
+              <motion.div
+                key={plan.tier}
+                initial={{ opacity: 0, y: 12 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.3, delay: i * 0.05 }}
+                className="relative flex flex-col rounded-2xl p-5"
+                style={{
+                  background: plan.popular ? "rgba(139,92,246,0.1)" : plan.bg,
+                  border: `1px solid ${plan.popular ? "rgba(139,92,246,0.4)" : plan.border}`,
+                  boxShadow: plan.popular ? "0 0 30px rgba(139,92,246,0.1)" : "none",
+                }}
+              >
+                {plan.popular && (
+                  <div
+                    className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest"
+                    style={{ background: "#8b5cf6", color: "#fff" }}
+                  >
+                    Most Popular
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-widest mb-0.5" style={{ color: plan.color }}>{plan.label}</p>
+                    <div className="flex items-end gap-1">
+                      <span className="text-2xl font-bold text-white" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                        {plan.price}
+                      </span>
+                      <span className="text-xs mb-0.5" style={{ color: "#475569" }}>{plan.period}</span>
+                    </div>
+                  </div>
+                  <p className="text-[11px]" style={{ color: "#475569" }}>{plan.tagline}</p>
+                </div>
+
+                <div className="flex flex-wrap gap-x-4 gap-y-1.5 mb-4">
+                  {plan.features.map(f => (
+                    <div key={f} className="flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3 h-3 shrink-0" style={{ color: "#10b981" }} />
+                      <span className="text-[11px]" style={{ color: "#cbd5e1" }}>{f}</span>
+                    </div>
+                  ))}
+                  {plan.missing.map(f => (
+                    <div key={f} className="flex items-center gap-1.5 opacity-30">
+                      <div className="w-3 h-3 shrink-0 flex items-center justify-center">
+                        <div className="w-2 h-px rounded" style={{ background: "#475569" }} />
+                      </div>
+                      <span className="text-[11px]" style={{ color: "#475569" }}>{f}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {plan.cta ? (
+                  <PricingCTAButton plan={plan.cta} color={plan.color} popular={plan.popular} />
+                ) : (
+                  <button
+                    onClick={() => onConnect("pricing_free")}
+                    className="w-full py-2.5 rounded-xl text-sm font-semibold transition-all"
+                    style={{ background: "rgba(255,255,255,0.05)", color: "#64748b", border: "1px solid rgba(255,255,255,0.08)" }}
+                  >
+                    Get Started Free
+                  </button>
+                )}
+              </motion.div>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Footer */}

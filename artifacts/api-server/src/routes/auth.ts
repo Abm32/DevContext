@@ -120,7 +120,12 @@ router.get("/github/callback", async (req, res) => {
     };
 
     setAuthCookie(res, payload);
-    res.redirect("/dashboard");
+    res.type("html").send(
+      `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>` +
+      `<p>Redirecting&hellip;</p>` +
+      `<script>window.location.replace("/dashboard")</script>` +
+      `</body></html>`
+    );
   } catch (err) {
     req.log.error({ err }, "GitHub OAuth error");
     res.redirect("/?error=server_error");

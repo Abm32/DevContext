@@ -912,88 +912,6 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* Selected repos */}
-          <AnimatePresence>
-            {selectedRepos.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                className="flex flex-col gap-2 overflow-hidden"
-              >
-                <h2 className="text-[10px] font-bold uppercase tracking-widest hidden md:block" style={{ color: "rgba(255,255,255,0.25)" }}>Active Repos</h2>
-                {selectedRepos.map((entry, i) => {
-                  const color = REPO_COLORS[i % REPO_COLORS.length]!
-                  const branches = branchesArr[i]
-                  const isBranchLoading = isBranchesLoadingArr[i]
-                  const activeBr = entry.branch ?? entry.repo.default_branch ?? ""
-                  return (
-                    <motion.div
-                      key={entry.id}
-                      initial={{ opacity: 0, x: -8 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -8 }}
-                      className={`rounded-xl border ${color.border} ${color.bg} p-2 md:p-3 flex flex-col gap-1.5 md:gap-2`}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className={`w-2 h-2 rounded-full ${color.dot} shrink-0`} />
-                          <span className={`text-xs font-semibold truncate ${color.text}`}>{entry.repo.full_name}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          {/* Inline branch selector on mobile */}
-                          <div className="flex items-center gap-1 md:hidden">
-                            <GitBranch className={`w-3 h-3 shrink-0 ${color.text} opacity-60`} />
-                            {isBranchLoading || !branches ? (
-                              <Skeleton className="h-5 w-16 rounded-md" />
-                            ) : (
-                              <select
-                                value={activeBr}
-                                onChange={e => handleBranchChange(entry.id, e.target.value)}
-                                className={`bg-transparent border border-white/10 rounded-md py-0.5 px-1.5 text-[11px] ${color.text} focus:outline-none appearance-none cursor-pointer max-w-[100px]`}
-                              >
-                                {branches.map(b => (
-                                  <option key={b.name} value={b.name} className="bg-background text-white">
-                                    {b.name}{b.is_default ? " *" : ""}
-                                  </option>
-                                ))}
-                              </select>
-                            )}
-                          </div>
-                          <button
-                            onClick={() => handleRemoveRepo(entry.id)}
-                            className="text-muted-foreground/40 hover:text-red-400 transition-colors shrink-0"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                      {/* Full branch selector on desktop only */}
-                      <div className="hidden md:flex items-center gap-1.5">
-                        <GitBranch className={`w-3 h-3 shrink-0 ${color.text} opacity-60`} />
-                        {isBranchLoading || !branches ? (
-                          <Skeleton className="h-6 flex-1 rounded-lg" />
-                        ) : (
-                          <select
-                            value={activeBr}
-                            onChange={e => handleBranchChange(entry.id, e.target.value)}
-                            className={`flex-1 bg-transparent border border-white/10 rounded-lg py-1 px-2 text-xs ${color.text} focus:outline-none focus:ring-1 focus:ring-white/20 appearance-none cursor-pointer`}
-                          >
-                            {branches.map(b => (
-                              <option key={b.name} value={b.name} className="bg-background text-white">
-                                {b.name}{b.is_default ? " (default)" : ""}
-                              </option>
-                            ))}
-                          </select>
-                        )}
-                      </div>
-                    </motion.div>
-                  )
-                })}
-              </motion.div>
-            )}
-          </AnimatePresence>
-
           {/* Repo selector */}
           <div className="flex flex-col gap-2 flex-shrink-0">
             <div className="flex items-center justify-between">
@@ -1047,7 +965,7 @@ export default function Dashboard() {
                 className="w-full bg-secondary/30 border border-white/10 rounded-xl py-2.5 pl-9 pr-4 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
               />
             </div>
-            <div className="bg-card border border-white/5 rounded-xl overflow-y-auto max-h-[18vh] md:max-h-[22vh] scrollbar-hide">
+            <div className="bg-card border border-white/5 rounded-xl overflow-y-auto max-h-[25vh] md:max-h-[28vh] scrollbar-hide">
               {isReposLoading ? (
                 <div className="p-4 space-y-3">
                   {[1, 2, 3].map(i => <Skeleton key={i} className="h-10 w-full" />)}
@@ -1060,33 +978,72 @@ export default function Dashboard() {
                     const slotIdx = selectedRepos.findIndex(e => e.repo.id === repo.id)
                     const isSelected = slotIdx >= 0
                     const slotColor = isSelected ? REPO_COLORS[slotIdx] : null
-                    // In single-select mode nothing is ever "full" — clicking always switches
                     const isFull = multiRepoMode && selectedRepos.length >= maxRepos && !isSelected
+                    const entry = isSelected ? selectedRepos[slotIdx] : null
+                    const branches = isSelected ? branchesArr[slotIdx] : null
+                    const isBranchLoading = isSelected ? isBranchesLoadingArr[slotIdx] : false
+                    const activeBr = entry ? (entry.branch ?? entry.repo.default_branch ?? "") : ""
                     return (
-                      <button
+                      <div
                         key={repo.id}
-                        onClick={() => !isFull && handleToggleRepo(repo)}
-                        disabled={isFull}
-                        className={`flex items-center gap-3 w-full p-2.5 rounded-lg text-left transition-all ${
+                        className={`rounded-lg transition-all ${
                           isSelected
                             ? `${slotColor?.bg} border ${slotColor?.border}`
-                            : isFull
-                            ? "opacity-30 cursor-not-allowed text-muted-foreground border border-transparent"
-                            : "hover:bg-white/5 text-muted-foreground hover:text-white border border-transparent"
+                            : "border border-transparent"
                         }`}
                       >
-                        {isSelected && slotColor ? (
-                          <span className={`w-2 h-2 rounded-full ${slotColor.dot} shrink-0`} />
-                        ) : (
-                          <FolderGit2 className="w-4 h-4 shrink-0" />
+                        <button
+                          onClick={() => !isFull && handleToggleRepo(repo)}
+                          disabled={isFull}
+                          className={`flex items-center gap-3 w-full p-2.5 rounded-lg text-left transition-all ${
+                            isSelected
+                              ? ""
+                              : isFull
+                              ? "opacity-30 cursor-not-allowed text-muted-foreground"
+                              : "hover:bg-white/5 text-muted-foreground hover:text-white"
+                          }`}
+                        >
+                          {isSelected && slotColor ? (
+                            <span className={`w-2 h-2 rounded-full ${slotColor.dot} shrink-0`} />
+                          ) : (
+                            <FolderGit2 className="w-4 h-4 shrink-0" />
+                          )}
+                          <span className={`truncate text-sm font-medium ${isSelected ? slotColor?.text : ""}`}>{repo.full_name}</span>
+                          {isSelected ? (
+                            <span className="ml-auto shrink-0 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md" style={{ background: "rgba(59,130,246,0.15)", color: "#60a5fa" }}>Active</span>
+                          ) : !isFull && (
+                            <Plus className="w-3.5 h-3.5 ml-auto shrink-0 opacity-0 group-hover:opacity-100" />
+                          )}
+                        </button>
+                        {isSelected && entry && (
+                          <div className="px-2.5 pb-2 pt-0 flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+                            <GitBranch className={`w-3 h-3 shrink-0 ${slotColor?.text} opacity-60`} />
+                            {isBranchLoading || !branches ? (
+                              <Skeleton className="h-6 flex-1 rounded-lg" />
+                            ) : (
+                              <select
+                                value={activeBr}
+                                onChange={e => handleBranchChange(entry.id, e.target.value)}
+                                className={`flex-1 bg-transparent border border-white/10 rounded-lg py-1 px-2 text-xs ${slotColor?.text} focus:outline-none focus:ring-1 focus:ring-white/20 appearance-none cursor-pointer`}
+                              >
+                                {branches.map(b => (
+                                  <option key={b.name} value={b.name} className="bg-background text-white">
+                                    {b.name}{b.is_default ? " (default)" : ""}
+                                  </option>
+                                ))}
+                              </select>
+                            )}
+                            {multiRepoMode && (
+                              <button
+                                onClick={() => handleRemoveRepo(entry.id)}
+                                className="text-muted-foreground/40 hover:text-red-400 transition-colors shrink-0"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
                         )}
-                        <span className={`truncate text-sm font-medium ${isSelected ? slotColor?.text : ""}`}>{repo.full_name}</span>
-                        {isSelected ? (
-                          <Check className={`w-4 h-4 ml-auto shrink-0 ${slotColor?.text}`} />
-                        ) : !isFull && (
-                          <Plus className="w-3.5 h-3.5 ml-auto shrink-0 opacity-0 group-hover:opacity-100" />
-                        )}
-                      </button>
+                      </div>
                     )
                   })}
                 </div>

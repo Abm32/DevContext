@@ -61,13 +61,6 @@ const TIER_CONFIG: Record<PlanTier, {
   },
 }
 
-const NEXT_TIER: Record<PlanTier, PaidPlan | null> = {
-  free: "plus",
-  plus: "pro",
-  pro: "team",
-  team: null,
-}
-
 // ─── Circular progress ring ────────────────────────────────────────────────────
 function RingProgress({ used, limit, exhausted }: { used: number; limit: number; exhausted: boolean }) {
   const pct = Math.min(100, (used / limit) * 100)
@@ -143,11 +136,14 @@ function PlanCard({ tier }: { tier: PlanTier }) {
   )
 }
 
-// ─── Upgrade section ──────────────────────────────────────────────────────────
+const ALL_PAID_TIERS: PaidPlan[] = ["plus", "pro", "team"]
+
 function UpgradeSection({ currentPlan }: { currentPlan: PlanTier }) {
-  const nextTier = NEXT_TIER[currentPlan]
-  if (!nextTier) return null
-  const cfg = TIER_CONFIG[nextTier]
+  const availableTiers = ALL_PAID_TIERS.filter(t => {
+    const order: Record<PlanTier, number> = { free: 0, plus: 1, pro: 2, team: 3 }
+    return order[t] > order[currentPlan]
+  })
+  if (availableTiers.length === 0) return null
 
   return (
     <motion.section
@@ -156,19 +152,34 @@ function UpgradeSection({ currentPlan }: { currentPlan: PlanTier }) {
       transition={{ delay: 0.2 }}
     >
       <h2 className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: "rgba(255,255,255,0.25)" }}>
-        Upgrade
+        Upgrade Your Plan
       </h2>
-      <div
-        className="rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4"
-        style={{ background: cfg.bg, border: `1px solid ${cfg.border}` }}
-      >
-        <div className="flex-1">
-          <h3 className="text-base font-bold text-white mb-1">
-            Upgrade to {cfg.label} — {cfg.price}/mo
-          </h3>
-          <p className="text-sm" style={{ color: "#64748b" }}>{cfg.description}</p>
-        </div>
-        <UpgradeButton plan={nextTier} />
+      <div className="flex flex-col gap-3">
+        {availableTiers.map(tier => {
+          const cfg = TIER_CONFIG[tier]
+          return (
+            <div
+              key={tier}
+              className="rounded-2xl p-4 md:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4"
+              style={{ background: cfg.bg, border: `1px solid ${cfg.border}` }}
+            >
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                  style={{ background: cfg.bg, border: `1px solid ${cfg.border}` }}>
+                  {cfg.icon}
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="text-sm font-bold text-white">{cfg.label}</span>
+                    <span className="text-lg font-bold" style={{ color: cfg.color }}>{cfg.price}<span className="text-xs font-normal" style={{ color: "#475569" }}>/mo</span></span>
+                  </div>
+                  <p className="text-xs" style={{ color: "#64748b" }}>{cfg.description}</p>
+                </div>
+              </div>
+              <UpgradeButton plan={tier} />
+            </div>
+          )
+        })}
       </div>
     </motion.section>
   )

@@ -17,6 +17,7 @@ export interface UseVideoPlayerOptions {
   durations: SceneDurations;
   onVideoEnd?: () => void;
   loop?: boolean;
+  paused?: boolean;
 }
 
 export interface UseVideoPlayerReturn {
@@ -24,12 +25,12 @@ export interface UseVideoPlayerReturn {
   totalScenes: number;
   currentSceneKey: string;
   hasEnded: boolean;
+  reset: () => void;
 }
 
 export function useVideoPlayer(options: UseVideoPlayerOptions): UseVideoPlayerReturn {
-  const { durations, onVideoEnd, loop = true } = options;
+  const { durations, onVideoEnd, loop = true, paused = false } = options;
 
-  // Captured once on mount -- durations must be a static object
   const sceneKeys = useRef(Object.keys(durations)).current;
   const totalScenes = sceneKeys.length;
   const durationsArray = useRef(Object.values(durations)).current;
@@ -37,19 +38,24 @@ export function useVideoPlayer(options: UseVideoPlayerOptions): UseVideoPlayerRe
   const [currentScene, setCurrentScene] = useState(0);
   const [hasEnded, setHasEnded] = useState(false);
 
-  // Start recording on mount
-  useEffect(() => {
-    window.startRecording?.();
-  }, []);
+  const reset = () => {
+    setCurrentScene(0);
+    setHasEnded(false);
+  };
 
-  // Scene advancement -- loops independently of recording
   useEffect(() => {
+    if (!paused) {
+      window.startRecording?.();
+    }
+  }, [paused]);
+
+  useEffect(() => {
+    if (paused) return;
     if (hasEnded && !loop) return;
 
     const currentDuration = durationsArray[currentScene];
 
     const timer = setTimeout(() => {
-      // Last scene just finished playing
       if (currentScene >= totalScenes - 1) {
         if (!hasEnded) {
           window.stopRecording?.();
@@ -65,13 +71,14 @@ export function useVideoPlayer(options: UseVideoPlayerOptions): UseVideoPlayerRe
     }, currentDuration);
 
     return () => clearTimeout(timer);
-  }, [currentScene, totalScenes, durationsArray, hasEnded, loop, onVideoEnd]);
+  }, [currentScene, totalScenes, durationsArray, hasEnded, loop, onVideoEnd, paused]);
 
   return {
     currentScene,
     totalScenes,
     currentSceneKey: sceneKeys[currentScene],
     hasEnded,
+    reset,
   };
 }
 

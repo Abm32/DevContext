@@ -29,17 +29,17 @@ export default function Slide1Title() {
         <div className="max-w-[68vw]">
           <div className="inline-flex items-center gap-[0.6vw] px-[1.2vw] py-[0.5vh] rounded-full border border-[#6366f1]/40 bg-[#6366f1]/10 mb-[3.5vh]">
             <div className="w-[0.45vw] h-[0.45vw] rounded-full bg-[#10b981] animate-pulse" />
-            <span className="font-body text-[1.1vw] text-[#10b981] font-medium tracking-widest uppercase">AI-Powered Developer Intelligence</span>
+            <span className="font-body text-[1.1vw] text-[#10b981] font-medium tracking-widest uppercase">Get Back Into Flow — Instantly</span>
           </div>
           <h1 className="font-display text-[7vw] font-bold leading-[0.9] tracking-tight text-white">
-            Resume Your
+            Never Lose Your
           </h1>
           <h1 className="font-display text-[7vw] font-bold leading-[0.9] tracking-tight bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] bg-clip-text text-transparent">
-            Code Brain.
+            Coding Flow Again.
           </h1>
           <p className="mt-[3vh] font-body text-[1.9vw] text-white/55 leading-snug max-w-[48vw]">
-            Stop losing an hour every time you return to a codebase.<br/>
-            Get back in flow — in seconds.
+            Stop wasting time trying to remember "where was I?"<br/>
+            DevContext rebuilds your developer brain in seconds.
           </p>
         </div>
 

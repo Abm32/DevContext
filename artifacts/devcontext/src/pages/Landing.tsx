@@ -660,20 +660,20 @@ function MobileLanding({ onConnect }: { onConnect: (el: string) => void }) {
               color: "#f1f5f9",
             }}
           >
-            Resume your{" "}
+            Never lose your{" "}
             <span style={{
               background: "linear-gradient(135deg, #3b82f6 20%, #8b5cf6 80%)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
               backgroundClip: "text",
             }}>
-              code brain
+              coding flow
             </span>{" "}
-            in seconds.
+            again.
           </h1>
 
           <p className="text-sm leading-relaxed text-center" style={{ color: "#64748b" }}>
-            Stop spending 30 minutes remembering where you left off. DevContext reconstructs your mental model instantly.
+            Stop wasting time trying to remember "where was I?" DevContext rebuilds your developer brain in seconds.
           </p>
 
           {/* CTA */}
@@ -687,7 +687,7 @@ function MobileLanding({ onConnect }: { onConnect: (el: string) => void }) {
             }}
           >
             <Github className="w-4 h-4" />
-            Connect GitHub to Start
+            Plug in GitHub. Pick Up Where You Left Off.
           </button>
           <p className="text-center text-[11px] uppercase tracking-widest font-semibold"
             style={{ color: "rgba(255,255,255,0.2)" }}>
@@ -695,18 +695,33 @@ function MobileLanding({ onConnect }: { onConnect: (el: string) => void }) {
           </p>
         </motion.div>
 
+        {/* Value Props */}
+        <div className="flex flex-col gap-3 mb-8">
+          {[
+            { emoji: "\u{1F9E0}", text: "Auto-reconstructs your coding context from commits" },
+            { emoji: "\u{1F4CC}", text: "Highlights key changes & progress you made" },
+            { emoji: "\u{1F3AF}", text: "Suggests your next steps so you don't stall" },
+            { emoji: "\u23F1\uFE0F", text: "Saves hours of mental reload time" },
+          ].map((item) => (
+            <div key={item.text} className="flex items-center gap-3 px-4 py-3 rounded-xl" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
+              <span className="text-lg shrink-0">{item.emoji}</span>
+              <span className="text-sm font-medium" style={{ color: "#cbd5e1" }}>{item.text}</span>
+            </div>
+          ))}
+        </div>
+
         {/* Feature Cards */}
         <div className="flex flex-col gap-4 mb-10">
           <MobileFeatureCard
             icon={<Layers className="w-5 h-5" style={{ color: "#3b82f6" }} />}
             title="Context Rebuilt"
-            description="Every branch, every PR, and every local change indexed into a coherent story of your current task."
+            description="Analyzes your recent GitHub activity and gives you a crystal-clear snapshot of your work — what you did, why it matters, and what to do next."
           />
 
           <MobileFeatureCard
             icon={<Sparkles className="w-5 h-5" style={{ color: "#8b5cf6" }} />}
             title="AI Summaries"
-            description="Natural language summaries of complex diffs so you can explain your progress in seconds."
+            description="No digging through commits. No context switching fatigue. No lost momentum. Just instant clarity."
           >
             {/* Mini progress element */}
             <div className="flex flex-col gap-2 mt-1">
@@ -727,8 +742,33 @@ function MobileLanding({ onConnect }: { onConnect: (el: string) => void }) {
           <MobileFeatureCard
             icon={<Zap className="w-5 h-5" style={{ color: "#f59e0b" }} />}
             title="Smart Next Steps"
-            description="Intelligent suggestions for your next 3 moves based on your current project velocity and blockages."
+            description="Suggests your next 3 moves based on your current project velocity. No stalling, no second-guessing."
           />
+        </div>
+
+        {/* Built for developers who move fast */}
+        <div className="mb-8">
+          <h3
+            className="font-bold text-center mb-4"
+            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: "1.15rem", color: "#f1f5f9" }}
+          >
+            Built for Developers Who Move Fast
+          </h3>
+          <div className="flex flex-col gap-2.5">
+            {[
+              { icon: <ArrowRight className="w-3.5 h-3.5" style={{ color: "#3b82f6" }} />, text: "Jumping between projects" },
+              { icon: <ArrowRight className="w-3.5 h-3.5" style={{ color: "#8b5cf6" }} />, text: "Returning after a break" },
+              { icon: <ArrowRight className="w-3.5 h-3.5" style={{ color: "#10b981" }} />, text: "Collaborating across repos" },
+            ].map((item) => (
+              <div key={item.text} className="flex items-center gap-3 px-4 py-2.5 rounded-lg" style={{ background: "rgba(255,255,255,0.02)" }}>
+                {item.icon}
+                <span className="text-sm" style={{ color: "#94a3b8" }}>{item.text}</span>
+              </div>
+            ))}
+          </div>
+          <p className="text-center text-sm mt-4 font-medium" style={{ color: "#64748b" }}>
+            DevContext keeps your momentum uninterrupted.
+          </p>
         </div>
 
         {/* Trusted by */}
@@ -936,7 +976,7 @@ function MobileLanding({ onConnect }: { onConnect: (el: string) => void }) {
           DEVCONTEXT
         </span>
         <p className="text-[11px] text-center" style={{ color: "#334155" }}>
-          The intelligence layer for complex engineering.
+          Your Code Has Context. Now You Do Too.
         </p>
         <div className="flex items-center gap-3 mt-1">
           <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md"
@@ -1095,7 +1135,7 @@ export default function Landing() {
                   }}
                 >
                   <Zap className="w-3 h-3" />
-                  AI Powered Analysis
+                  Get Back Into Flow — Instantly
                 </span>
               </div>
 
@@ -1108,7 +1148,7 @@ export default function Landing() {
                   color: "#f1f5f9",
                 }}
               >
-                Resume your{" "}
+                Never lose your{" "}
                 <span
                   style={{
                     background: "linear-gradient(135deg, #3b82f6 20%, #8b5cf6 80%)",
@@ -1117,13 +1157,13 @@ export default function Landing() {
                     backgroundClip: "text",
                   }}
                 >
-                  code brain
+                  coding flow
                 </span>{" "}
-                in seconds.
+                again.
               </h1>
 
               <p className="text-base leading-relaxed max-w-md" style={{ color: "#64748b", fontFamily: "'Inter', sans-serif" }}>
-                DevContext reconstructs the mental model of your codebase using deep commit analysis and semantic mapping. Stop wasting hours remembering where you left off.
+                Stop wasting time trying to remember "where was I?" DevContext analyzes your recent GitHub activity and gives you a crystal-clear snapshot — what you did, why it matters, and what to do next.
               </p>
 
               <div className="flex flex-wrap items-center gap-3 mt-2">
@@ -1137,7 +1177,7 @@ export default function Landing() {
                   }}
                 >
                   <Github className="w-4 h-4" />
-                  Connect GitHub to Start
+                  Plug in GitHub. Pick Up Where You Left Off.
                 </button>
                 <button
                   onClick={() => handleConnect("hero_secondary")}
@@ -1208,10 +1248,10 @@ export default function Landing() {
                   color: "#f1f5f9",
                 }}
               >
-                Engineered for Focus
+                Built for Developers Who Move Fast
               </h2>
               <p className="text-sm leading-relaxed max-w-md mx-auto" style={{ color: "#64748b" }}>
-                Skip the "wait, what was I doing?" phase. Get instant architectural clarity before you type a single line of code.
+                Whether you're jumping between projects, returning after a break, or collaborating across repos — DevContext keeps your momentum uninterrupted.
               </p>
             </motion.div>
 
@@ -1219,7 +1259,7 @@ export default function Landing() {
               <BentoCard
                 icon={<Layers className="w-4 h-4" style={{ color: "#3b82f6" }} />}
                 title="Context Rebuilt"
-                description="Our engine crawls your recent branches, PRs, and tickets to build a dynamic knowledge graph of your current workspace status."
+                description="Auto-reconstructs your coding context from commits. No digging, no guessing — just instant clarity on what you were doing."
                 accent="#3b82f6"
                 className="md:row-span-1"
               />
@@ -1265,14 +1305,14 @@ export default function Landing() {
               <BentoCard
                 icon={<Brain className="w-4 h-4" style={{ color: "#8b5cf6" }} />}
                 title="AI Summaries"
-                description="Human-readable briefings on what changed while you were away, across all repositories and teams."
+                description="Highlights key changes & progress you made. No context switching fatigue, no lost momentum."
                 accent="#8b5cf6"
               />
 
               <BentoCard
                 icon={<Zap className="w-4 h-4" style={{ color: "#f59e0b" }} />}
                 title="Smart Next Steps"
-                description="DevContext predicts your next logical task and pre-fetches relevant documentation and code snippets."
+                description="Suggests your next steps so you don't stall. Saves hours of mental reload time every single day."
                 accent="#f59e0b"
               />
 
@@ -1497,7 +1537,7 @@ export default function Landing() {
               DEVCONTEXT
             </span>
             <span className="text-xs" style={{ color: "#334155" }}>
-              The intelligence layer for complex engineering.
+              Your Code Has Context. Now You Do Too.
             </span>
           </div>
           <div className="flex flex-wrap items-center gap-4">
@@ -1527,7 +1567,7 @@ export default function Landing() {
           style={{ borderTop: "1px solid rgba(255,255,255,0.03)" }}
         >
           <span className="text-[11px]" style={{ color: "#1e293b" }}>
-            © 2024 DevContext. Designed for the obsessed.
+            © 2025 DevContext. Stop context switching. Start context resuming.
           </span>
         </div>
       </div>

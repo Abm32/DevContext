@@ -25,31 +25,41 @@ export default function Slide7Closing() {
         </div>
 
         <h2 className="font-display text-[5.2vw] font-bold tracking-tight text-white leading-tight mb-[1.5vh]">
-          Every developer deserves
+          Your Code Has Context.
         </h2>
         <h2 className="font-display text-[5.2vw] font-bold tracking-tight bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] bg-clip-text text-transparent leading-tight mb-[4vh]">
-          instant context.
+          Now You Do Too.
         </h2>
 
         <p className="font-body text-[1.8vw] text-white/50 max-w-[50vw] leading-snug mb-[6vh]">
-          Live, deployed, and ready. Connect your GitHub account and resume your code brain — right now, in seconds.
+          Live, deployed, and ready. Plug in GitHub. Pick up where you left off — right now, in seconds.
         </p>
 
         {/* CTA grid */}
-        <div className="flex items-center gap-[5vw] mb-[6vh]">
+        <div className="flex items-center gap-[3vw] mb-[6vh]">
           <div className="text-center">
-            <p className="font-mono text-[1.9vw] font-semibold text-[#10b981] tracking-wider mb-[0.5vh]">devcontext.abhimanyurb.com</p>
-            <p className="font-body text-[1.15vw] text-white/30">Live demo — free to try</p>
+            <p className="font-mono text-[1.6vw] font-semibold text-[#10b981] tracking-wider mb-[0.5vh]">devcontext.abhimanyurb.com</p>
+            <p className="font-body text-[1vw] text-white/30">Live — free to try</p>
           </div>
           <div className="w-[1px] h-[5vh] bg-white/10" />
           <div className="text-center">
-            <p className="font-display text-[1.9vw] font-semibold text-white/70 mb-[0.5vh]">Free Plan</p>
-            <p className="font-body text-[1.15vw] text-white/30">3 repos · 5 briefings/day</p>
+            <p className="font-display text-[1.6vw] font-semibold text-white/70 mb-[0.5vh]">Free</p>
+            <p className="font-body text-[1vw] text-white/30">1 repo · 10 analyses</p>
           </div>
           <div className="w-[1px] h-[5vh] bg-white/10" />
           <div className="text-center">
-            <p className="font-display text-[1.9vw] font-semibold text-white/70 mb-[0.5vh]">Pro at $12/mo</p>
-            <p className="font-body text-[1.15vw] text-white/30">Unlimited · Workspaces · Signals</p>
+            <p className="font-display text-[1.6vw] font-semibold text-white/70 mb-[0.5vh]">Plus ₹499/mo</p>
+            <p className="font-body text-[1vw] text-white/30">3 repos · 100 analyses</p>
+          </div>
+          <div className="w-[1px] h-[5vh] bg-white/10" />
+          <div className="text-center">
+            <p className="font-display text-[1.6vw] font-semibold text-[#8b5cf6] mb-[0.5vh]">Pro ₹999/mo</p>
+            <p className="font-body text-[1vw] text-white/30">10 repos · 500 analyses</p>
+          </div>
+          <div className="w-[1px] h-[5vh] bg-white/10" />
+          <div className="text-center">
+            <p className="font-display text-[1.6vw] font-semibold text-white/70 mb-[0.5vh]">Team ₹2,499/mo</p>
+            <p className="font-body text-[1vw] text-white/30">Unlimited repos</p>
           </div>
         </div>
 

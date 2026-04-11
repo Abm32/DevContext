@@ -508,6 +508,18 @@ export default function Dashboard() {
     saveCachedSummary(key, data)
   }, [result])
 
+  const depHealthSummary = useMemo(() => {
+    const reports = depsReportArr.filter(Boolean)
+    const loading = isDepsLoadingArr.some(Boolean)
+    const total = reports.reduce((acc, r) => ({
+      major: acc.major + (r?.summary.major ?? 0),
+      minor: acc.minor + (r?.summary.minor ?? 0),
+      patch: acc.patch + (r?.summary.patch ?? 0),
+    }), { major: 0, minor: 0, patch: 0 })
+    return { ...total, loading, anyLoaded: reports.length > 0 }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(depsReportArr), JSON.stringify(isDepsLoadingArr)])
+
   if (!user) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
@@ -673,19 +685,6 @@ export default function Dashboard() {
 
   const displayResult = cachedSummary?.result ?? null
   const isFromCache = !!cachedSummary && !result
-
-  // ─── Dep health aggregate summary ────────────────────────────────────────
-  const depHealthSummary = useMemo(() => {
-    const reports = depsReportArr.filter(Boolean)
-    const loading = isDepsLoadingArr.some(Boolean)
-    const total = reports.reduce((acc, r) => ({
-      major: acc.major + (r?.summary.major ?? 0),
-      minor: acc.minor + (r?.summary.minor ?? 0),
-      patch: acc.patch + (r?.summary.patch ?? 0),
-    }), { major: 0, minor: 0, patch: 0 })
-    return { ...total, loading, anyLoaded: reports.length > 0 }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(depsReportArr), JSON.stringify(isDepsLoadingArr)])
 
   // ─── e2em — repos visible to the user that match the grant ───────────────
   const e2emMatchedRepos = e2emGrant?.granted

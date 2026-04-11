@@ -143,6 +143,15 @@ Pro tier: ₹999/month via Razorpay Checkout.
 
 The callback URL auto-detects the current host from `x-forwarded-host` headers, so it works in both dev and production without reconfiguration.
 
+## Video Artifact (artifacts/devcontext-video)
+
+11-scene animated pitch video built with React, Framer Motion, and Vite:
+- Scenes 1-9: Product features (context loss, GitHub connect, commits, AI briefing, standup, dep health, commit health, workspaces)
+- Scene 10: Pricing plans (Free/Plus/Pro/Team with prices and limits)
+- Scene 11: Closer with brand reveal
+- Audio: Web Speech API TTS at key scenes (1, 2, 5, 6, 10, 11) + procedural ambient music via Web Audio API
+- No external audio files required
+
 ## Development
 
 ```bash

@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useVideoPlayer } from '@/lib/video';
-import { startAmbientMusic, speak, stopSpeech, cleanupAudio, playSceneMelody, stopSceneMelody } from '@/lib/video/audio';
 import { Scene1 } from './video_scenes/Scene1';
 import { Scene2 } from './video_scenes/Scene2';
 import { Scene3 } from './video_scenes/Scene3';
@@ -153,74 +152,10 @@ function SubtitleOverlay({ currentScene }: { currentScene: number }) {
 }
 
 export default function VideoTemplate() {
-  const [audioUnlocked, setAudioUnlocked] = useState(false);
-  const { currentScene, reset } = useVideoPlayer({ durations: SCENE_DURATIONS, paused: !audioUnlocked });
-
-  const handleUnlockAudio = () => {
-    startAmbientMusic();
-    reset();
-    setAudioUnlocked(true);
-  };
-
-  useEffect(() => {
-    return () => cleanupAudio();
-  }, []);
-
-  useEffect(() => {
-    if (!audioUnlocked) return;
-    stopSpeech();
-    stopSceneMelody();
-
-    const ttsEntries = SCENE_TTS[currentScene];
-    if (ttsEntries) {
-      const timers = ttsEntries.map(({ text, delay, rate }) =>
-        setTimeout(() => speak(text, rate), delay)
-      );
-      return () => timers.forEach(t => clearTimeout(t));
-    } else {
-      playSceneMelody(currentScene);
-    }
-  }, [currentScene, audioUnlocked]);
+  const { currentScene } = useVideoPlayer({ durations: SCENE_DURATIONS });
 
   return (
     <div className="w-full h-screen overflow-hidden relative bg-[var(--color-bg-light)] text-[var(--color-text-primary)]">
-      {!audioUnlocked && (
-        <div
-          className="absolute inset-0 z-[100] flex flex-col items-center justify-center cursor-pointer"
-          style={{ background: 'rgba(10,10,11,0.92)', backdropFilter: 'blur(8px)' }}
-          onClick={handleUnlockAudio}
-        >
-          <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.5, ease: 'easeOut' }}
-            className="flex flex-col items-center gap-6"
-          >
-            <motion.div
-              className="w-24 h-24 rounded-full flex items-center justify-center"
-              style={{
-                background: 'linear-gradient(135deg, rgba(59,130,246,0.3), rgba(139,92,246,0.3))',
-                border: '2px solid rgba(59,130,246,0.5)',
-                boxShadow: '0 0 40px rgba(59,130,246,0.3), 0 0 80px rgba(139,92,246,0.15)',
-              }}
-              animate={{ scale: [1, 1.08, 1] }}
-              transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-            >
-              <svg viewBox="0 0 24 24" fill="none" className="w-10 h-10 ml-1">
-                <path d="M8 5.14v14l11-7-11-7z" fill="#3B82F6" />
-              </svg>
-            </motion.div>
-            <div className="text-center">
-              <p className="text-lg font-semibold text-white" style={{ fontFamily: 'var(--font-heading)' }}>
-                DevContext Pitch Video
-              </p>
-              <p className="text-sm mt-1.5" style={{ color: 'rgba(255,255,255,0.45)' }}>
-                Click anywhere to play with sound
-              </p>
-            </div>
-          </motion.div>
-        </div>
-      )}
 
       <div className="absolute inset-0 pointer-events-none">
         <motion.div className="absolute w-[80vw] h-[80vh] rounded-full opacity-20 blur-3xl"

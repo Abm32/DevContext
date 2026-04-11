@@ -132,6 +132,30 @@ router.get("/github/callback", async (req, res) => {
   }
 });
 
+router.get("/mock-login", (req, res) => {
+  if (process.env["NODE_ENV"] === "production") {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+  const payload: TokenPayload = {
+    githubToken: "mock-token",
+    githubUser: {
+      id: 999999,
+      login: "test-user",
+      name: "Test User",
+      avatar_url: "https://avatars.githubusercontent.com/u/999999?v=4",
+      html_url: "https://github.com/test-user",
+    },
+  };
+  setAuthCookie(res, payload);
+  res.type("html").send(
+    `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>` +
+    `<p>Redirecting to dashboard&hellip;</p>` +
+    `<script>window.location.replace("/dashboard")</script>` +
+    `</body></html>`
+  );
+});
+
 router.get("/me", (req, res) => {
   const payload = getTokenPayload(req);
   if (!payload) {

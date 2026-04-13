@@ -1079,16 +1079,24 @@ export default function Landing() {
               </span>
             </div>
             <div className="hidden md:flex items-center gap-6">
-              {["Product", "Features", "Security"].map((link) => (
+              {[
+                { label: "Product", href: "#product" },
+                { label: "Features", href: "#features" },
+                { label: "Security", href: "#security" },
+              ].map(({ label, href }) => (
                 <a
-                  key={link}
-                  href="#"
+                  key={label}
+                  href={href}
                   className="text-xs font-medium transition-colors"
                   style={{ color: "#64748b", letterSpacing: "0.02em" }}
                   onMouseEnter={e => ((e.target as HTMLElement).style.color = "#e2e8f0")}
                   onMouseLeave={e => ((e.target as HTMLElement).style.color = "#64748b")}
+                  onClick={e => {
+                    e.preventDefault();
+                    document.querySelector(href)?.scrollIntoView({ behavior: "smooth" });
+                  }}
                 >
-                  {link}
+                  {label}
                 </a>
               ))}
             </div>
@@ -1117,7 +1125,7 @@ export default function Landing() {
         </nav>
 
         {/* ── Hero ── */}
-        <section className="flex-1 flex items-center px-6 md:px-12 pt-16 pb-12 md:pb-20">
+        <section id="product" className="flex-1 flex items-center px-6 md:px-12 pt-16 pb-12 md:pb-20">
           <div className="w-full max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16 items-center">
             <motion.div
               initial={{ opacity: 0, x: -20 }}
@@ -1231,8 +1239,135 @@ export default function Landing() {
         {/* ── Interactive Demo ── */}
         <InteractiveDemo onConnect={handleConnect} />
 
-        {/* ── Engineered for Focus ── */}
+        {/* ── Why Not Claude Code? ── */}
         <section className="px-6 md:px-12 pb-20 pt-4">
+          <div className="max-w-7xl mx-auto">
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-center mb-10"
+            >
+              <span
+                className="inline-block text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-4"
+                style={{ background: "rgba(139,92,246,0.1)", color: "#8b5cf6", border: "1px solid rgba(139,92,246,0.2)" }}
+              >
+                Honest Answer
+              </span>
+              <h2
+                className="font-bold mb-3"
+                style={{
+                  fontFamily: "'Plus Jakarta Sans', sans-serif",
+                  fontSize: "clamp(1.6rem, 3vw, 2.25rem)",
+                  letterSpacing: "-0.02em",
+                  color: "#f1f5f9",
+                }}
+              >
+                "Why not just ask Claude Code?"
+              </h2>
+              <p className="text-sm leading-relaxed max-w-xl mx-auto" style={{ color: "#64748b" }}>
+                Fair question. Here's the honest answer.
+              </p>
+            </motion.div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+              {/* Claude Code column */}
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5 }}
+                className="rounded-2xl p-6"
+                style={{ background: "#0d1117", boxShadow: "0 0 0 1px rgba(255,255,255,0.06)" }}
+              >
+                <div className="flex items-center gap-2 mb-5">
+                  <span className="text-base">🤖</span>
+                  <h3
+                    className="font-semibold text-white text-sm"
+                    style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                  >
+                    Claude Code / AI Assistants
+                  </h3>
+                </div>
+                <ul className="space-y-3">
+                  {[
+                    ["Reactive", "Waits for you to ask — you have to know the right question."],
+                    ["Forgets everything", "Each session starts from zero. Re-explain your codebase every time."],
+                    ["Open-ended", "Great for conversations, not structured outputs like standups or health reports."],
+                    ["IDE-only", "Locked inside your editor — no browser, no async review."],
+                  ].map(([label, desc]) => (
+                    <li key={label} className="flex items-start gap-2.5">
+                      <span className="mt-0.5 shrink-0 w-4 h-4 rounded-full flex items-center justify-center" style={{ background: "rgba(100,116,139,0.15)" }}>
+                        <span className="text-[9px]" style={{ color: "#64748b" }}>–</span>
+                      </span>
+                      <span className="text-xs leading-relaxed" style={{ color: "#64748b" }}>
+                        <span className="font-medium" style={{ color: "#94a3b8" }}>{label}:</span> {desc}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </motion.div>
+
+              {/* DevContext column */}
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: 0.1 }}
+                className="rounded-2xl p-6"
+                style={{
+                  background: "linear-gradient(135deg, #0d1117 0%, #0a0e1a 100%)",
+                  boxShadow: "0 0 0 1px rgba(59,130,246,0.2), 0 0 40px rgba(59,130,246,0.04)",
+                }}
+              >
+                <div className="flex items-center gap-2 mb-5">
+                  <span className="text-base">⚡</span>
+                  <h3
+                    className="font-semibold text-sm"
+                    style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", color: "#3b82f6" }}
+                  >
+                    DevContext
+                  </h3>
+                </div>
+                <ul className="space-y-3">
+                  {[
+                    ["Proactive", "Tells you what changed and what to do next — without you asking."],
+                    ["Persistent memory", "Context is saved across days and projects. Resume where you left off, always."],
+                    ["Structured outputs", "One-click standup. Dependency health. Commit briefing. Ready to send or share."],
+                    ["Works everywhere", "Browser, any device. Review your repos before you even open your editor."],
+                  ].map(([label, desc]) => (
+                    <li key={label} className="flex items-start gap-2.5">
+                      <span className="mt-0.5 shrink-0 w-4 h-4 rounded-full flex items-center justify-center" style={{ background: "rgba(59,130,246,0.1)" }}>
+                        <span className="text-[9px]" style={{ color: "#3b82f6" }}>✓</span>
+                      </span>
+                      <span className="text-xs leading-relaxed" style={{ color: "#94a3b8" }}>
+                        <span className="font-medium text-white">{label}:</span> {desc}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </motion.div>
+            </div>
+
+            {/* Bottom line callout */}
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="mt-8 max-w-2xl mx-auto text-center rounded-2xl px-8 py-5"
+              style={{ background: "rgba(59,130,246,0.05)", border: "1px solid rgba(59,130,246,0.12)" }}
+            >
+              <p className="text-sm leading-relaxed" style={{ color: "#94a3b8" }}>
+                Yes — we read your commits. But so does your bank read your transactions. The value is in what you do with that data:{" "}
+                <span className="text-white font-medium">structured context, persistent memory, and zero friction to your morning standup.</span>
+              </p>
+            </motion.div>
+          </div>
+        </section>
+
+        {/* ── Engineered for Focus ── */}
+        <section id="features" className="px-6 md:px-12 pb-20 pt-4">
           <div className="max-w-7xl mx-auto">
             <motion.div
               initial={{ opacity: 0, y: 16 }}
@@ -1343,6 +1478,86 @@ export default function Landing() {
                   <span className="font-mono text-xl font-bold" style={{ color: "#10b981" }}>&gt;_</span>
                 </div>
               </motion.div>
+            </div>
+          </div>
+        </section>
+
+        {/* ── Security ── */}
+        <section id="security" className="px-6 md:px-12 pb-20 pt-4">
+          <div className="max-w-7xl mx-auto">
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-center mb-10"
+            >
+              <span
+                className="inline-block text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-4"
+                style={{ background: "rgba(16,185,129,0.1)", color: "#10b981", border: "1px solid rgba(16,185,129,0.2)" }}
+              >
+                Security
+              </span>
+              <h2
+                className="font-bold mb-3"
+                style={{
+                  fontFamily: "'Plus Jakarta Sans', sans-serif",
+                  fontSize: "clamp(1.6rem, 3vw, 2.25rem)",
+                  letterSpacing: "-0.02em",
+                  color: "#f1f5f9",
+                }}
+              >
+                Your code stays yours
+              </h2>
+              <p className="text-sm leading-relaxed max-w-lg mx-auto" style={{ color: "#64748b" }}>
+                We read commit metadata and diffs — not your source code. Your repository content never leaves GitHub's API.
+              </p>
+            </motion.div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto">
+              {[
+                {
+                  icon: "🔒",
+                  title: "Read-only GitHub access",
+                  desc: "We only request read permissions. We cannot write to, modify, or delete anything in your repos.",
+                  accent: "#10b981",
+                },
+                {
+                  icon: "🛡️",
+                  title: "No source code storage",
+                  desc: "Only commit messages, timestamps, and diffs are analysed. We never copy or store your raw source files.",
+                  accent: "#3b82f6",
+                },
+                {
+                  icon: "🔑",
+                  title: "Secure sessions",
+                  desc: "HTTP-only cookies, 7-day sessions, and GitHub OAuth — no passwords stored. SOC 2 Type II in progress.",
+                  accent: "#8b5cf6",
+                },
+              ].map(({ icon, title, desc, accent }) => (
+                <motion.div
+                  key={title}
+                  initial={{ opacity: 0, y: 16 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.5 }}
+                  className="rounded-2xl p-6"
+                  style={{ background: "#0d1117", boxShadow: `0 0 0 1px rgba(255,255,255,0.06)` }}
+                >
+                  <div
+                    className="w-9 h-9 rounded-xl flex items-center justify-center mb-4 text-base"
+                    style={{ background: `${accent}18` }}
+                  >
+                    {icon}
+                  </div>
+                  <h3
+                    className="font-semibold text-white text-sm mb-2"
+                    style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                  >
+                    {title}
+                  </h3>
+                  <p className="text-xs leading-relaxed" style={{ color: "#64748b" }}>{desc}</p>
+                </motion.div>
+              ))}
             </div>
           </div>
         </section>

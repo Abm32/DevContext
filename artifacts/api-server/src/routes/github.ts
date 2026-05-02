@@ -66,12 +66,21 @@ async function ghFetch<T>(url: string, token: string): Promise<T | null> {
 }
 
 router.get("/repos", async (req, res) => {
-  const token = requireAuth(req, res as unknown as Response);
-  if (!token) return;
+  const payload = getTokenPayload(req);
+  if (!payload) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+  const token = payload.githubToken;
 
   if (isMockToken(token)) {
     const data = ListReposResponse.parse(MOCK_REPOS);
     res.json(data);
+    return;
+  }
+
+  if (payload.hasRepoAccess === false) {
+    res.status(403).json({ error: "repo_access_not_granted" });
     return;
   }
 

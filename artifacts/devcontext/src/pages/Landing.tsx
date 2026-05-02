@@ -1210,10 +1210,10 @@ export default function Landing() {
                   className="text-[10px] font-bold uppercase tracking-widest"
                   style={{ color: "rgba(255,255,255,0.2)", fontFamily: "'Inter', sans-serif" }}
                 >
-                  Secure GitHub OAuth Scopes
+                  Minimal permissions by design
                 </span>
                 <div className="flex flex-wrap gap-3">
-                  {["Profile Access", "Repository Metadata", "Organization Read"].map((scope) => (
+                  {["Profile only at sign-in", "You choose which repos to share"].map((scope) => (
                     <div key={scope} className="flex items-center gap-1.5">
                       <CheckCircle2 className="w-3.5 h-3.5" style={{ color: "#10b981" }} />
                       <span className="text-xs" style={{ color: "#64748b", fontFamily: "'Inter', sans-serif" }}>
@@ -1517,8 +1517,8 @@ export default function Landing() {
               {[
                 {
                   icon: "🔒",
-                  title: "Read-only GitHub access",
-                  desc: "We only request read permissions. We cannot write to, modify, or delete anything in your repos.",
+                  title: "You pick which repos to share",
+                  desc: "Sign in with just your profile. When you're ready, GitHub lets you select specific repos — not hand over everything.",
                   accent: "#10b981",
                 },
                 {

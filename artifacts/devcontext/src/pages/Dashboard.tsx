@@ -330,7 +330,8 @@ export default function Dashboard() {
   const activeBranch = selectedRepos[0]?.branch ?? selectedRepos[0]?.repo.default_branch ?? undefined
 
   // ─── Repo list ───────────────────────────────────────────────────────────
-  const { data: repos, isLoading: isReposLoading } = useListRepos({ query: { enabled: !!user } })
+  const { data: repos, isLoading: isReposLoading, isError: isReposError, error: reposError } = useListRepos({ query: { enabled: !!user } })
+  const needsRepoConnection = isReposError && (reposError as { data?: { error?: string } })?.data?.error === "repo_access_not_granted"
 
   // ─── Dynamic query pipeline (useQueries — supports unlimited repos) ───────
   // useQueries handles dynamic-length arrays between renders; no fixed slot cap.
@@ -754,8 +755,8 @@ export default function Dashboard() {
               <BrainCircuit className="w-4 h-4 shrink-0 hidden md:block" style={{ color: "#3b82f6" }} />
               <div className="flex items-center gap-1.5 md:gap-2 flex-1 overflow-x-auto scrollbar-hide">
                 {[
-                  { n: "1", label: "Pick repo" },
-                  { n: "2", label: "Branch" },
+                  { n: "1", label: "Connect repos" },
+                  { n: "2", label: "Pick branch" },
                   { n: "3", label: '"What\'s next?"' },
                 ].map((step, i) => (
                   <div key={step.n} className="flex items-center gap-1 md:gap-1.5 shrink-0">
@@ -970,6 +971,29 @@ export default function Dashboard() {
                 <div className="p-4 space-y-3">
                   {[1, 2, 3].map(i => <Skeleton key={i} className="h-10 w-full" />)}
                 </div>
+              ) : needsRepoConnection ? (
+                <div className="p-6 flex flex-col items-center gap-3 text-center">
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center"
+                    style={{ background: "rgba(59,130,246,0.1)" }}
+                  >
+                    <FolderGit2 className="w-5 h-5" style={{ color: "#3b82f6" }} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-white mb-1">Connect your repositories</p>
+                    <p className="text-xs leading-relaxed" style={{ color: "#475569" }}>
+                      Choose exactly which repos to share — no blanket access required.
+                    </p>
+                  </div>
+                  <a
+                    href={`${import.meta.env.BASE_URL}api/auth/github/connect-repos`}
+                    className="flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-xl text-white transition-all"
+                    style={{ background: "linear-gradient(135deg, #3b82f6, #2563eb)", boxShadow: "0 0 16px rgba(59,130,246,0.2)" }}
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    Connect Repositories
+                  </a>
+                </div>
               ) : filteredRepos?.length === 0 ? (
                 <div className="p-8 text-center text-muted-foreground text-sm">No repositories found.</div>
               ) : (
@@ -1129,6 +1153,27 @@ export default function Dashboard() {
             <h2 className="text-[10px] font-bold uppercase tracking-widest shrink-0" style={{ color: "rgba(255,255,255,0.25)" }}>Recent Commits</h2>
             <div className="flex-1 overflow-y-auto scrollbar-hide pr-2 pb-4">
               {!selectedRepo ? (
+                needsRepoConnection ? (
+                  <div className="h-full flex flex-col items-center justify-center border border-dashed border-blue-500/20 rounded-xl bg-blue-500/[0.03] p-4 md:p-8 text-center gap-3 md:gap-4">
+                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.2)" }}>
+                      <FolderGit2 className="w-6 h-6" style={{ color: "#3b82f6" }} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-white mb-1">First, connect your repositories</p>
+                      <p className="text-xs leading-relaxed max-w-xs" style={{ color: "#475569" }}>
+                        GitHub lets you choose exactly which repos to share — no blanket access. One click, you're in.
+                      </p>
+                    </div>
+                    <a
+                      href={`${import.meta.env.BASE_URL}api/auth/github/connect-repos`}
+                      className="flex items-center gap-2 text-sm font-semibold px-5 py-2.5 rounded-xl text-white transition-all"
+                      style={{ background: "linear-gradient(135deg, #3b82f6, #2563eb)", boxShadow: "0 4px 20px rgba(59,130,246,0.3)" }}
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      Connect Repositories on GitHub
+                    </a>
+                  </div>
+                ) : (
                 <div className="h-full flex flex-col items-center justify-center border border-dashed border-primary/20 rounded-xl bg-primary/[0.03] p-4 md:p-8 text-center gap-3 md:gap-4">
                   <div className="w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
                     <FolderGit2 className="w-5 h-5 md:w-6 md:h-6 text-primary/60" />
@@ -1142,6 +1187,7 @@ export default function Dashboard() {
                     <span>select one above</span>
                   </div>
                 </div>
+                )
               ) : isCommitsLoading ? (
                 <div className="space-y-4">
                   {[1, 2, 3, 4].map(i => (

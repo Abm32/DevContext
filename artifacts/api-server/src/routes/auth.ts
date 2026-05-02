@@ -21,6 +21,7 @@ interface GitHubUser {
 interface TokenPayload {
   githubToken: string;
   githubUser: GitHubUser;
+  hasRepoAccess?: boolean;
 }
 
 function getBaseUrl(req: Request): string {
@@ -60,13 +61,30 @@ router.get("/github", (req, res) => {
   const params = new URLSearchParams({
     client_id: GITHUB_CLIENT_ID,
     redirect_uri: `${baseUrl}/api/auth/github/callback`,
-    scope: "read:user repo read:org",
+    scope: "read:user",
+    state: "login",
+  });
+  res.redirect(`https://github.com/login/oauth/authorize?${params}`);
+});
+
+router.get("/github/connect-repos", (req, res) => {
+  if (!GITHUB_CLIENT_ID) {
+    res.redirect("/dashboard?error=missing_client_id");
+    return;
+  }
+  const baseUrl = getBaseUrl(req);
+  const params = new URLSearchParams({
+    client_id: GITHUB_CLIENT_ID,
+    redirect_uri: `${baseUrl}/api/auth/github/callback`,
+    scope: "repo read:org",
+    state: "connect-repos",
   });
   res.redirect(`https://github.com/login/oauth/authorize?${params}`);
 });
 
 router.get("/github/callback", async (req, res) => {
-  const { code } = req.query;
+  const { code, state } = req.query;
+  const isRepoConnect = state === "connect-repos";
 
   if (!code || typeof code !== "string") {
     res.redirect("/?error=missing_code");
@@ -117,6 +135,7 @@ router.get("/github/callback", async (req, res) => {
         avatar_url: userData.avatar_url,
         html_url: userData.html_url,
       },
+      hasRepoAccess: isRepoConnect,
     };
 
     setAuthCookie(res, payload);
@@ -146,6 +165,7 @@ router.get("/mock-login", (req, res) => {
       avatar_url: "https://avatars.githubusercontent.com/u/999999?v=4",
       html_url: "https://github.com/test-user",
     },
+    hasRepoAccess: true,
   };
   setAuthCookie(res, payload);
   res.type("html").send(

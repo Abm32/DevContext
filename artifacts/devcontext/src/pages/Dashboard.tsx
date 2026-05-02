@@ -60,6 +60,7 @@ import {
   Zap,
   Terminal,
   TriangleAlert,
+  RotateCcw,
 } from "lucide-react"
 import {
   RepoEntry,
@@ -178,6 +179,7 @@ function CommitCard({
     e.stopPropagation()
     resetEnhance()
     setEnhancedCopied(false)
+    void track("click:enhance_commit", { page: "/dashboard", element: "enhance_commit_btn", metadata: { sha: commit.sha.slice(0, 7), repo } })
     enhance({ data: { owner, repo, sha: commit.sha } })
   }
 
@@ -249,7 +251,14 @@ function CommitCard({
                   </button>
                 )}
                 {isEnhanceError && !isUsageLimit && (
-                  <span className="text-[10px] text-red-400/70">AI error — try again</span>
+                  <button
+                    onClick={handleEnhance}
+                    className="flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-md transition-all hover:opacity-80"
+                    style={{ background: "rgba(239,68,68,0.10)", color: "#f87171", border: "1px solid rgba(239,68,68,0.2)" }}
+                  >
+                    <RotateCcw className="w-2.5 h-2.5" />
+                    Retry
+                  </button>
                 )}
               </div>
             </div>
@@ -280,12 +289,23 @@ function CommitCard({
                   <Sparkles className="w-3 h-3" style={{ color: "#a78bfa" }} />
                   <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "#a78bfa" }}>AI Suggested Message</span>
                 </div>
-                <button
-                  onClick={e => { e.stopPropagation(); resetEnhance() }}
-                  className="text-muted-foreground/40 hover:text-muted-foreground transition-colors"
-                >
-                  <X className="w-3 h-3" />
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={handleEnhance}
+                    disabled={enhancing}
+                    title="Regenerate suggestion"
+                    className="text-muted-foreground/40 hover:text-muted-foreground transition-colors disabled:opacity-40 p-0.5"
+                  >
+                    <RotateCcw className={`w-3 h-3 ${enhancing ? "animate-spin" : ""}`} />
+                  </button>
+                  <button
+                    onClick={e => { e.stopPropagation(); resetEnhance() }}
+                    title="Dismiss"
+                    className="text-muted-foreground/40 hover:text-muted-foreground transition-colors p-0.5"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
               </div>
               <p className="text-xs font-mono leading-relaxed" style={{ color: "rgba(255,255,255,0.85)" }}>
                 {enhanceResult.suggested_message}

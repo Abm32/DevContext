@@ -58,6 +58,8 @@ import {
   ExternalLink,
   Calendar,
   Zap,
+  Terminal,
+  TriangleAlert,
 } from "lucide-react"
 import {
   RepoEntry,
@@ -150,6 +152,8 @@ function CommitCard({
   const [expanded, setExpanded] = useState(false)
   const [expandedFile, setExpandedFile] = useState<string | null>(null)
   const [enhancedCopied, setEnhancedCopied] = useState(false)
+  const [showAmendModal, setShowAmendModal] = useState(false)
+  const [amendCopied, setAmendCopied] = useState(false)
 
   const { plan } = usePlan()
 
@@ -183,6 +187,28 @@ function CommitCard({
     navigator.clipboard.writeText(enhanceResult.suggested_message).then(() => {
       setEnhancedCopied(true)
       setTimeout(() => setEnhancedCopied(false), 2000)
+    })
+  }
+
+  function handleOpenAmendModal(e: React.MouseEvent) {
+    e.stopPropagation()
+    setAmendCopied(false)
+    setShowAmendModal(true)
+  }
+
+  function buildAmendCommand(msg: string): string {
+    const normalized = msg.replace(/\r?\n/g, " ").trim()
+    const escaped = normalized.replace(/'/g, "'\\''")
+    return `git commit --amend -m '${escaped}'`
+  }
+
+  function handleCopyAmendCommand(e: React.MouseEvent) {
+    e.stopPropagation()
+    if (!enhanceResult) return
+    const cmd = buildAmendCommand(enhanceResult.suggested_message)
+    navigator.clipboard.writeText(cmd).then(() => {
+      setAmendCopied(true)
+      setTimeout(() => setAmendCopied(false), 2000)
     })
   }
 
@@ -264,17 +290,117 @@ function CommitCard({
               <p className="text-xs font-mono leading-relaxed" style={{ color: "rgba(255,255,255,0.85)" }}>
                 {enhanceResult.suggested_message}
               </p>
-              <button
-                onClick={handleCopyEnhanced}
-                className="self-start flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-lg transition-all hover:opacity-80"
-                style={{ background: "rgba(139,92,246,0.15)", color: "#c4b5fd", border: "1px solid rgba(139,92,246,0.2)" }}
-              >
-                {enhancedCopied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                {enhancedCopied ? "Copied!" : "Copy message"}
-              </button>
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  onClick={handleCopyEnhanced}
+                  className="flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-lg transition-all hover:opacity-80"
+                  style={{ background: "rgba(139,92,246,0.15)", color: "#c4b5fd", border: "1px solid rgba(139,92,246,0.2)" }}
+                >
+                  {enhancedCopied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                  {enhancedCopied ? "Copied!" : "Copy message"}
+                </button>
+                <button
+                  onClick={handleOpenAmendModal}
+                  className="flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-lg transition-all hover:opacity-80"
+                  style={{ background: "rgba(16,185,129,0.12)", color: "#6ee7b7", border: "1px solid rgba(16,185,129,0.2)" }}
+                >
+                  <Terminal className="w-3 h-3" />
+                  Apply to repo
+                </button>
+              </div>
             </div>
           </motion.div>
         )}
+
+        {/* Amend modal */}
+        <AnimatePresence>
+          {showAmendModal && enhanceResult && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4"
+              style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}
+              onClick={() => setShowAmendModal(false)}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 8 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 8 }}
+                transition={{ duration: 0.18 }}
+                className="w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl"
+                style={{ background: "#0f0f1a", border: "1px solid rgba(139,92,246,0.25)" }}
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="p-5 flex flex-col gap-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Terminal className="w-4 h-4" style={{ color: "#6ee7b7" }} />
+                      <span className="text-sm font-bold text-white">Apply to Last Commit</span>
+                    </div>
+                    <button
+                      onClick={() => setShowAmendModal(false)}
+                      className="text-muted-foreground/40 hover:text-muted-foreground transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <div className="flex items-start gap-2.5 rounded-lg p-3" style={{ background: "rgba(251,191,36,0.07)", border: "1px solid rgba(251,191,36,0.18)" }}>
+                    <TriangleAlert className="w-3.5 h-3.5 mt-0.5 shrink-0" style={{ color: "#fbbf24" }} />
+                    <div className="flex flex-col gap-1">
+                      <p className="text-[11px] leading-relaxed" style={{ color: "#fcd34d" }}>
+                        <strong>Before pushing only.</strong> Amending rewrites the commit history. Only do this if you haven't pushed this commit to a shared branch yet.
+                      </p>
+                      <p className="text-[11px] leading-relaxed" style={{ color: "#fbbf24", opacity: 0.8 }}>
+                        This command targets your <strong>local HEAD</strong> (the most recent unpushed commit), not necessarily the specific commit shown above.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Step 1</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Open a terminal in your project root (the directory containing your <code className="text-xs font-mono bg-white/5 px-1 py-0.5 rounded">.git</code> folder).</p>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Step 2</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Run this command to amend the message on your last commit:</p>
+                    <div className="rounded-lg overflow-hidden" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                      <div className="flex items-center gap-1.5 px-3 py-1.5 border-b border-white/5">
+                        <div className="w-2 h-2 rounded-full bg-red-500/60" />
+                        <div className="w-2 h-2 rounded-full bg-yellow-500/60" />
+                        <div className="w-2 h-2 rounded-full bg-green-500/60" />
+                        <span className="text-[10px] text-muted-foreground/40 ml-1 font-mono">terminal</span>
+                      </div>
+                      <pre className="p-3 text-[11px] font-mono text-emerald-300 leading-relaxed overflow-x-auto whitespace-pre-wrap break-all">
+                        {buildAmendCommand(enhanceResult.suggested_message)}
+                      </pre>
+                    </div>
+                    <button
+                      onClick={handleCopyAmendCommand}
+                      className="self-start flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-all hover:opacity-80"
+                      style={{ background: "rgba(16,185,129,0.12)", color: "#6ee7b7", border: "1px solid rgba(16,185,129,0.2)" }}
+                    >
+                      {amendCopied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                      {amendCopied ? "Copied!" : "Copy command"}
+                    </button>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5 rounded-lg p-3" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Step 3 (optional)</span>
+                    <p className="text-xs text-muted-foreground">If you need to update the remote after amending, use <code className="text-xs font-mono bg-white/5 px-1 py-0.5 rounded">git push --force-with-lease</code> — only safe on branches you own.</p>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
         {isUsageLimit && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}

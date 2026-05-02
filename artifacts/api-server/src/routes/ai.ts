@@ -348,6 +348,7 @@ Rules:
     res.json(data);
   } catch (err) {
     req.log.error({ err }, "Error enhancing commit message");
+    await incrementAiUsage(payload.githubUser.login);
     const data = EnhanceCommitResponse.parse({ suggested_message: getMockEnhancedMessage(sha) });
     res.json(data);
   }

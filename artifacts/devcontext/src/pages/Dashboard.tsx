@@ -103,13 +103,18 @@ function buildCacheKey(entries: RepoEntry[]): string {
 // ─── Vague commit detection ──────────────────────────────────────────────────
 const VAGUE_COMMIT_PREFIXES = new Set([
   "wip", "checkpoint", "temp", "save", "backup", "draft", "todo",
-  "misc", "stuff", "changes", "update", "fix", "commit", "test",
+  "misc", "stuff", "changes", "commit",
 ])
+
+// Conventional commit with a description part: type(scope): desc  or  type: desc
+const CONVENTIONAL_COMMIT_RE = /^(feat|fix|refactor|chore|style|docs|test|perf|build|ci|revert)(\([^)]+\))?: .+/i
 
 function isVagueCommitMessage(message: string): boolean {
   const trimmed = message.trim()
   if (!trimmed) return false
   if (trimmed.endsWith("...")) return true
+  // Well-formed conventional commits are never considered vague
+  if (CONVENTIONAL_COMMIT_RE.test(trimmed)) return false
   if (trimmed.length < 20) return true
   const firstWord = trimmed.toLowerCase().split(/[\s(:]/)[0] ?? ""
   return VAGUE_COMMIT_PREFIXES.has(firstWord)
@@ -145,6 +150,8 @@ function CommitCard({
   const [expanded, setExpanded] = useState(false)
   const [expandedFile, setExpandedFile] = useState<string | null>(null)
   const [enhancedCopied, setEnhancedCopied] = useState(false)
+
+  const { plan } = usePlan()
 
   const { data: detail, isLoading: isDetailLoading } = useGetCommitDetail(
     owner, repo, commit.sha,
@@ -274,21 +281,16 @@ function CommitCard({
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.2 }}
-            className="overflow-hidden"
+            className="overflow-hidden px-3 pb-2"
+            onClick={e => e.stopPropagation()}
           >
-            <div
-              className="mx-3 mb-2 rounded-xl px-3 py-2.5 text-xs text-center"
-              style={{ background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.15)", color: "#f87171" }}
-              onClick={e => e.stopPropagation()}
-            >
-              AI credit limit reached.{" "}
-              <button
-                className="underline underline-offset-2 font-semibold"
-                onClick={e => { e.stopPropagation(); resetEnhance() }}
-              >
-                Upgrade to enhance more commits →
-              </button>
-            </div>
+            <UpgradePrompt
+              inline
+              currentPlan={plan}
+              feature="AI Commit Enhancer"
+              description="Upgrade to enhance more commits and keep your history clean."
+              onDismiss={resetEnhance}
+            />
           </motion.div>
         )}
       </AnimatePresence>

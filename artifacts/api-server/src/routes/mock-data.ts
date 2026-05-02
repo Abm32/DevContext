@@ -68,6 +68,22 @@ export const MOCK_COMMITS: Record<string, Array<{
 }>> = {
   "demo-user/taskflow-web": [
     {
+      sha: "wip0000000000000000000000000000000000000a",
+      message: "wip",
+      author_name: "Demo User",
+      author_email: "demo@devcontext.io",
+      author_date: h(0.5),
+      html_url: "https://github.com/demo-user/taskflow-web/commit/wip0000",
+    },
+    {
+      sha: "checkpoint000000000000000000000000000000b",
+      message: "checkpoint before refactor",
+      author_name: "Demo User",
+      author_email: "demo@devcontext.io",
+      author_date: h(1),
+      html_url: "https://github.com/demo-user/taskflow-web/commit/checkpoint000",
+    },
+    {
       sha: "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
       message: "feat(kanban): add drag-and-drop column reordering",
       author_name: "Demo User",
@@ -202,6 +218,26 @@ export const MOCK_COMMITS: Record<string, Array<{
   ],
 };
 
+export const MOCK_ENHANCED_MESSAGES: Record<string, string> = {
+  "wip0000000000000000000000000000000000000a":
+    "feat(kanban): add real-time task card drag indicator with ghost preview and drop-zone highlighting",
+  "checkpoint000000000000000000000000000000b":
+    "refactor(board): extract BoardColumn into standalone component and move drag state to useKanbanStore hook",
+  a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2:
+    "feat(kanban): implement drag-and-drop column reordering via useDragReorder hook with optimistic UI update (+212 lines across 4 files)",
+  b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3:
+    "fix(auth): resolve infinite redirect loop in useAuth hook when JWT token expires mid-session by adding expiry grace-period check",
+  c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4:
+    "feat(dashboard): add BurndownChart component using Recharts with configurable sprint date range and velocity annotations (+206 lines)",
+};
+
+export function getMockEnhancedMessage(sha: string): string {
+  return (
+    MOCK_ENHANCED_MESSAGES[sha] ??
+    "refactor: extract reusable hook, improve error handling, and add inline comments for maintainability"
+  );
+}
+
 export const MOCK_COMMIT_DETAILS: Record<string, {
   sha: string;
   message: string;
@@ -211,6 +247,30 @@ export const MOCK_COMMIT_DETAILS: Record<string, {
   files: Array<{ filename: string; status: string; additions: number; deletions: number; changes: number; patch: string | null }>;
   stats: { additions: number; deletions: number; total: number };
 }> = {
+  "wip0000000000000000000000000000000000000a": {
+    sha: "wip0000000000000000000000000000000000000a",
+    message: "wip",
+    author_name: "Demo User",
+    author_date: h(0.5),
+    html_url: "https://github.com/demo-user/taskflow-web/commit/wip0000",
+    files: [
+      { filename: "src/components/TaskCard.tsx", status: "modified", additions: 34, deletions: 8, changes: 42, patch: null },
+      { filename: "src/hooks/useDragIndicator.ts", status: "added", additions: 28, deletions: 0, changes: 28, patch: null },
+    ],
+    stats: { additions: 62, deletions: 8, total: 70 },
+  },
+  "checkpoint000000000000000000000000000000b": {
+    sha: "checkpoint000000000000000000000000000000b",
+    message: "checkpoint before refactor",
+    author_name: "Demo User",
+    author_date: h(1),
+    html_url: "https://github.com/demo-user/taskflow-web/commit/checkpoint000",
+    files: [
+      { filename: "src/components/BoardColumn.tsx", status: "modified", additions: 18, deletions: 3, changes: 21, patch: null },
+      { filename: "src/store/kanban.ts", status: "added", additions: 45, deletions: 0, changes: 45, patch: null },
+    ],
+    stats: { additions: 63, deletions: 3, total: 66 },
+  },
   a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2: {
     sha: "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
     message: "feat(kanban): add drag-and-drop column reordering",

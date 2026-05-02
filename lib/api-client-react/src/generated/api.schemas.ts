@@ -233,3 +233,13 @@ export type GetRepoDepsParams = {
    */
   files?: string;
 };
+
+export interface EnhanceCommitRequest {
+  owner: string;
+  repo: string;
+  sha: string;
+}
+
+export interface EnhanceCommitResponse {
+  suggested_message: string;
+}

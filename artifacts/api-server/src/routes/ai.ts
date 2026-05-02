@@ -1,9 +1,9 @@
 import { Router, type IRouter } from "express";
-import { SummarizeCommitsBody, SummarizeCommitsResponse } from "@workspace/api-zod";
+import { SummarizeCommitsBody, SummarizeCommitsResponse, EnhanceCommitBody, EnhanceCommitResponse } from "@workspace/api-zod";
 import OpenAI from "openai";
 import { getTokenPayload } from "./auth";
 import { checkAiAllowed, incrementAiUsage } from "./plan";
-import { isMockToken, MOCK_SUMMARIES } from "./mock-data";
+import { isMockToken, MOCK_SUMMARIES, getMockEnhancedMessage } from "./mock-data";
 
 const router: IRouter = Router();
 
@@ -247,6 +247,108 @@ Be specific: reference actual filenames, mention change magnitudes where they ma
     req.log.error({ err }, "Error generating AI summary, falling back to mock");
     const mockData = generateMockSummary(repo_name, commits, mode);
     const data = SummarizeCommitsResponse.parse(mockData);
+    res.json(data);
+  }
+});
+
+router.post("/enhance-commit", async (req, res) => {
+  const payload = getTokenPayload(req);
+  if (!payload) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+
+  const { allowed, reason } = await checkAiAllowed(payload.githubUser.login);
+  if (!allowed) {
+    res.status(402).json({ error: reason ?? "Usage limit reached", code: "USAGE_LIMIT" });
+    return;
+  }
+
+  const parsed = EnhanceCommitBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request body" });
+    return;
+  }
+
+  const { owner, repo, sha } = parsed.data;
+
+  if (isMockToken(payload.githubToken)) {
+    await incrementAiUsage(payload.githubUser.login);
+    const data = EnhanceCommitResponse.parse({ suggested_message: getMockEnhancedMessage(sha) });
+    res.json(data);
+    return;
+  }
+
+  try {
+    const commitRes = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/commits/${sha}`,
+      {
+        headers: {
+          Authorization: `Bearer ${payload.githubToken}`,
+          Accept: "application/vnd.github+json",
+          "X-GitHub-Api-Version": "2022-11-28",
+        },
+      }
+    );
+
+    if (!commitRes.ok) {
+      res.status(commitRes.status).json({ error: "Failed to fetch commit from GitHub" });
+      return;
+    }
+
+    const commit = (await commitRes.json()) as {
+      commit: { message: string };
+      files?: Array<{ filename: string; status: string; additions: number; deletions: number; patch?: string }>;
+      stats?: { additions: number; deletions: number };
+    };
+
+    const files = (commit.files ?? []).slice(0, 20);
+    const fileLines = files.map(f => {
+      const patch = f.patch ? `\n${f.patch.split("\n").slice(0, 15).join("\n")}` : "";
+      return `  ${f.status === "added" ? "+" : f.status === "removed" ? "-" : "~"} ${f.filename} (+${f.additions}/-${f.deletions})${patch}`;
+    }).join("\n");
+    const moreFiles = (commit.files ?? []).length > 20 ? `\n  ... and ${(commit.files ?? []).length - 20} more files` : "";
+
+    const openai = getOpenAIClient();
+
+    if (!openai) {
+      await incrementAiUsage(payload.githubUser.login);
+      const data = EnhanceCommitResponse.parse({ suggested_message: getMockEnhancedMessage(sha) });
+      res.json(data);
+      return;
+    }
+
+    const prompt = `You are an expert at writing clear, conventional Git commit messages. A developer made the following commit with a vague, unhelpful message. Based on the actual file changes, write a single concise conventional commit message that accurately describes what was done.
+
+Original message: "${commit.commit.message}"
+Total: +${commit.stats?.additions ?? 0}/-${commit.stats?.deletions ?? 0} lines
+
+Files changed:
+${fileLines}${moreFiles}
+
+Rules:
+- Use conventional commit format: type(scope): description
+- Types: feat, fix, refactor, chore, style, docs, test, perf
+- Keep the description under 72 characters
+- Be specific: name the key file or concept, describe the change
+- Do NOT include bullet points, newlines, or explanations — only the single commit message line
+- Output ONLY the commit message, nothing else`;
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-5.2",
+      max_completion_tokens: 128,
+      messages: [{ role: "user", content: prompt }],
+    });
+
+    const suggested = completion.choices[0]?.message?.content?.trim() ?? "";
+    if (!suggested) throw new Error("Empty response from AI");
+
+    await incrementAiUsage(payload.githubUser.login);
+    const data = EnhanceCommitResponse.parse({ suggested_message: suggested });
+    res.json(data);
+  } catch (err) {
+    req.log.error({ err }, "Error enhancing commit message");
+    const data = EnhanceCommitResponse.parse({ suggested_message: getMockEnhancedMessage(sha) });
     res.json(data);
   }
 });

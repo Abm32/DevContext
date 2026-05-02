@@ -8,6 +8,7 @@ import {
   useGetMe,
   useListRepos,
   useGetCommitDetail,
+  useEnhanceCommit,
   listBranches,
   getListBranchesQueryKey,
   listCommits,
@@ -99,6 +100,21 @@ function buildCacheKey(entries: RepoEntry[]): string {
   return entries.map(e => `${e.repo.full_name}:${e.branch ?? e.repo.default_branch ?? "default"}`).join("|")
 }
 
+// ─── Vague commit detection ──────────────────────────────────────────────────
+const VAGUE_COMMIT_PREFIXES = new Set([
+  "wip", "checkpoint", "temp", "save", "backup", "draft", "todo",
+  "misc", "stuff", "changes", "update", "fix", "commit", "test",
+])
+
+function isVagueCommitMessage(message: string): boolean {
+  const trimmed = message.trim()
+  if (!trimmed) return false
+  if (trimmed.endsWith("...")) return true
+  if (trimmed.length < 20) return true
+  const firstWord = trimmed.toLowerCase().split(/[\s(:]/)[0] ?? ""
+  return VAGUE_COMMIT_PREFIXES.has(firstWord)
+}
+
 // ─── DiffView ────────────────────────────────────────────────────────────────
 function DiffView({ patch }: { patch: string }) {
   const lines = patch.split("\n")
@@ -128,11 +144,40 @@ function CommitCard({
 }) {
   const [expanded, setExpanded] = useState(false)
   const [expandedFile, setExpandedFile] = useState<string | null>(null)
+  const [enhancedCopied, setEnhancedCopied] = useState(false)
 
   const { data: detail, isLoading: isDetailLoading } = useGetCommitDetail(
     owner, repo, commit.sha,
     { query: { enabled: expanded } }
   )
+
+  const {
+    mutate: enhance,
+    isPending: enhancing,
+    data: enhanceResult,
+    isError: isEnhanceError,
+    error: enhanceErr,
+    reset: resetEnhance,
+  } = useEnhanceCommit()
+
+  const isVague = isVagueCommitMessage(commit.message)
+  const isUsageLimit = isEnhanceError && (enhanceErr as { status?: number } | null)?.status === 402
+
+  function handleEnhance(e: React.MouseEvent) {
+    e.stopPropagation()
+    resetEnhance()
+    setEnhancedCopied(false)
+    enhance({ data: { owner, repo, sha: commit.sha } })
+  }
+
+  function handleCopyEnhanced(e: React.MouseEvent) {
+    e.stopPropagation()
+    if (!enhanceResult) return
+    navigator.clipboard.writeText(enhanceResult.suggested_message).then(() => {
+      setEnhancedCopied(true)
+      setTimeout(() => setEnhancedCopied(false), 2000)
+    })
+  }
 
   return (
     <motion.div
@@ -159,6 +204,20 @@ function CommitCard({
                     {commit._repoName}
                   </span>
                 )}
+                {isVague && !enhanceResult && (
+                  <button
+                    onClick={handleEnhance}
+                    disabled={enhancing}
+                    className="flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-md transition-all disabled:opacity-60 hover:opacity-80"
+                    style={{ background: "rgba(139,92,246,0.12)", color: "#a78bfa", border: "1px solid rgba(139,92,246,0.2)" }}
+                  >
+                    <Sparkles className="w-2.5 h-2.5" />
+                    {enhancing ? "Enhancing…" : "Enhance"}
+                  </button>
+                )}
+                {isEnhanceError && !isUsageLimit && (
+                  <span className="text-[10px] text-red-400/70">AI error — try again</span>
+                )}
               </div>
             </div>
           </div>
@@ -167,6 +226,72 @@ function CommitCard({
           </div>
         </div>
       </div>
+
+      {/* AI Enhanced message result */}
+      <AnimatePresence>
+        {enhanceResult && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div
+              className="mx-3 mb-2 rounded-xl p-3 flex flex-col gap-2"
+              style={{ background: "rgba(139,92,246,0.08)", border: "1px solid rgba(139,92,246,0.18)" }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5">
+                  <Sparkles className="w-3 h-3" style={{ color: "#a78bfa" }} />
+                  <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "#a78bfa" }}>AI Suggested Message</span>
+                </div>
+                <button
+                  onClick={e => { e.stopPropagation(); resetEnhance() }}
+                  className="text-muted-foreground/40 hover:text-muted-foreground transition-colors"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+              <p className="text-xs font-mono leading-relaxed" style={{ color: "rgba(255,255,255,0.85)" }}>
+                {enhanceResult.suggested_message}
+              </p>
+              <button
+                onClick={handleCopyEnhanced}
+                className="self-start flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-lg transition-all hover:opacity-80"
+                style={{ background: "rgba(139,92,246,0.15)", color: "#c4b5fd", border: "1px solid rgba(139,92,246,0.2)" }}
+              >
+                {enhancedCopied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                {enhancedCopied ? "Copied!" : "Copy message"}
+              </button>
+            </div>
+          </motion.div>
+        )}
+        {isUsageLimit && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div
+              className="mx-3 mb-2 rounded-xl px-3 py-2.5 text-xs text-center"
+              style={{ background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.15)", color: "#f87171" }}
+              onClick={e => e.stopPropagation()}
+            >
+              AI credit limit reached.{" "}
+              <button
+                className="underline underline-offset-2 font-semibold"
+                onClick={e => { e.stopPropagation(); resetEnhance() }}
+              >
+                Upgrade to enhance more commits →
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {expanded && (

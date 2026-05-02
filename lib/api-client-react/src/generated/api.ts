@@ -21,6 +21,8 @@ import type {
   Commit,
   CommitDetail,
   DepsReport,
+  EnhanceCommitRequest,
+  EnhanceCommitResponse,
   ErrorResponse,
   GetRepoDepsParams,
   GitHubUser,
@@ -1017,4 +1019,89 @@ export const useSummarizeCommits = <
   TContext
 > => {
   return useMutation(getSummarizeCommitsMutationOptions(options));
+};
+
+/**
+ * @summary Enhance a vague commit message with AI
+ */
+export const getEnhanceCommitUrl = () => {
+  return `/api/ai/enhance-commit`;
+};
+
+export const enhanceCommit = async (
+  enhanceCommitRequest: EnhanceCommitRequest,
+  options?: RequestInit,
+): Promise<EnhanceCommitResponse> => {
+  return customFetch<EnhanceCommitResponse>(getEnhanceCommitUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(enhanceCommitRequest),
+  });
+};
+
+export const getEnhanceCommitMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof enhanceCommit>>,
+    TError,
+    { data: BodyType<EnhanceCommitRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof enhanceCommit>>,
+  TError,
+  { data: BodyType<EnhanceCommitRequest> },
+  TContext
+> => {
+  const mutationKey = ["enhanceCommit"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof enhanceCommit>>,
+    { data: BodyType<EnhanceCommitRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+    return enhanceCommit(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type EnhanceCommitMutationResult = NonNullable<
+  Awaited<ReturnType<typeof enhanceCommit>>
+>;
+export type EnhanceCommitMutationBody = BodyType<EnhanceCommitRequest>;
+export type EnhanceCommitMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Enhance a vague commit message with AI
+ */
+export const useEnhanceCommit = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof enhanceCommit>>,
+    TError,
+    { data: BodyType<EnhanceCommitRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof enhanceCommit>>,
+  TError,
+  { data: BodyType<EnhanceCommitRequest> },
+  TContext
+> => {
+  return useMutation(getEnhanceCommitMutationOptions(options));
 };

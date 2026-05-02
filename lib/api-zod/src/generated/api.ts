@@ -234,3 +234,16 @@ export const SummarizeCommitsResponse = zod.object({
   standup_update: zod.string().nullish(),
   generated_at: zod.string(),
 });
+
+/**
+ * @summary Enhance a vague commit message with AI
+ */
+export const EnhanceCommitBody = zod.object({
+  owner: zod.string(),
+  repo: zod.string(),
+  sha: zod.string(),
+});
+
+export const EnhanceCommitResponse = zod.object({
+  suggested_message: zod.string(),
+});

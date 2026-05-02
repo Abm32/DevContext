@@ -85,6 +85,23 @@ router.get("/repos", async (req, res) => {
   }
 
   try {
+    // Probe GitHub to verify the token actually has repo scope (catches stale/expired/revoked tokens
+    // even if hasRepoAccess was optimistically set to true in an old JWT).
+    const probeRes = await fetch(
+      "https://api.github.com/user/repos?sort=updated&per_page=1&type=owner",
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/vnd.github+json",
+          "X-GitHub-Api-Version": "2022-11-28",
+        },
+      }
+    );
+    if (probeRes.status === 401 || probeRes.status === 403) {
+      res.status(403).json({ error: "repo_access_not_granted" });
+      return;
+    }
+
     // Fetch personal repos, org list, and all-type repos in parallel
     const [personalRepos, orgs, allUserRepos] = await Promise.all([
       ghFetch<GHRepo[]>(

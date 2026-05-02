@@ -1,5 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import jwt from "jsonwebtoken";
+import { randomBytes } from "node:crypto";
 import { GetMeResponse, LogoutResponse } from "@workspace/api-zod";
 
 const router: IRouter = Router();
@@ -8,7 +9,9 @@ const GITHUB_CLIENT_ID = process.env["GITHUB_CLIENT_ID"] ?? "";
 const GITHUB_CLIENT_SECRET = process.env["GITHUB_CLIENT_SECRET"] ?? "";
 const JWT_SECRET = process.env["JWT_SECRET"] ?? "devcontext-jwt-secret-change-in-prod";
 const COOKIE_NAME = "dc_token";
+const OAUTH_STATE_COOKIE = "dc_oauth_state";
 const COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
 
 interface GitHubUser {
   id: number;
@@ -22,6 +25,11 @@ interface TokenPayload {
   githubToken: string;
   githubUser: GitHubUser;
   hasRepoAccess?: boolean;
+}
+
+interface OAuthStatePayload {
+  flow: "login" | "connect-repos";
+  nonce: string;
 }
 
 function getBaseUrl(req: Request): string {
@@ -52,17 +60,48 @@ function setAuthCookie(res: Response, payload: TokenPayload): void {
   });
 }
 
+function setOAuthStateCookie(res: Response, statePayload: OAuthStatePayload): string {
+  const encoded = Buffer.from(JSON.stringify(statePayload)).toString("base64url");
+  res.cookie(OAUTH_STATE_COOKIE, encoded, {
+    httpOnly: true,
+    secure: process.env["NODE_ENV"] === "production",
+    sameSite: "lax",
+    maxAge: OAUTH_STATE_TTL_MS,
+    path: "/",
+  });
+  return encoded;
+}
+
+function verifyOAuthState(req: Request, res: Response, incomingState: string): OAuthStatePayload | null {
+  const stored = req.cookies?.[OAUTH_STATE_COOKIE];
+  res.clearCookie(OAUTH_STATE_COOKIE, { path: "/" });
+
+  if (!stored || stored !== incomingState) {
+    return null;
+  }
+
+  try {
+    const decoded = JSON.parse(Buffer.from(incomingState, "base64url").toString("utf-8")) as OAuthStatePayload;
+    if (!decoded.flow || !decoded.nonce) return null;
+    return decoded;
+  } catch {
+    return null;
+  }
+}
+
 router.get("/github", (req, res) => {
   if (!GITHUB_CLIENT_ID) {
     res.redirect("/?error=missing_client_id");
     return;
   }
   const baseUrl = getBaseUrl(req);
+  const statePayload: OAuthStatePayload = { flow: "login", nonce: randomBytes(16).toString("hex") };
+  const encodedState = setOAuthStateCookie(res, statePayload);
   const params = new URLSearchParams({
     client_id: GITHUB_CLIENT_ID,
     redirect_uri: `${baseUrl}/api/auth/github/callback`,
     scope: "read:user",
-    state: "login",
+    state: encodedState,
   });
   res.redirect(`https://github.com/login/oauth/authorize?${params}`);
 });
@@ -73,23 +112,37 @@ router.get("/github/connect-repos", (req, res) => {
     return;
   }
   const baseUrl = getBaseUrl(req);
+  const statePayload: OAuthStatePayload = { flow: "connect-repos", nonce: randomBytes(16).toString("hex") };
+  const encodedState = setOAuthStateCookie(res, statePayload);
   const params = new URLSearchParams({
     client_id: GITHUB_CLIENT_ID,
     redirect_uri: `${baseUrl}/api/auth/github/callback`,
     scope: "repo read:org",
-    state: "connect-repos",
+    state: encodedState,
   });
   res.redirect(`https://github.com/login/oauth/authorize?${params}`);
 });
 
 router.get("/github/callback", async (req, res) => {
   const { code, state } = req.query;
-  const isRepoConnect = state === "connect-repos";
 
   if (!code || typeof code !== "string") {
     res.redirect("/?error=missing_code");
     return;
   }
+
+  if (!state || typeof state !== "string") {
+    res.redirect("/?error=invalid_state");
+    return;
+  }
+
+  const statePayload = verifyOAuthState(req, res, state);
+  if (!statePayload) {
+    res.redirect("/?error=csrf_state_mismatch");
+    return;
+  }
+
+  const isRepoConnect = statePayload.flow === "connect-repos";
 
   try {
     const tokenRes = await fetch("https://github.com/login/oauth/access_token", {

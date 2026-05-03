@@ -9,6 +9,7 @@ import {
   useListRepos,
   useGetCommitDetail,
   useEnhanceCommit,
+  enhanceCommit,
   listBranches,
   getListBranchesQueryKey,
   listCommits,
@@ -618,6 +619,13 @@ export default function Dashboard() {
   const [showOnboarding, setShowOnboarding] = useState(() => localStorage.getItem("dc_onboarded") !== "true")
   const commitLimit = 30
 
+  // ─── Bulk enhance state ───────────────────────────────────────────────────
+  type BulkEnhanceRow = { sha: string; original: string; owner: string; repo: string; suggested: string | null; error: boolean; isLimitError: boolean }
+  const [bulkEnhancing, setBulkEnhancing] = useState(false)
+  const [bulkEnhanceResults, setBulkEnhanceResults] = useState<BulkEnhanceRow[] | null>(null)
+  const [bulkEnhancePanelOpen, setBulkEnhancePanelOpen] = useState(false)
+  const [bulkCopied, setBulkCopied] = useState<Record<string, boolean>>({})
+
   const dismissOnboarding = () => {
     localStorage.setItem("dc_onboarded", "true")
     setShowOnboarding(false)
@@ -751,6 +759,44 @@ export default function Dashboard() {
     if (!mergedCommits.length) return null
     return computeCommitStats(mergedCommits)
   }, [mergedCommits])
+
+  // ─── Vague commits (for bulk enhance) ────────────────────────────────────
+  const vagueCommits = useMemo(() =>
+    mergedCommits.filter(c => isVagueCommitMessage(c.message)),
+    [mergedCommits]
+  )
+
+  async function handleBulkEnhance() {
+    if (!vagueCommits.length || bulkEnhancing) return
+    setBulkEnhancing(true)
+    setBulkEnhanceResults(null)
+    setBulkEnhancePanelOpen(true)
+    setBulkCopied({})
+    void track("click:bulk_enhance_commits", { page: "/dashboard", element: "bulk_enhance_btn", metadata: { count: vagueCommits.length } })
+    const results = await Promise.all(
+      vagueCommits.map(async (commit) => {
+        const owner = selectedRepos[commit._repoIdx]?.repo.full_name.split("/")[0] ?? primaryOwner
+        const repo = commit._repoName
+        try {
+          const res = await enhanceCommit({ owner, repo, sha: commit.sha })
+          return { sha: commit.sha, original: commit.message, owner, repo, suggested: res.suggested_message, error: false, isLimitError: false }
+        } catch (err) {
+          const isLimitError = (err as { status?: number })?.status === 402
+          return { sha: commit.sha, original: commit.message, owner, repo, suggested: null, error: true, isLimitError }
+        }
+      })
+    )
+    setBulkEnhanceResults(results)
+    setBulkEnhancing(false)
+    void refetchPlan()
+  }
+
+  function handleBulkCopy(sha: string, message: string) {
+    navigator.clipboard.writeText(message).then(() => {
+      setBulkCopied(prev => ({ ...prev, [sha]: true }))
+      setTimeout(() => setBulkCopied(prev => ({ ...prev, [sha]: false })), 2000)
+    })
+  }
 
   // ─── Auth / lifecycle effects ─────────────────────────────────────────────
   useEffect(() => { if (isError) setLocation("/") }, [isError, setLocation])
@@ -1475,7 +1521,144 @@ export default function Dashboard() {
 
           {/* Commit List */}
           <div className="flex flex-col gap-3 flex-1 overflow-hidden">
-            <h2 className="text-[10px] font-bold uppercase tracking-widest shrink-0" style={{ color: "rgba(255,255,255,0.25)" }}>Recent Commits</h2>
+            <div className="flex items-center justify-between shrink-0">
+              <h2 className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.25)" }}>Recent Commits</h2>
+              {vagueCommits.length >= 2 && !bulkEnhanceResults && (
+                <button
+                  onClick={() => void handleBulkEnhance()}
+                  disabled={bulkEnhancing}
+                  className="flex items-center gap-1.5 text-[10px] font-semibold px-2 py-1 rounded-lg transition-all disabled:opacity-60 hover:opacity-80"
+                  style={{ background: "rgba(139,92,246,0.12)", color: "#a78bfa", border: "1px solid rgba(139,92,246,0.2)" }}
+                  title={`Enhance all ${vagueCommits.length} vague commits`}
+                >
+                  <Sparkles className="w-2.5 h-2.5" />
+                  {bulkEnhancing ? "Enhancing…" : `Enhance all vague (${vagueCommits.length})`}
+                  {usage.ai_analyses.limit < 9999 && (
+                    <span
+                      className="ml-0.5 text-[9px] font-bold px-1 py-px rounded"
+                      style={{ background: "rgba(139,92,246,0.2)", color: "#c4b5fd" }}
+                    >
+                      {vagueCommits.length} credit{vagueCommits.length !== 1 ? "s" : ""}
+                    </span>
+                  )}
+                </button>
+              )}
+              {bulkEnhanceResults && (
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => { setBulkEnhanceResults(null); setBulkEnhancePanelOpen(false); setBulkCopied({}) }}
+                    className="text-[10px] font-medium transition-colors hover:text-white/60"
+                    style={{ color: "#475569" }}
+                  >
+                    Clear results
+                  </button>
+                  <button
+                    onClick={() => setBulkEnhancePanelOpen(o => !o)}
+                    className="flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-lg transition-all hover:opacity-80"
+                    style={{ background: "rgba(139,92,246,0.12)", color: "#a78bfa", border: "1px solid rgba(139,92,246,0.2)" }}
+                  >
+                    <Sparkles className="w-2.5 h-2.5" />
+                    {bulkEnhancePanelOpen ? "Hide results" : `Show results (${bulkEnhanceResults.length})`}
+                    <ChevronDown className={`w-2.5 h-2.5 transition-transform ${bulkEnhancePanelOpen ? "rotate-180" : ""}`} />
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Bulk enhance results panel */}
+            <AnimatePresence>
+              {(bulkEnhancing || (bulkEnhancePanelOpen && bulkEnhanceResults)) && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden shrink-0"
+                >
+                  <div
+                    className="rounded-xl p-3 flex flex-col gap-2"
+                    style={{ background: "rgba(139,92,246,0.06)", border: "1px solid rgba(139,92,246,0.18)" }}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <Sparkles className="w-3 h-3" style={{ color: "#a78bfa" }} />
+                        <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "#a78bfa" }}>
+                          Bulk AI Enhancement
+                        </span>
+                        {bulkEnhancing && (
+                          <span className="text-[10px]" style={{ color: "#c4b5fd" }}>
+                            — processing {vagueCommits.length} commit{vagueCommits.length !== 1 ? "s" : ""}…
+                          </span>
+                        )}
+                      </div>
+                      {bulkEnhancing && (
+                        <span className="w-3.5 h-3.5 border-2 rounded-full animate-spin shrink-0" style={{ borderColor: "rgba(167,139,250,0.3)", borderTopColor: "#a78bfa" }} />
+                      )}
+                    </div>
+
+                    {bulkEnhancing && (
+                      <p className="text-[11px]" style={{ color: "rgba(196,181,253,0.6)" }}>
+                        Running {vagueCommits.length} enhancement{vagueCommits.length !== 1 ? "s" : ""} in parallel…
+                        {usage.ai_analyses.limit < 9999 && (
+                          <span className="ml-1" style={{ color: "#a78bfa" }}>({vagueCommits.length} credit{vagueCommits.length !== 1 ? "s" : ""} will be used)</span>
+                        )}
+                      </p>
+                    )}
+
+                    {bulkEnhanceResults && (
+                      <div className="flex flex-col gap-2">
+                        {bulkEnhanceResults.map((row) => (
+                          <div
+                            key={row.sha}
+                            className="rounded-lg p-2.5 flex flex-col gap-1.5"
+                            style={{ background: "rgba(0,0,0,0.2)", border: "1px solid rgba(255,255,255,0.06)" }}
+                          >
+                            <p className="text-[10px] font-mono line-clamp-1" style={{ color: "rgba(255,255,255,0.35)" }}>
+                              <span className="font-semibold" style={{ color: "rgba(255,255,255,0.2)" }}>{getShortSha(row.sha)}</span>
+                              {" "}{row.original}
+                            </p>
+                            {row.error ? (
+                              row.isLimitError ? (
+                                <div className="flex items-center justify-between gap-2">
+                                  <p className="text-[11px] flex items-center gap-1" style={{ color: "#fbbf24" }}>
+                                    <Zap className="w-3 h-3 shrink-0" />
+                                    AI credit limit reached
+                                  </p>
+                                  <UpgradeButton plan={plan === "free" ? "plus" : plan === "plus" ? "pro" : "team"} className="!text-[10px] !px-2 !py-0.5 !rounded-md" />
+                                </div>
+                              ) : (
+                                <p className="text-[11px] flex items-center gap-1" style={{ color: "#f87171" }}>
+                                  <X className="w-3 h-3 shrink-0" />
+                                  Enhancement failed
+                                </p>
+                              )
+                            ) : row.suggested ? (
+                              <div className="flex items-start justify-between gap-2">
+                                <p className="text-[11px] font-mono leading-relaxed flex-1" style={{ color: "rgba(255,255,255,0.85)" }}>
+                                  {row.suggested}
+                                </p>
+                                <button
+                                  onClick={() => handleBulkCopy(row.sha, row.suggested!)}
+                                  className="flex items-center gap-1 shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded transition-all hover:opacity-80"
+                                  style={{ background: "rgba(139,92,246,0.15)", color: "#c4b5fd", border: "1px solid rgba(139,92,246,0.2)" }}
+                                >
+                                  {bulkCopied[row.sha] ? <Check className="w-2.5 h-2.5" /> : <Copy className="w-2.5 h-2.5" />}
+                                  {bulkCopied[row.sha] ? "Copied!" : "Copy"}
+                                </button>
+                              </div>
+                            ) : null}
+                          </div>
+                        ))}
+                        <p className="text-[10px] text-center" style={{ color: "rgba(255,255,255,0.2)" }}>
+                          {bulkEnhanceResults.filter(r => !r.error).length} of {bulkEnhanceResults.length} enhanced successfully
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             <div className="flex-1 overflow-y-auto scrollbar-hide pr-2 pb-4">
               {!selectedRepo ? (
                 needsRepoConnection ? (

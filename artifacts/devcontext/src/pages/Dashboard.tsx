@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react"
-import { useQuery, useQueries } from "@tanstack/react-query"
+import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query"
 import { useLocation } from "wouter"
 import { motion, AnimatePresence } from "framer-motion"
 import { formatRelativeDate, getShortSha } from "@/lib/utils"
@@ -156,7 +156,9 @@ function CommitCard({
   const [showAmendModal, setShowAmendModal] = useState(false)
   const [amendCopied, setAmendCopied] = useState(false)
 
-  const { plan } = usePlan()
+  const { plan, usage } = usePlan()
+  const aiRemaining = usage.ai_analyses.limit - usage.ai_analyses.used
+  const queryClient = useQueryClient()
 
   const { data: detail, isLoading: isDetailLoading } = useGetCommitDetail(
     owner, repo, commit.sha,
@@ -180,7 +182,17 @@ function CommitCard({
     resetEnhance()
     setEnhancedCopied(false)
     void track("click:enhance_commit", { page: "/dashboard", element: "enhance_commit_btn", metadata: { sha: commit.sha.slice(0, 7), repo } })
-    enhance({ data: { owner, repo, sha: commit.sha } })
+    enhance(
+      { data: { owner, repo, sha: commit.sha } },
+      {
+        onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["plan", "me"] }),
+        onError: (err) => {
+          if ((err as { status?: number })?.status === 402) {
+            void queryClient.invalidateQueries({ queryKey: ["plan", "me"] })
+          }
+        },
+      }
+    )
   }
 
   function handleCopyEnhanced(e: React.MouseEvent) {
@@ -240,15 +252,29 @@ function CommitCard({
                   </span>
                 )}
                 {isVague && !enhanceResult && (
-                  <button
-                    onClick={handleEnhance}
-                    disabled={enhancing}
-                    className="flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-md transition-all disabled:opacity-60 hover:opacity-80"
-                    style={{ background: "rgba(139,92,246,0.12)", color: "#a78bfa", border: "1px solid rgba(139,92,246,0.2)" }}
-                  >
-                    <Sparkles className="w-2.5 h-2.5" />
-                    {enhancing ? "Enhancing…" : "Enhance"}
-                  </button>
+                  <span className="flex items-center gap-1">
+                    <button
+                      onClick={handleEnhance}
+                      disabled={enhancing}
+                      className="flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-md transition-all disabled:opacity-60 hover:opacity-80"
+                      style={{ background: "rgba(139,92,246,0.12)", color: "#a78bfa", border: "1px solid rgba(139,92,246,0.2)" }}
+                    >
+                      <Sparkles className="w-2.5 h-2.5" />
+                      {enhancing ? "Enhancing…" : "Enhance"}
+                    </button>
+                    {usage.ai_analyses.limit < 9999 && (
+                      <span
+                        className="text-[9px] font-semibold px-1.5 py-0.5 rounded"
+                        style={{
+                          background: aiRemaining <= 0 ? "rgba(239,68,68,0.12)" : aiRemaining <= 3 ? "rgba(245,158,11,0.1)" : "rgba(255,255,255,0.05)",
+                          color: aiRemaining <= 0 ? "#f87171" : aiRemaining <= 3 ? "#fbbf24" : "#64748b",
+                          border: aiRemaining <= 0 ? "1px solid rgba(239,68,68,0.2)" : aiRemaining <= 3 ? "1px solid rgba(245,158,11,0.2)" : "1px solid rgba(255,255,255,0.08)",
+                        }}
+                      >
+                        {Math.max(0, aiRemaining)} left
+                      </span>
+                    )}
+                  </span>
                 )}
                 {isEnhanceError && !isUsageLimit && (
                   <button
@@ -532,6 +558,7 @@ export default function Dashboard() {
 
   // ─── Plan & feature gates ──────────────────────────────────────────────────
   const { plan, features, usage, isFreeTier, refetch: refetchPlan } = usePlan()
+  const aiRemaining = usage.ai_analyses.limit - usage.ai_analyses.used
   // max_repos: 1 (free) / 3 (plus) / 10 (pro) / 9999 sentinel (team = unlimited).
   // useQueries pipeline supports dynamic repo counts; no fixed slot ceiling.
   // REPO_COLORS cycles via i % REPO_COLORS.length for repos beyond index 10.
@@ -1772,6 +1799,29 @@ export default function Dashboard() {
                 <span className="text-[10px] hidden md:inline" style={{ color: "rgba(255,255,255,0.2)" }}>← select a repo first</span>
               )}
             </div>
+
+            {/* Low credits nudge — shown for free-tier users when ≤ 1 credit remains */}
+            <AnimatePresence>
+              {isFreeTier && usage.ai_analyses.limit < 9999 && aiRemaining <= 1 && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden"
+                >
+                  <div className="mx-3 md:mx-5 mb-3 flex items-center gap-2.5 rounded-xl px-3.5 py-2.5"
+                    style={{ background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.2)" }}>
+                    <Zap className="w-3.5 h-3.5 shrink-0" style={{ color: "#fbbf24" }} />
+                    <p className="text-[11px] flex-1" style={{ color: "#fcd34d" }}>
+                      <span className="font-semibold">{aiRemaining === 0 ? "No" : aiRemaining} AI credit{aiRemaining !== 1 ? "s" : ""} left</span> this month.{" "}
+                      Upgrade to keep the momentum going.
+                    </p>
+                    <UpgradeButton plan="plus" className="!text-[11px] !px-2.5 !py-1 !rounded-lg" />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 md:p-6 relative min-w-0">
               {!selectedRepo ? (

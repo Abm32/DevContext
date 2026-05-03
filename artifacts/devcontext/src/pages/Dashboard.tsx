@@ -1196,23 +1196,36 @@ export default function Dashboard() {
                     ? "Compare Repos"
                     : `Repositories (max ${maxRepos})`}
               </h2>
-              {/* Compare mode toggle — Pro feature */}
-              <button
-                onClick={() => features.compare_mode ? handleToggleMultiRepoMode() : setShowCompareUpgrade(v => !v)}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-semibold uppercase tracking-wide transition-all"
-                style={multiRepoMode
-                  ? { background: "rgba(139,92,246,0.15)", color: "#a78bfa", border: "1px solid rgba(139,92,246,0.25)" }
-                  : { background: "rgba(255,255,255,0.04)", color: "#475569", border: "1px solid rgba(255,255,255,0.08)" }}
-                title={features.compare_mode
-                  ? (multiRepoMode
-                    ? "Exit compare mode (keeps first repo)"
-                    : `Compare up to ${maxRepos} repos side by side`)
-                  : "Upgrade to unlock compare mode"}
-              >
-                <Layers className="w-3 h-3" />
-                {multiRepoMode ? "Exit Compare" : "Compare"}
-                {!features.compare_mode && <span style={{ fontSize: "8px", color: "#a78bfa", fontWeight: 800 }}>PLUS+</span>}
-              </button>
+              <div className="flex items-center gap-2">
+                {!needsRepoConnection && repos && repos.length > 0 && (
+                  <a
+                    href={`${import.meta.env.BASE_URL}api/auth/github/connect-repos`}
+                    className="flex items-center gap-1 text-[10px] font-medium transition-colors hover:text-white/60"
+                    style={{ color: "#374151" }}
+                    title="Add more repositories or change which repos DevContext can access"
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                    Manage access
+                  </a>
+                )}
+                {/* Compare mode toggle — Pro feature */}
+                <button
+                  onClick={() => features.compare_mode ? handleToggleMultiRepoMode() : setShowCompareUpgrade(v => !v)}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-semibold uppercase tracking-wide transition-all"
+                  style={multiRepoMode
+                    ? { background: "rgba(139,92,246,0.15)", color: "#a78bfa", border: "1px solid rgba(139,92,246,0.25)" }
+                    : { background: "rgba(255,255,255,0.04)", color: "#475569", border: "1px solid rgba(255,255,255,0.08)" }}
+                  title={features.compare_mode
+                    ? (multiRepoMode
+                      ? "Exit compare mode (keeps first repo)"
+                      : `Compare up to ${maxRepos} repos side by side`)
+                    : "Upgrade to unlock compare mode"}
+                >
+                  <Layers className="w-3 h-3" />
+                  {multiRepoMode ? "Exit Compare" : "Compare"}
+                  {!features.compare_mode && <span style={{ fontSize: "8px", color: "#a78bfa", fontWeight: 800 }}>PLUS+</span>}
+                </button>
+              </div>
             </div>
             {/* Compare upgrade nudge */}
             <AnimatePresence>
@@ -1346,6 +1359,18 @@ export default function Dashboard() {
                 </div>
               )}
             </div>
+            {/* Add repos button — shown when repos are loaded */}
+            {!isReposLoading && repos && repos.length > 0 && (
+              <a
+                href={`${import.meta.env.BASE_URL}api/auth/github/connect-repos`}
+                className="flex items-center justify-center gap-1.5 w-full py-1.5 rounded-lg text-[11px] font-medium transition-colors hover:text-white/60"
+                style={{ color: "#374151", border: "1px dashed rgba(255,255,255,0.07)" }}
+                title="Add more repositories or change access"
+              >
+                <Plus className="w-3 h-3" />
+                Add repos
+              </a>
+            )}
             {/* Org access note — shown once repos have loaded, hidden on mobile */}
             {!isReposLoading && repos && repos.length > 0 && (
               <div className="hidden md:flex px-3 pb-2 items-start gap-1.5 text-[11px] text-muted-foreground/60 leading-snug">
